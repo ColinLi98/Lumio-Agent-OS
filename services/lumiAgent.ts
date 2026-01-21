@@ -15,6 +15,7 @@ import * as GeminiService from "./geminiService";
 import { ConversationMessage } from "./geminiService";
 import { getToolByName } from "./agentTools";
 import { trackAiCall } from "../components/PrivacyPanel";
+import { recordInteraction, addInterestTag } from "./localStorageService";
 
 // Simple Privacy Regex Patterns (Client-side PrivacyGuard)
 const PRIVACY_PATTERNS = {
@@ -257,6 +258,18 @@ export class LumiAgent {
                 needsApiCall: false
               }
             };
+          }
+
+          // Record tool usage for digital avatar
+          recordInteraction('tool_used', {
+            toolName: toolCall.name,
+            args: toolCall.args,
+            success: toolResult.success
+          });
+
+          // Add interest tag based on tool type
+          if (toolResult.success) {
+            addInterestTag(toolCall.name, 0.6);
           }
 
           return {

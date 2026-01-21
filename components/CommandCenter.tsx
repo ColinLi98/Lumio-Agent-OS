@@ -3,9 +3,10 @@ import { SoulMatrix, PolicyConfig } from '../types';
 import { ApiKeyState } from '../services/apiKeyManager';
 import { Button } from './Button';
 import { MemoryPanel } from './MemoryPanel';
+import { DigitalAvatarPanel } from './DigitalAvatarPanel';
 import { PrivacyPanel } from './PrivacyPanel';
 import { PreferencePanel } from './PreferencePanel';
-import { Settings, Terminal, Shield, Zap, Key, Eye, EyeOff, Check, X, Loader2, Trash2 } from 'lucide-react';
+import { Settings, Terminal, Shield, Zap, Key, Eye, EyeOff, Check, X, Loader2, Trash2, Sparkles } from 'lucide-react';
 
 interface CommandCenterProps {
   soul: SoulMatrix;
@@ -219,6 +220,11 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
       {/* Memory Panel - Knowledge Graph */}
       <div className="mb-4">
         <MemoryPanel />
+      </div>
+
+      {/* Digital Avatar Panel - 数字分身 */}
+      <div className="mb-4 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700">
+        <DigitalAvatarPanel />
       </div>
 
       {/* Privacy Panel - Status & Stats */}

@@ -11,6 +11,7 @@ import { LumiAgent } from '../services/lumiAgent';
 import { ConversationMessage } from '../services/geminiService';
 import { QUICK_TEMPLATES, QuickTemplate } from '../services/quickTemplates';
 import { APP_SCENARIOS, AppScenario, getScenarioById } from '../services/appScenarios';
+import { recordInteraction } from '../services/localStorageService';
 import { Wifi, Battery, Signal, Sparkles, X, Trash2, ChevronDown, Camera } from 'lucide-react';
 
 
@@ -124,6 +125,12 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
     if (mode === InputMode.TYPE) {
       if (inputValue.trim()) {
         setMessages(prev => [...prev, { id: Date.now(), text: inputValue, from: 'me', timestamp: Date.now() }]);
+        // Record message interaction for digital avatar
+        recordInteraction('message_sent', {
+          message: inputValue,
+          messageLength: inputValue.length,
+          scenario: currentScenario.id
+        }, currentScenario.id);
         setInputValue('');
       }
     } else {
@@ -162,6 +169,12 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
     setInputValue(draft.text);
     setMode(InputMode.TYPE); // Exit agent mode to let user edit/send
     setAgentOutput(null);
+    // Record draft selection for digital avatar
+    recordInteraction('draft_selected', {
+      draftId: draft.id,
+      text: draft.text,
+      tone: draft.tone
+    }, currentScenario.id);
     onAgentLog(`User selected draft: ${draft.id}`);
   };
 
@@ -386,6 +399,11 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
             // Add emoji directly to chat
             const newMsg = { id: Date.now(), text: emoji, from: 'me' as const, timestamp: Date.now() };
             setMessages(prev => [...prev, newMsg]);
+            // Record emoji reaction for digital avatar
+            recordInteraction('emoji_reaction', {
+              emoji,
+              scenario: currentScenario.id
+            }, currentScenario.id);
             onAgentLog(`Emoji sent: ${emoji}`);
           }}
         />
