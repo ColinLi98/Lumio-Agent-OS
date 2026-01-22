@@ -13,7 +13,7 @@ import {
 } from "../types";
 import * as GeminiService from "./geminiService";
 import { ConversationMessage } from "./geminiService";
-import { getToolByName } from "./agentTools";
+import { getToolByName, enrichWithSuggestions } from "./agentTools";
 import { trackAiCall } from "../components/PrivacyPanel";
 import { recordInteraction, addInterestTag } from "./localStorageService";
 import { checkAgentBoundary, InteractionLevel, BoundaryCheckResult } from "./agentBoundary";
@@ -144,9 +144,10 @@ export class LumiAgent {
         const searchTool = getToolByName('web_search');
         if (searchTool) {
           const result = await searchTool.execute({ query: rawText });
+          const enrichedResult = await enrichWithSuggestions(result, rawText);
           return {
             type: 'TOOL_RESULT',
-            result: result as ToolResultData,
+            result: enrichedResult as ToolResultData,
             summary: `搜索: ${rawText}`
           };
         }
@@ -157,9 +158,10 @@ export class LumiAgent {
         const saveTool = getToolByName('smart_save');
         if (saveTool) {
           const result = await saveTool.execute({ content: rawText });
+          const enrichedResult = await enrichWithSuggestions(result, rawText);
           return {
             type: 'TOOL_RESULT',
-            result: result as ToolResultData,
+            result: enrichedResult as ToolResultData,
             summary: result.data?.message || '已保存'
           };
         }
@@ -292,10 +294,13 @@ export class LumiAgent {
             addInterestTag(toolCall.name, 0.6);
           }
 
+          // Enrich result with universal smart suggestions
+          const enrichedResult = await enrichWithSuggestions(toolResult, rawText);
+
           return {
             type: 'TOOL_RESULT',
-            result: toolResult as ToolResultData,
-            summary: this.generateToolSummary(toolCall.name, toolResult)
+            result: enrichedResult as ToolResultData,
+            summary: this.generateToolSummary(toolCall.name, enrichedResult)
           };
         }
       }

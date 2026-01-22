@@ -27,7 +27,14 @@ export interface ToolResult {
     data?: any;
     error?: string;
     displayType: 'weather' | 'calculator' | 'translation' | 'calendar' | 'reminder' | 'search' | 'text' | 'write_assist' | 'memory' | 'quick_actions' | 'restaurant';
+    // Universal smart suggestions (added from personalization service)
+    smartSuggestions?: {
+        relatedQueries: string[];
+        quickActions: string[];
+        context?: string;
+    };
 }
+
 
 // =============================================================================
 // TOOL IMPLEMENTATIONS
@@ -1069,8 +1076,67 @@ const searchAssistTool: AgentTool = {
 };
 
 // =============================================================================
+// UNIVERSAL SUGGESTIONS HELPER
+// =============================================================================
+
+/**
+ * Enrich a tool result with universal smart suggestions
+ * This wrapper adds context-aware suggestions to any tool result
+ */
+export async function enrichWithSuggestions(
+    result: ToolResult,
+    query: string,
+    context?: { purpose?: string }
+): Promise<ToolResult> {
+    if (!result.success) return result;
+
+    try {
+        const { generateUniversalSuggestions } = await import('./personalizationService');
+        const suggestions = generateUniversalSuggestions(query, result.toolName, result.data, context);
+
+        return {
+            ...result,
+            smartSuggestions: suggestions,
+            data: {
+                ...result.data,
+                // Also add to data for backwards compatibility with existing components
+                relatedQueries: suggestions.relatedQueries,
+                quickActions: suggestions.quickActions,
+            }
+        };
+    } catch (e) {
+        console.warn('Failed to enrich with suggestions:', e);
+        return result;
+    }
+}
+
+/**
+ * Execute a tool and automatically add smart suggestions
+ */
+export async function executeToolWithSuggestions(
+    toolName: string,
+    params: Record<string, any>,
+    query: string,
+    context?: { purpose?: string }
+): Promise<ToolResult> {
+    const tool = getToolByName(toolName);
+    if (!tool) {
+        return {
+            success: false,
+            toolName,
+            displayType: 'text',
+            error: `Unknown tool: ${toolName}`
+        };
+    }
+
+    const result = await tool.execute(params);
+    return enrichWithSuggestions(result, query, context);
+}
+
+// =============================================================================
 // TOOL REGISTRY
 // =============================================================================
+
 
 export const AGENT_TOOLS: AgentTool[] = [
     weatherTool,

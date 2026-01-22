@@ -1,15 +1,23 @@
 import React from 'react';
 import { ToolResultData } from '../types';
-import { Cloud, Calculator, Languages, Calendar, Bell, Search, AlertCircle, Check, X, PenLine, Brain, ShoppingCart, ExternalLink, Camera, Copy, MapPin, Phone } from 'lucide-react';
+import { Cloud, Calculator, Languages, Calendar, Bell, Search, AlertCircle, Check, X, PenLine, Brain, ShoppingCart, ExternalLink, Camera, Copy, MapPin, Phone, ChevronDown, Clock } from 'lucide-react';
 
 interface ToolResultCardProps {
     result: ToolResultData;
     summary?: string;
     onDismiss?: () => void;
     onDraftClick?: (draft: { id: string; text: string; tone: string }) => void;
+    onSuggestionClick?: (suggestion: string) => void;
+    onViewInApp?: () => void;
 }
 
-export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary, onDismiss, onDraftClick }) => {
+export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary, onDismiss, onDraftClick, onSuggestionClick, onViewInApp }) => {
+    // Extract smart suggestions from result
+    const smartSuggestions = result.smartSuggestions || (result.data && {
+        relatedQueries: result.data.relatedQueries || [],
+        quickActions: result.data.quickActions || [],
+    });
+
     if (!result.success && result.error) {
         return (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mx-2 my-2">
@@ -29,38 +37,199 @@ export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary,
         );
     }
 
-    // Render based on display type
+    // Render based on display type with suggestions support
     switch (result.displayType) {
         case 'weather':
-            return <WeatherCard data={result.data} onDismiss={onDismiss} />;
+            return <WeatherCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
         case 'calculator':
             return <CalculatorCard data={result.data} onDismiss={onDismiss} />;
         case 'translation':
             return <TranslationCard data={result.data} onDismiss={onDismiss} />;
         case 'calendar':
-            return <CalendarCard data={result.data} onDismiss={onDismiss} />;
+            return <CalendarCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
         case 'reminder':
-            return <ReminderCard data={result.data} onDismiss={onDismiss} />;
+            return <ReminderCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
         // 三大核心功能卡片
         case 'write_assist':
-            return <WriteAssistCard data={result.data} onDismiss={onDismiss} onDraftClick={onDraftClick} />;
+            return <WriteAssistCard data={result.data} onDismiss={onDismiss} onDraftClick={onDraftClick} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
         case 'memory':
-            return <MemoryCard data={result.data} onDismiss={onDismiss} />;
+            return <MemoryCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
         case 'quick_actions':
-            return <QuickActionsCard data={result.data} onDismiss={onDismiss} />;
+            return <QuickActionsCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
         case 'ocr_result':
             return <OCRResultCard data={result.data} onDismiss={onDismiss} />;
         case 'search':
-            return <SearchResultCard data={result.data} onDismiss={onDismiss} />;
+            return <SearchResultCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
         case 'restaurant':
-            return <RestaurantCard data={result.data} onDismiss={onDismiss} />;
+            return <RestaurantCard data={result.data} onDismiss={onDismiss} onSuggestionClick={onSuggestionClick} onViewInApp={onViewInApp} />;
         default:
-            return <TextCard data={result.data} summary={summary} onDismiss={onDismiss} />;
+            return <TextCard data={result.data} summary={summary} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
     }
 };
 
+
+// =============================================================================
+// SMART SUGGESTIONS PANEL - Universal suggestion display for all tool types
+// =============================================================================
+
+interface SmartSuggestionsProps {
+    suggestions?: {
+        relatedQueries?: string[];
+        quickActions?: string[];
+    };
+    onSuggestionClick?: (suggestion: string) => void;
+    theme?: 'light' | 'dark';
+}
+
+const SmartSuggestionsPanel: React.FC<SmartSuggestionsProps> = ({ suggestions, onSuggestionClick, theme = 'dark' }) => {
+    if (!suggestions) return null;
+
+    const hasQueries = suggestions.relatedQueries && suggestions.relatedQueries.length > 0;
+    const hasActions = suggestions.quickActions && suggestions.quickActions.length > 0;
+
+    if (!hasQueries && !hasActions) return null;
+
+    const handleClick = (text: string) => {
+        // Remove emoji prefix if present for cleaner search
+        const cleanText = text.replace(/^[^\w\u4e00-\u9fff]+/, '').trim();
+        onSuggestionClick?.(cleanText || text);
+    };
+
+    return (
+        <div className={`smart-suggestions-panel ${theme}`}>
+            {hasQueries && (
+                <div className="suggestion-row">
+                    <span className="row-label">🔍 相关</span>
+                    <div className="chips-container">
+                        {suggestions.relatedQueries!.map((query, i) => (
+                            <button
+                                key={i}
+                                className="suggestion-chip query-chip"
+                                onClick={() => handleClick(query)}
+                            >
+                                {query}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+            {hasActions && (
+                <div className="suggestion-row">
+                    <span className="row-label">⚡ 操作</span>
+                    <div className="chips-container">
+                        {suggestions.quickActions!.map((action, i) => (
+                            <button
+                                key={i}
+                                className="suggestion-chip action-chip"
+                                onClick={() => handleClick(action)}
+                            >
+                                {action}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                .smart-suggestions-panel {
+                    margin-top: 12px;
+                    padding-top: 12px;
+                    border-top: 1px solid rgba(255,255,255,0.15);
+                }
+                
+                .smart-suggestions-panel.light {
+                    border-top-color: rgba(0,0,0,0.1);
+                }
+                
+                .suggestion-row {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 8px;
+                    margin-bottom: 8px;
+                }
+                
+                .suggestion-row:last-child {
+                    margin-bottom: 0;
+                }
+                
+                .row-label {
+                    font-size: 11px;
+                    opacity: 0.7;
+                    white-space: nowrap;
+                    padding-top: 4px;
+                    min-width: 40px;
+                }
+                
+                .chips-container {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                    flex: 1;
+                }
+                
+                .suggestion-chip {
+                    padding: 5px 12px;
+                    border-radius: 14px;
+                    font-size: 11px;
+                    border: none;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    white-space: nowrap;
+                }
+                
+                .query-chip {
+                    background: rgba(59, 130, 246, 0.2);
+                    color: #93c5fd;
+                    border: 1px solid rgba(59, 130, 246, 0.3);
+                }
+                
+                .query-chip:hover {
+                    background: rgba(59, 130, 246, 0.4);
+                    color: white;
+                    transform: translateY(-1px);
+                }
+                
+                .action-chip {
+                    background: rgba(16, 185, 129, 0.2);
+                    color: #86efac;
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                }
+                
+                .action-chip:hover {
+                    background: rgba(16, 185, 129, 0.4);
+                    color: white;
+                    transform: translateY(-1px);
+                }
+                
+                .smart-suggestions-panel.light .query-chip {
+                    background: rgba(59, 130, 246, 0.1);
+                    color: #2563eb;
+                    border-color: rgba(59, 130, 246, 0.2);
+                }
+                
+                .smart-suggestions-panel.light .query-chip:hover {
+                    background: rgba(59, 130, 246, 0.2);
+                    color: #1d4ed8;
+                }
+                
+                .smart-suggestions-panel.light .action-chip {
+                    background: rgba(16, 185, 129, 0.1);
+                    color: #059669;
+                    border-color: rgba(16, 185, 129, 0.2);
+                }
+                
+                .smart-suggestions-panel.light .action-chip:hover {
+                    background: rgba(16, 185, 129, 0.2);
+                    color: #047857;
+                }
+            `}</style>
+        </div>
+    );
+};
+
 // Weather Card
-const WeatherCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => (
+
+const WeatherCard: React.FC<{ data: any; onDismiss?: () => void; smartSuggestions?: any; onSuggestionClick?: (s: string) => void }> = ({ data, onDismiss, smartSuggestions, onSuggestionClick }) => (
     <div className="bg-gradient-to-br from-blue-400 to-cyan-500 rounded-xl p-4 mx-2 my-2 text-white shadow-lg">
         <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -84,8 +253,10 @@ const WeatherCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, on
         <div className="mt-3 text-sm opacity-75">
             湿度: {data.humidity}%
         </div>
+        <SmartSuggestionsPanel suggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />
     </div>
 );
+
 
 // Calculator Card
 const CalculatorCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => (
@@ -221,7 +392,7 @@ const ReminderCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, o
 );
 
 // Generic Text Card
-const TextCard: React.FC<{ data: any; summary?: string; onDismiss?: () => void }> = ({ data, summary, onDismiss }) => (
+const TextCard: React.FC<{ data: any; summary?: string; onDismiss?: () => void; smartSuggestions?: any; onSuggestionClick?: (s: string) => void }> = ({ data, summary, onDismiss, smartSuggestions, onSuggestionClick }) => (
     <div className="bg-gradient-to-br from-gray-600 to-gray-700 rounded-xl p-4 mx-2 my-2 text-white shadow-lg">
         <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -237,11 +408,12 @@ const TextCard: React.FC<{ data: any; summary?: string; onDismiss?: () => void }
         <div className="text-sm">
             {summary || JSON.stringify(data, null, 2)}
         </div>
+        <SmartSuggestionsPanel suggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />
     </div>
 );
 
 // Search Result Card - 显示搜索结果详情
-const SearchResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => (
+const SearchResultCard: React.FC<{ data: any; onDismiss?: () => void; smartSuggestions?: any; onSuggestionClick?: (s: string) => void }> = ({ data, onDismiss, smartSuggestions, onSuggestionClick }) => (
     <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl p-4 mx-2 my-2 text-white shadow-lg">
         <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -324,6 +496,7 @@ const SearchResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ dat
         <div className="mt-3 pt-2 border-t border-white/20 text-xs opacity-60 text-center">
             {data.message || `共找到 ${data.results?.length || data.places?.length || 0} 条结果`}
         </div>
+        <SmartSuggestionsPanel suggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />
     </div>
 );
 
@@ -647,212 +820,788 @@ const OCRResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, 
 // 餐厅搜索结果卡片 (约会/精选餐厅)
 // =====================================
 
-const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => {
+const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestionClick?: (suggestion: string) => void; onViewInApp?: () => void }> = ({ data, onDismiss, onSuggestionClick, onViewInApp }) => {
     const isDateMode = data.purpose === 'date';
+    const [selectedIndex, setSelectedIndex] = React.useState(0);
+    const [expandedId, setExpandedId] = React.useState<number | null>(null);
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+    const places = data.places || [];
+    const selectedPlace = places[selectedIndex];
+
+    // Scroll to selected card
+    const scrollToCard = (index: number) => {
+        setSelectedIndex(index);
+        if (scrollContainerRef.current) {
+            const cardWidth = 280;
+            scrollContainerRef.current.scrollTo({
+                left: index * cardWidth,
+                behavior: 'smooth'
+            });
+        }
+    };
 
     return (
-        <div className="restaurant-card-wrapper">
-            {/* Header */}
-            <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-t-xl p-4 text-white">
-                <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xl">💕</span>
-                        <span className="font-medium text-sm opacity-90">
-                            {isDateMode ? '约会餐厅精选' : '餐厅推荐'}
-                        </span>
-                        <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">
-                            {data.places?.length || 0} 家
-                        </span>
+        <div className="restaurant-premium-wrapper">
+            {/* Premium Header with Glassmorphism */}
+            <div className="restaurant-header">
+                <div className="header-bg"></div>
+                <div className="header-content">
+                    <div className="header-left">
+                        <span className="header-icon">{isDateMode ? '💕' : '🍽️'}</span>
+                        <div className="header-text">
+                            <span className="header-title">
+                                {isDateMode ? '约会餐厅精选' : '为您推荐'}
+                            </span>
+                            <span className="header-subtitle">
+                                {data.message || `精选 ${places.length} 家餐厅`}
+                            </span>
+                        </div>
                     </div>
-                    {onDismiss && (
-                        <button onClick={onDismiss} className="text-white/70 hover:text-white">
-                            <X size={16} />
-                        </button>
-                    )}
-                </div>
-                <div className="text-xs opacity-75">
-                    {data.message}
+                    <div className="header-right">
+                        {onViewInApp && (
+                            <button onClick={onViewInApp} className="view-in-app-btn">
+                                📱 在App中查看
+                            </button>
+                        )}
+                        <span className="place-count">{places.length}</span>
+                        {onDismiss && (
+                            <button onClick={onDismiss} className="dismiss-btn">
+                                <X size={16} />
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Restaurant List */}
-            <div className="bg-white rounded-b-xl max-h-80 overflow-y-auto">
-                {data.places?.map((place: any, index: number) => (
+            {/* Horizontal Swipeable Cards */}
+            <div className="cards-container" ref={scrollContainerRef}>
+                {places.map((place: any, index: number) => (
                     <div
                         key={index}
-                        className="restaurant-item border-b border-gray-100 last:border-0 p-4 hover:bg-gray-50 transition-all"
+                        className={`restaurant-card ${selectedIndex === index ? 'active' : ''} ${expandedId === index ? 'expanded' : ''}`}
+                        onClick={() => setSelectedIndex(index)}
                     >
-                        {/* Match Score Badge */}
-                        {place.matchScore && (
-                            <div className="flex items-center justify-between mb-2">
-                                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${place.matchScore >= 80 ? 'bg-green-100 text-green-700' :
-                                        place.matchScore >= 60 ? 'bg-blue-100 text-blue-700' :
-                                            'bg-gray-100 text-gray-600'
-                                    }`}>
-                                    <span>{place.matchScore >= 80 ? '🎯' : place.matchScore >= 60 ? '👍' : '📍'}</span>
-                                    <span>匹配度 {place.matchScore}%</span>
-                                </div>
+                        {/* Card Header with Image Placeholder */}
+                        <div className="card-image">
+                            <div className="card-image-overlay"></div>
+                            <div className="card-badges">
                                 {index === 0 && place.matchScore >= 70 && (
-                                    <span className="text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full">
-                                        ❤️ 最佳推荐
-                                    </span>
+                                    <span className="badge best-match">❤️ 最佳</span>
+                                )}
+                                {place.highlights?.some((h: string) => h.includes('米其林')) && (
+                                    <span className="badge michelin">🌟 米其林</span>
                                 )}
                             </div>
-                        )}
-
-                        {/* Restaurant Header */}
-                        <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-bold text-gray-900">{place.name}</span>
-                                    <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                                        {place.type}
-                                    </span>
-                                    {place.highlights?.some((h: string) => h.includes('米其林')) && (
-                                        <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
-                                            🌟 米其林
-                                        </span>
-                                    )}
+                            {/* Match Score Ring */}
+                            {place.matchScore && (
+                                <div className="match-ring">
+                                    <svg viewBox="0 0 36 36">
+                                        <path
+                                            className="ring-bg"
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        />
+                                        <path
+                                            className="ring-progress"
+                                            strokeDasharray={`${place.matchScore}, 100`}
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        />
+                                    </svg>
+                                    <span className="match-score">{place.matchScore}</span>
                                 </div>
-                                <div className="flex items-center gap-2 mt-1 text-sm">
-                                    <span className="text-yellow-500 font-medium">⭐ {place.rating}</span>
-                                    {place.reviewCount && (
-                                        <span className="text-gray-400 text-xs">
-                                            {place.reviewCount}条评价
-                                        </span>
-                                    )}
-                                    <span className="text-rose-500 font-medium">{place.priceRange || place.priceLevel}</span>
-                                </div>
-                            </div>
+                            )}
+                            <div className="card-type-tag">{place.type}</div>
                         </div>
 
-                        {/* Personalized Note */}
-                        {place.personalNote && (
-                            <div className="bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-100 rounded-lg p-2 mb-2">
-                                <p className="text-xs text-rose-700">{place.personalNote}</p>
-                            </div>
-                        )}
+                        {/* Card Content */}
+                        <div className="card-content">
+                            <h3 className="card-title">{place.name}</h3>
 
-                        {/* Match Reasons */}
-                        {place.matchReasons && place.matchReasons.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
-                                {place.matchReasons.slice(0, 3).map((reason: string, i: number) => (
-                                    <span key={i} className="text-xs text-gray-600 bg-gray-50 px-2 py-0.5 rounded">
-                                        {reason}
-                                    </span>
-                                ))}
+                            <div className="card-meta">
+                                <span className="rating">⭐ {place.rating}</span>
+                                <span className="divider">·</span>
+                                <span className="reviews">{place.reviewCount || '1k+'}评</span>
+                                <span className="divider">·</span>
+                                <span className="price">{place.priceRange || place.priceLevel}</span>
                             </div>
-                        )}
 
-                        {/* Address */}
-                        <div className="text-xs text-gray-500 flex items-center gap-1 mb-2">
-                            <MapPin size={10} />
-                            {place.address}
+                            {/* Atmosphere Pills */}
+                            {place.atmosphere && (
+                                <div className="atmosphere-container">
+                                    {place.atmosphere.slice(0, 3).map((tag: string, i: number) => (
+                                        <span key={i} className="atmosphere-pill">{tag}</span>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Personal Note */}
+                            {place.personalNote && (
+                                <div className="personal-note">
+                                    <span className="note-icon">💡</span>
+                                    <p>{place.personalNote}</p>
+                                </div>
+                            )}
+
+                            {/* Signature Dishes */}
+                            {place.signature && place.signature.length > 0 && (
+                                <div className="signature-dishes">
+                                    <span className="dishes-label">🍴 招牌</span>
+                                    <span className="dishes-list">{place.signature.slice(0, 3).join(' · ')}</span>
+                                </div>
+                            )}
+
+                            {/* Expandable Details */}
+                            <button
+                                className="expand-btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedId(expandedId === index ? null : index);
+                                }}
+                            >
+                                {expandedId === index ? '收起' : '查看详情'}
+                                <ChevronDown size={14} style={{
+                                    transform: expandedId === index ? 'rotate(180deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.2s'
+                                }} />
+                            </button>
+
+                            {/* Expanded Content */}
+                            {expandedId === index && (
+                                <div className="expanded-content">
+                                    <div className="address-line">
+                                        <MapPin size={12} />
+                                        <span>{place.address}</span>
+                                    </div>
+                                    {place.hours && (
+                                        <div className="hours-line">
+                                            <Clock size={12} />
+                                            <span>{place.hours}</span>
+                                        </div>
+                                    )}
+                                    {place.waitTime && (
+                                        <div className="wait-line">
+                                            <Bell size={12} />
+                                            <span>{place.waitTime}</span>
+                                        </div>
+                                    )}
+                                    {place.highlights && (
+                                        <div className="highlights-container">
+                                            {place.highlights.map((h: string, i: number) => (
+                                                <span key={i} className="highlight-tag">✨ {h}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
-
-                        {/* Atmosphere Tags */}
-                        {place.atmosphere && place.atmosphere.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
-                                {place.atmosphere.map((tag: string, i: number) => (
-                                    <span
-                                        key={i}
-                                        className="text-xs px-2 py-0.5 bg-rose-50 text-rose-600 rounded-full"
-                                    >
-                                        {tag}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Signature Dishes */}
-                        {place.signature && place.signature.length > 0 && (
-                            <div className="mb-2">
-                                <span className="text-xs text-gray-400">招牌菜: </span>
-                                <span className="text-xs text-gray-600">
-                                    {place.signature.join(' · ')}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Highlights */}
-                        {place.highlights && place.highlights.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-3">
-                                {place.highlights.map((highlight: string, i: number) => (
-                                    <span
-                                        key={i}
-                                        className="text-xs px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded"
-                                    >
-                                        ✨ {highlight}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
 
                         {/* Action Buttons */}
-                        <div className="flex gap-2 mt-3">
-                            {place.phone && (
-                                <a
-                                    href={`tel:${place.phone}`}
-                                    className="flex-1 flex items-center justify-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg py-2 px-3 text-xs transition-all"
-                                >
-                                    <Phone size={12} />
-                                    <span>电话</span>
-                                </a>
-                            )}
+                        <div className="card-actions">
                             {place.dianpingUrl && (
                                 <a
                                     href={place.dianpingUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex-1 flex items-center justify-center gap-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg py-2 px-3 text-xs transition-all"
+                                    className="action-btn dianping"
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <ExternalLink size={12} />
-                                    <span>大众点评</span>
+                                    <ExternalLink size={14} />
+                                    <span>点评</span>
+                                </a>
+                            )}
+                            {place.phone && (
+                                <a
+                                    href={`tel:${place.phone}`}
+                                    className="action-btn phone"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <Phone size={14} />
+                                    <span>电话</span>
                                 </a>
                             )}
                             {place.bookingAvailable && (
                                 <button
-                                    className="flex-1 flex items-center justify-center gap-1 bg-rose-500 hover:bg-rose-600 text-white rounded-lg py-2 px-3 text-xs transition-all"
-                                    onClick={() => {
-                                        if (place.dianpingUrl) {
-                                            window.open(place.dianpingUrl, '_blank');
-                                        }
+                                    className="action-btn book"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (place.dianpingUrl) window.open(place.dianpingUrl, '_blank');
                                     }}
                                 >
-                                    <Calendar size={12} />
+                                    <Calendar size={14} />
                                     <span>预订</span>
                                 </button>
                             )}
                         </div>
-
-                        {/* Wait Time Notice */}
-                        {place.waitTime && (
-                            <div className="mt-2 text-xs text-amber-600 flex items-center gap-1">
-                                <Bell size={10} />
-                                {place.waitTime}
-                            </div>
-                        )}
-
-                        {/* Hours */}
-                        {place.hours && (
-                            <div className="mt-1 text-xs text-gray-400">
-                                🕐 营业时间: {place.hours}
-                            </div>
-                        )}
                     </div>
                 ))}
             </div>
 
+            {/* Pagination Dots */}
+            {places.length > 1 && (
+                <div className="pagination-dots">
+                    {places.map((_: any, index: number) => (
+                        <button
+                            key={index}
+                            className={`dot ${selectedIndex === index ? 'active' : ''}`}
+                            onClick={() => scrollToCard(index)}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {/* Smart Suggestions Bar */}
+            {selectedPlace && (
+                <div className="smart-suggestions">
+                    {/* Related Queries */}
+                    {selectedPlace.relatedQueries && selectedPlace.relatedQueries.length > 0 && (
+                        <div className="suggestion-section">
+                            <span className="section-label">🔍 相关搜索</span>
+                            <div className="suggestion-chips">
+                                {selectedPlace.relatedQueries.map((query: string, i: number) => (
+                                    <button
+                                        key={i}
+                                        className="suggestion-chip query"
+                                        onClick={() => onSuggestionClick?.(query)}
+                                    >
+                                        {query}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Follow-up Actions */}
+                    {selectedPlace.followUpActions && selectedPlace.followUpActions.length > 0 && (
+                        <div className="suggestion-section">
+                            <span className="section-label">⚡ 快捷操作</span>
+                            <div className="suggestion-chips">
+                                {selectedPlace.followUpActions.map((action: string, i: number) => (
+                                    <button
+                                        key={i}
+                                        className="suggestion-chip action"
+                                        onClick={() => {
+                                            // Handle specific actions
+                                            if (action.includes('预订') && selectedPlace.dianpingUrl) {
+                                                window.open(selectedPlace.dianpingUrl, '_blank');
+                                            } else if (action.includes('电话') && selectedPlace.phone) {
+                                                window.location.href = `tel:${selectedPlace.phone}`;
+                                            } else if (action.includes('评价') && selectedPlace.dianpingUrl) {
+                                                window.open(selectedPlace.dianpingUrl, '_blank');
+                                            } else {
+                                                // Trigger as a new search query
+                                                onSuggestionClick?.(action.replace(/[📅📖📞💐🎬]/g, '').trim());
+                                            }
+                                        }}
+                                    >
+                                        {action}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             <style>{`
-                .restaurant-card-wrapper {
+                .restaurant-premium-wrapper {
                     margin: 8px;
-                    border-radius: 12px;
+                    border-radius: 16px;
                     overflow: hidden;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
                 }
-                
-                .restaurant-item:hover {
-                    transform: translateX(2px);
+
+                .restaurant-header {
+                    position: relative;
+                    padding: 16px;
+                }
+
+                .header-bg {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%);
+                    backdrop-filter: blur(10px);
+                }
+
+                .header-content {
+                    position: relative;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+
+                .header-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .header-icon {
+                    font-size: 24px;
+                    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                }
+
+                .header-text {
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .header-title {
+                    color: white;
+                    font-weight: 600;
+                    font-size: 14px;
+                }
+
+                .header-subtitle {
+                    color: rgba(255,255,255,0.7);
+                    font-size: 11px;
+                    margin-top: 2px;
+                }
+
+                .header-right {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .place-count {
+                    background: rgba(255,255,255,0.2);
+                    color: white;
+                    padding: 4px 10px;
+                    border-radius: 12px;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+
+                .view-in-app-btn {
+                    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+                    border: none;
+                    color: white;
+                    padding: 6px 12px;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-size: 11px;
+                    font-weight: 600;
+                    transition: all 0.2s;
+                }
+
+                .view-in-app-btn:hover {
+                    transform: scale(1.05);
+                    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+                }
+
+                .dismiss-btn {
+                    background: rgba(255,255,255,0.1);
+                    border: none;
+                    color: rgba(255,255,255,0.7);
+                    padding: 6px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .dismiss-btn:hover {
+                    background: rgba(255,255,255,0.2);
+                    color: white;
+                }
+
+                .cards-container {
+                    display: flex;
+                    overflow-x: auto;
+                    scroll-snap-type: x mandatory;
+                    -webkit-overflow-scrolling: touch;
+                    padding: 0 12px 12px;
+                    gap: 12px;
+                    scrollbar-width: none;
+                }
+
+                .cards-container::-webkit-scrollbar {
+                    display: none;
+                }
+
+                .restaurant-card {
+                    flex: 0 0 260px;
+                    scroll-snap-align: start;
+                    background: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
+                    border-radius: 16px;
+                    overflow: hidden;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    border: 1px solid rgba(255,255,255,0.05);
+                }
+
+                .restaurant-card:hover, .restaurant-card.active {
+                    transform: translateY(-4px);
+                    border-color: rgba(236, 72, 153, 0.3);
+                    box-shadow: 0 12px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(236, 72, 153, 0.2);
+                }
+
+                .card-image {
+                    position: relative;
+                    height: 100px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+                    display: flex;
+                    align-items: flex-end;
+                    padding: 10px;
+                }
+
+                .card-image-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%);
+                }
+
+                .card-badges {
+                    position: absolute;
+                    top: 8px;
+                    left: 8px;
+                    display: flex;
+                    gap: 4px;
+                }
+
+                .badge {
+                    font-size: 10px;
+                    padding: 3px 8px;
+                    border-radius: 10px;
+                    font-weight: 600;
+                }
+
+                .badge.best-match {
+                    background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+                    color: white;
+                }
+
+                .badge.michelin {
+                    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                    color: #1a1a2e;
+                }
+
+                .match-ring {
+                    position: absolute;
+                    top: 8px;
+                    right: 8px;
+                    width: 44px;
+                    height: 44px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .match-ring svg {
+                    width: 100%;
+                    height: 100%;
+                    transform: rotate(-90deg);
+                }
+
+                .ring-bg {
+                    fill: none;
+                    stroke: rgba(255,255,255,0.1);
+                    stroke-width: 3;
+                }
+
+                .ring-progress {
+                    fill: none;
+                    stroke: #10b981;
+                    stroke-width: 3;
+                    stroke-linecap: round;
+                    animation: ring-fill 1s ease-out forwards;
+                }
+
+                @keyframes ring-fill {
+                    from { stroke-dasharray: 0, 100; }
+                }
+
+                .match-score {
+                    position: absolute;
+                    color: white;
+                    font-size: 12px;
+                    font-weight: 700;
+                }
+
+                .card-type-tag {
+                    position: relative;
+                    z-index: 1;
+                    background: rgba(255,255,255,0.15);
+                    backdrop-filter: blur(8px);
+                    color: white;
+                    font-size: 10px;
+                    padding: 4px 10px;
+                    border-radius: 8px;
+                    font-weight: 500;
+                }
+
+                .card-content {
+                    padding: 14px;
+                }
+
+                .card-title {
+                    color: white;
+                    font-size: 15px;
+                    font-weight: 600;
+                    margin: 0 0 8px 0;
+                    line-height: 1.3;
+                }
+
+                .card-meta {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 12px;
+                    margin-bottom: 10px;
+                }
+
+                .rating { color: #fbbf24; font-weight: 600; }
+                .divider { color: rgba(255,255,255,0.3); }
+                .reviews { color: rgba(255,255,255,0.5); }
+                .price { color: #f472b6; font-weight: 500; }
+
+                .atmosphere-container {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 4px;
+                    margin-bottom: 10px;
+                }
+
+                .atmosphere-pill {
+                    background: rgba(236, 72, 153, 0.15);
+                    color: #f9a8d4;
+                    font-size: 10px;
+                    padding: 3px 8px;
+                    border-radius: 10px;
+                    border: 1px solid rgba(236, 72, 153, 0.2);
+                }
+
+                .personal-note {
+                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+                    border: 1px solid rgba(16, 185, 129, 0.2);
+                    border-radius: 10px;
+                    padding: 8px 10px;
+                    margin-bottom: 10px;
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 8px;
+                }
+
+                .note-icon { font-size: 12px; }
+
+                .personal-note p {
+                    color: rgba(255,255,255,0.8);
+                    font-size: 11px;
+                    line-height: 1.4;
+                    margin: 0;
+                }
+
+                .signature-dishes {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    margin-bottom: 10px;
+                }
+
+                .dishes-label {
+                    color: rgba(255,255,255,0.5);
+                    font-size: 11px;
+                }
+
+                .dishes-list {
+                    color: rgba(255,255,255,0.7);
+                    font-size: 11px;
+                }
+
+                .expand-btn {
+                    width: 100%;
+                    background: rgba(255,255,255,0.05);
+                    border: none;
+                    color: rgba(255,255,255,0.6);
+                    padding: 8px;
+                    border-radius: 8px;
+                    font-size: 11px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                    transition: all 0.2s;
+                }
+
+                .expand-btn:hover {
+                    background: rgba(255,255,255,0.1);
+                    color: white;
+                }
+
+                .expanded-content {
+                    margin-top: 10px;
+                    padding-top: 10px;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                    animation: fadeIn 0.3s ease-out;
+                }
+
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                .address-line, .hours-line, .wait-line {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    color: rgba(255,255,255,0.5);
+                    font-size: 11px;
+                    margin-bottom: 6px;
+                }
+
+                .wait-line { color: #fbbf24; }
+
+                .highlights-container {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 4px;
+                    margin-top: 8px;
+                }
+
+                .highlight-tag {
+                    background: rgba(99, 102, 241, 0.15);
+                    color: #a5b4fc;
+                    font-size: 10px;
+                    padding: 3px 8px;
+                    border-radius: 8px;
+                }
+
+                .card-actions {
+                    display: flex;
+                    gap: 6px;
+                    padding: 0 14px 14px;
+                }
+
+                .action-btn {
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                    padding: 10px;
+                    border-radius: 10px;
+                    font-size: 11px;
+                    font-weight: 500;
+                    text-decoration: none;
+                    border: none;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .action-btn.dianping {
+                    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+                    color: white;
+                }
+
+                .action-btn.phone {
+                    background: rgba(255,255,255,0.1);
+                    color: white;
+                }
+
+                .action-btn.book {
+                    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+                    color: white;
+                }
+
+                .action-btn:hover {
+                    transform: scale(1.02);
+                    filter: brightness(1.1);
+                }
+
+                .pagination-dots {
+                    display: flex;
+                    justify-content: center;
+                    gap: 6px;
+                    padding: 8px 0 14px;
+                }
+
+                .dot {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    background: rgba(255,255,255,0.2);
+                    border: none;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .dot.active {
+                    width: 20px;
+                    border-radius: 3px;
+                    background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+                }
+
+                .dot:hover:not(.active) {
+                    background: rgba(255,255,255,0.4);
+                }
+
+                /* Smart Suggestions Bar */
+                .smart-suggestions {
+                    padding: 12px 14px;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                    background: rgba(0,0,0,0.2);
+                }
+
+                .suggestion-section {
+                    margin-bottom: 10px;
+                }
+
+                .suggestion-section:last-child {
+                    margin-bottom: 0;
+                }
+
+                .section-label {
+                    display: block;
+                    color: rgba(255,255,255,0.5);
+                    font-size: 10px;
+                    margin-bottom: 6px;
+                    font-weight: 500;
+                }
+
+                .suggestion-chips {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                }
+
+                .suggestion-chip {
+                    padding: 6px 12px;
+                    border-radius: 16px;
+                    font-size: 11px;
+                    border: none;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    white-space: nowrap;
+                }
+
+                .suggestion-chip.query {
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(147, 51, 234, 0.2) 100%);
+                    color: #93c5fd;
+                    border: 1px solid rgba(59, 130, 246, 0.3);
+                }
+
+                .suggestion-chip.query:hover {
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.4) 0%, rgba(147, 51, 234, 0.4) 100%);
+                    color: white;
+                    transform: translateY(-1px);
+                }
+
+                .suggestion-chip.action {
+                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(34, 197, 94, 0.2) 100%);
+                    color: #86efac;
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                }
+
+                .suggestion-chip.action:hover {
+                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.4) 0%, rgba(34, 197, 94, 0.4) 100%);
+                    color: white;
+                    transform: translateY(-1px);
                 }
             `}</style>
         </div>

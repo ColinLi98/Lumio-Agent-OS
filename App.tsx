@@ -82,8 +82,8 @@ const App: React.FC = () => {
           <div className="mb-4 text-center">
             <div className="flex items-center justify-center gap-3">
               <h1 className={`text-2xl font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                <Bot className="text-indigo-500" />
-                Lumi Simulator
+                <img src="/lumi-logo.jpg" alt="Lumi.AI" className="w-10 h-10 rounded-lg object-cover" />
+                Lumi.AI Simulator
               </h1>
               <button
                 onClick={toggleTheme}

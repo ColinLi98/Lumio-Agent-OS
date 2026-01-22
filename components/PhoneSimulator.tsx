@@ -7,6 +7,7 @@ import { PredictionBar } from './PredictionBar';
 import { VoiceButton } from './VoiceButton';
 import { EmojiReactions } from './EmojiReactions';
 import { ImageUploadPanel, ImageUploadButton } from './ImageUploadPanel';
+import { LumiAppOverlay } from './LumiAppOverlay';
 import { InputMode, AgentOutput, AgentInput, SoulMatrix, PolicyConfig, TextDraft, ServiceCard, PrivacyAction, TaskPlan } from '../types';
 import { LumiAgent } from '../services/lumiAgent';
 import { ConversationMessage } from '../services/geminiService';
@@ -83,6 +84,8 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
   const [isLoading, setIsLoading] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
+  const [keyboardCollapsed, setKeyboardCollapsed] = useState(false);
+  const [showAppOverlay, setShowAppOverlay] = useState(false);
 
   const agentRef = useRef<LumiAgent>(new LumiAgent(soul, policy, apiKey));
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -115,6 +118,13 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Auto-collapse keyboard when agent output is shown
+  useEffect(() => {
+    if (agentOutput && agentOutput.type !== 'NONE' && agentOutput.type !== 'ERROR') {
+      setKeyboardCollapsed(true);
+    }
+  }, [agentOutput]);
 
   const handleKeyPress = (key: string) => {
     setInputValue(prev => prev + key);
@@ -290,6 +300,13 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
         onLog={onAgentLog}
       />
 
+      {/* Lumi App Overlay - Full screen results view */}
+      <LumiAppOverlay
+        visible={showAppOverlay}
+        data={agentOutput?.type === 'TOOL_RESULT' ? agentOutput.result?.data : null}
+        onClose={() => setShowAppOverlay(false)}
+      />
+
       {/* Status Bar with Scenario Picker */}
       <div
         className="h-8 flex items-center justify-between px-6 text-xs font-semibold z-10 relative"
@@ -406,6 +423,40 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
           onCardClick={handleCardClick}
           onPrivacyAction={handlePrivacyAction}
           onTaskAction={handleTaskAction}
+          onSuggestionClick={(suggestion) => {
+            // Fill input with suggestion and trigger search
+            setInputValue(suggestion);
+            setAgentOutput(null);
+            onAgentLog(`Suggestion clicked: ${suggestion}`);
+            // Auto-trigger search after a brief delay
+            setTimeout(async () => {
+              setIsLoading(true);
+              const input: AgentInput = {
+                rawText: suggestion,
+                mode: InputMode.AGENT,
+                timestampMs: Date.now(),
+                appContext: { packageName: 'com.chat.app', fieldHints: [], isPasswordField: false }
+              };
+              const conversationHistory: ConversationMessage[] = messages.map(msg => ({
+                role: msg.from === 'user' ? 'user' : 'assistant',
+                content: msg.text
+              }));
+              try {
+                const output = await agentRef.current.handle(input, conversationHistory, currentScenario.agentPromptHint);
+                onAgentLog(`Suggestion search result: ${JSON.stringify(output)}`);
+                setAgentOutput(output);
+              } catch (e) {
+                onAgentLog(`Suggestion search error: ${e}`);
+                setAgentOutput({ type: 'ERROR', message: 'Search failed' });
+              } finally {
+                setIsLoading(false);
+              }
+            }, 100);
+          }}
+          onViewInApp={() => {
+            setShowAppOverlay(true);
+            onAgentLog('Opening in Lumi App view');
+          }}
           onClear={() => setAgentOutput(null)}
         />
 
@@ -539,14 +590,25 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
           )}
         </div>
 
-        {/* Keyboard */}
-        <Keyboard
-          onKeyPress={handleKeyPress}
-          onDelete={handleDelete}
-          onEnter={handleEnter}
-          onModeChange={setMode}
-          currentMode={mode}
-        />
+        {/* Keyboard - Collapsible */}
+        {keyboardCollapsed ? (
+          <div
+            className="py-3 bg-gray-100 border-t border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors"
+            onClick={() => setKeyboardCollapsed(false)}
+          >
+            <div className="flex items-center justify-center gap-2 text-gray-500">
+              <span className="text-xs">⌨️ 点击展开键盘</span>
+            </div>
+          </div>
+        ) : (
+          <Keyboard
+            onKeyPress={handleKeyPress}
+            onDelete={handleDelete}
+            onEnter={handleEnter}
+            onModeChange={setMode}
+            currentMode={mode}
+          />
+        )}
       </div>
 
       {/* Home Indicator */}

@@ -9,6 +9,8 @@ interface CandidateBarProps {
   onCardClick: (card: ServiceCard) => void;
   onPrivacyAction: (action: PrivacyAction, confirm: boolean) => void;
   onTaskAction?: (task: TaskPlan, action: 'confirm' | 'cancel') => void;
+  onSuggestionClick?: (suggestion: string) => void;
+  onViewInApp?: () => void;
   onClear: () => void;
 }
 
@@ -18,12 +20,14 @@ export const CandidateBar: React.FC<CandidateBarProps> = ({
   onCardClick,
   onPrivacyAction,
   onTaskAction,
+  onSuggestionClick,
+  onViewInApp,
   onClear
 }) => {
   if (!output || output.type === 'NONE') return null;
 
   return (
-    <div className="w-full bg-gray-50 border-t border-gray-200 p-2 overflow-x-auto max-h-48 flex flex-col relative animate-in slide-in-from-bottom duration-300">
+    <div className="w-full bg-gray-50 border-t border-gray-200 p-2 overflow-y-auto max-h-[400px] flex flex-col relative animate-in slide-in-from-bottom duration-300">
       <button onClick={onClear} className="absolute top-1 right-1 text-gray-400 hover:text-gray-600 z-10">
         <X size={16} />
       </button>
@@ -103,6 +107,8 @@ export const CandidateBar: React.FC<CandidateBarProps> = ({
           result={output.result}
           summary={output.summary}
           onDismiss={onClear}
+          onSuggestionClick={onSuggestionClick}
+          onViewInApp={onViewInApp}
         />
       )}
 

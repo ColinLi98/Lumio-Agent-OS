@@ -74,9 +74,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
   return (
     <div className="flex-1 bg-gray-900 text-gray-200 p-6 rounded-2xl overflow-y-auto flex flex-col shadow-xl max-h-[85vh]">
       <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-800">
-        <div className="p-2 bg-indigo-600 rounded-lg">
-          <Terminal size={24} className="text-white" />
-        </div>
+        <img src="/lumi-logo.jpg" alt="Lumi.AI" className="w-10 h-10 rounded-lg object-cover" />
         <div>
           <h2 className="text-xl font-bold text-white">Lumi Command Center</h2>
           <p className="text-xs text-gray-400">Agent Configuration & Debug Console</p>
@@ -164,8 +162,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                       setModelPreference(option.id);
                     }}
                     className={`flex-1 py-2 px-2 text-xs rounded-lg border transition-all ${modelPreference === option.id
-                        ? 'bg-yellow-600/30 border-yellow-500 text-yellow-400'
-                        : 'border-gray-600 text-gray-400 hover:bg-gray-700'
+                      ? 'bg-yellow-600/30 border-yellow-500 text-yellow-400'
+                      : 'border-gray-600 text-gray-400 hover:bg-gray-700'
                       }`}
                   >
                     <div className="font-medium">{option.label}</div>
