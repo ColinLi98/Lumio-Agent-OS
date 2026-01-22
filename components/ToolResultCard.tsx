@@ -50,6 +50,8 @@ export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary,
             return <QuickActionsCard data={result.data} onDismiss={onDismiss} />;
         case 'ocr_result':
             return <OCRResultCard data={result.data} onDismiss={onDismiss} />;
+        case 'search':
+            return <SearchResultCard data={result.data} onDismiss={onDismiss} />;
         default:
             return <TextCard data={result.data} summary={summary} onDismiss={onDismiss} />;
     }
@@ -232,6 +234,93 @@ const TextCard: React.FC<{ data: any; summary?: string; onDismiss?: () => void }
         </div>
         <div className="text-sm">
             {summary || JSON.stringify(data, null, 2)}
+        </div>
+    </div>
+);
+
+// Search Result Card - 显示搜索结果详情
+const SearchResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => (
+    <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl p-4 mx-2 my-2 text-white shadow-lg">
+        <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+                <Search size={18} />
+                <span className="font-medium text-sm opacity-90">搜索结果</span>
+                <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">
+                    {data.results?.length || data.places?.length || 0} 条
+                </span>
+            </div>
+            {onDismiss && (
+                <button onClick={onDismiss} className="text-white/70 hover:text-white">
+                    <X size={16} />
+                </button>
+            )}
+        </div>
+
+        {/* Query Display */}
+        <div className="text-xs opacity-75 mb-3">
+            🔍 搜索: {data.query}
+        </div>
+
+        {/* Results List */}
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+            {/* Web Search Results */}
+            {data.results?.map((result: any, index: number) => (
+                <a
+                    key={index}
+                    href={result.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block bg-white/15 hover:bg-white/25 rounded-lg p-3 transition-all group"
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm mb-1 line-clamp-1">
+                                {result.title}
+                            </div>
+                            <div className="text-xs opacity-80 line-clamp-2">
+                                {result.snippet}
+                            </div>
+                        </div>
+                        <ExternalLink size={14} className="opacity-50 group-hover:opacity-100 flex-shrink-0 mt-1" />
+                    </div>
+                </a>
+            ))}
+
+            {/* Location/Places Results */}
+            {data.places?.map((place: any, index: number) => (
+                <div
+                    key={index}
+                    className="bg-white/15 rounded-lg p-3"
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-sm">{place.name}</span>
+                                {place.rating && (
+                                    <span className="text-xs bg-yellow-400/30 px-1 rounded">
+                                        ⭐ {place.rating}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="text-xs opacity-75 flex items-center gap-1">
+                                <MapPin size={10} />
+                                {place.address}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs opacity-60">{place.type}</span>
+                                {place.priceLevel && (
+                                    <span className="text-xs opacity-60">{place.priceLevel}</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-3 pt-2 border-t border-white/20 text-xs opacity-60 text-center">
+            {data.message || `共找到 ${data.results?.length || data.places?.length || 0} 条结果`}
         </div>
     </div>
 );
