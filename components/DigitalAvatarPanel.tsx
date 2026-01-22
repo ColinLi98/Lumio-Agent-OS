@@ -17,6 +17,14 @@ import {
     togglePrivacyMode
 } from '../services/localStorageService';
 import { EnhancedDigitalAvatar, DigitalAvatar, PersonalityTraits } from '../types';
+import { DynamicAvatar, LevelProgressCard } from './DynamicAvatar';
+import { AvatarInsightsPanel } from './AvatarInsightsPanel';
+import { TrustScorePanel } from './TrustScorePanel';
+import { EmergencyPanel } from './EmergencyPanel';
+import { DataRequestPanel } from './DataRequestPanel';
+import { BoundaryRulesPanel } from './BoundaryRulesPanel';
+import { AgentActionLog } from './AgentActionLog';
+import { MemoryGraphPanel } from './MemoryGraphPanel';
 
 interface DigitalAvatarPanelProps {
     onLog?: (message: string) => void;
@@ -323,7 +331,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
     const [stats, setStats] = useState<ReturnType<typeof getInteractionStats> | null>(null);
     const [isEditingNickname, setIsEditingNickname] = useState(false);
     const [nicknameInput, setNicknameInput] = useState('');
-    const [activeTab, setActiveTab] = useState<'overview' | 'personality' | 'behavior' | 'milestones'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'personality' | 'behavior' | 'milestones' | 'insights' | 'trust' | 'emergency' | 'data' | 'rules' | 'actions' | 'memory'>('overview');
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const loadData = useCallback(() => {
@@ -421,8 +429,8 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                     <button
                         onClick={handleTogglePrivacy}
                         className={`p-1.5 rounded transition-colors ${avatar.privacyMode
-                                ? 'text-yellow-400 bg-yellow-500/20 hover:bg-yellow-500/30'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                            ? 'text-yellow-400 bg-yellow-500/20 hover:bg-yellow-500/30'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-700'
                             }`}
                         title={avatar.privacyMode ? '隐私模式开启中' : '开启隐私模式'}
                     >
@@ -525,16 +533,21 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
             <div className="flex gap-1 bg-slate-800/50 p-1 rounded-lg">
                 {[
                     { key: 'overview', label: '概览', icon: <Zap size={14} /> },
-                    { key: 'personality', label: '性格', icon: <Brain size={14} /> },
-                    { key: 'behavior', label: '行为', icon: <TrendingUp size={14} /> },
+                    { key: 'insights', label: '🔮 洞察', icon: null },
+                    { key: 'trust', label: '🛡️ 信任', icon: null },
+                    { key: 'rules', label: '📋 规则', icon: null },
+                    { key: 'actions', label: '📊 操作', icon: null },
+                    { key: 'memory', label: '🧠 记忆', icon: null },
                     { key: 'milestones', label: '成就', icon: <Award size={14} /> },
                 ].map((tab) => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key as any)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-xs font-medium transition-all ${activeTab === tab.key
-                                ? 'bg-purple-500/30 text-purple-300'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                        className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${activeTab === tab.key
+                            ? tab.key === 'insights'
+                                ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-300'
+                                : 'bg-purple-500/30 text-purple-300'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                             }`}
                     >
                         {tab.icon}
@@ -611,6 +624,54 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                             )}
                         </div>
                     </div>
+                )}
+
+                {/* Insights Tab - NEW V2 */}
+                {activeTab === 'insights' && (
+                    <div className="space-y-4">
+                        {/* Level Progress Card */}
+                        <LevelProgressCard
+                            totalInteractions={avatar.totalInteractions}
+                            totalMessages={avatar.totalMessages}
+                            totalToolUses={avatar.totalToolUses}
+                        />
+
+                        {/* AI Insights Panel */}
+                        <AvatarInsightsPanel
+                            avatar={avatar}
+                            onLog={onLog}
+                        />
+                    </div>
+                )}
+
+                {/* Trust Tab - V2.2 */}
+                {activeTab === 'trust' && (
+                    <TrustScorePanel onLog={onLog} />
+                )}
+
+                {/* Emergency Tab - V2.3 */}
+                {activeTab === 'emergency' && (
+                    <EmergencyPanel onLog={onLog} />
+                )}
+
+                {/* Data Tab - V2.3 */}
+                {activeTab === 'data' && (
+                    <DataRequestPanel onLog={onLog} />
+                )}
+
+                {/* Rules Tab - V2.4 */}
+                {activeTab === 'rules' && (
+                    <BoundaryRulesPanel onLog={onLog} />
+                )}
+
+                {/* Actions Tab - V2.4 */}
+                {activeTab === 'actions' && (
+                    <AgentActionLog onLog={onLog} />
+                )}
+
+                {/* Memory Tab - V2.4 */}
+                {activeTab === 'memory' && (
+                    <MemoryGraphPanel onLog={onLog} />
                 )}
 
                 {/* Personality Tab */}
@@ -751,7 +812,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                                         <span
                                             key={tool}
                                             className={`px-2 py-0.5 text-xs rounded-full ${i === 0 ? 'bg-yellow-500/30 text-yellow-300 border border-yellow-500/30' :
-                                                    'bg-slate-700 text-slate-300'
+                                                'bg-slate-700 text-slate-300'
                                                 }`}
                                         >
                                             {tool}

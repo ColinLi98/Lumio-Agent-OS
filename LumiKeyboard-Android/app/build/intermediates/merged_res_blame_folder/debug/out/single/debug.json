@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "com.lumi.keyboard.app-merged_res-31:/xml_method.xml.flat",
+        "source": "com.lumi.keyboard.app-main-33:/xml/method.xml"
+    },
+    {
+        "merged": "com.lumi.keyboard.app-merged_res-31:/drawable_ic_launcher.xml.flat",
+        "source": "com.lumi.keyboard.app-main-33:/drawable/ic_launcher.xml"
+    }
+]

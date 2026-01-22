@@ -1,6 +1,6 @@
 import React from 'react';
 import { ToolResultData } from '../types';
-import { Cloud, Calculator, Languages, Calendar, Bell, Search, AlertCircle, Check, X, PenLine, Brain, ShoppingCart, ExternalLink } from 'lucide-react';
+import { Cloud, Calculator, Languages, Calendar, Bell, Search, AlertCircle, Check, X, PenLine, Brain, ShoppingCart, ExternalLink, Camera, Copy, MapPin, Phone } from 'lucide-react';
 
 interface ToolResultCardProps {
     result: ToolResultData;
@@ -48,6 +48,8 @@ export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary,
             return <MemoryCard data={result.data} onDismiss={onDismiss} />;
         case 'quick_actions':
             return <QuickActionsCard data={result.data} onDismiss={onDismiss} />;
+        case 'ocr_result':
+            return <OCRResultCard data={result.data} onDismiss={onDismiss} />;
         default:
             return <TextCard data={result.data} summary={summary} onDismiss={onDismiss} />;
     }
@@ -433,4 +435,122 @@ const QuickActionsCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ dat
     </div>
 );
 
+// =====================================
+// OCR 图像识别结果卡片
+// =====================================
+
+const OCRResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => {
+    const typeIcons: Record<string, string> = {
+        product: '🛒',
+        address: '📍',
+        link: '🔗',
+        phone: '📞',
+        price: '💰',
+        text: '📝',
+        qrcode: '📱'
+    };
+
+    const typeLabels: Record<string, string> = {
+        product: '商品',
+        address: '地址',
+        link: '链接',
+        phone: '电话',
+        price: '价格',
+        text: '文字',
+        qrcode: '二维码'
+    };
+
+    const handleCopy = (content: string) => {
+        navigator.clipboard.writeText(content);
+    };
+
+    const handleAction = (action: any) => {
+        if (action.type === 'copy') {
+            handleCopy(action.data.content);
+            return;
+        }
+        if (action.actionUri) {
+            window.open(action.actionUri, '_blank');
+        }
+    };
+
+    return (
+        <div className="bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl p-4 mx-2 my-2 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <Camera size={18} />
+                    <span className="font-medium text-sm opacity-90">📷 图像识别</span>
+                    {data.processingTime && (
+                        <span className="text-xs opacity-60">{data.processingTime}ms</span>
+                    )}
+                </div>
+                {onDismiss && (
+                    <button onClick={onDismiss} className="text-white/70 hover:text-white">
+                        <X size={16} />
+                    </button>
+                )}
+            </div>
+
+            {/* Summary */}
+            {data.summary && (
+                <div className="bg-white/20 rounded-lg px-3 py-2 mb-3 text-sm">
+                    {data.summary}
+                </div>
+            )}
+
+            {/* Extracted Items */}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+                {data.extractedItems?.map((item: any, index: number) => (
+                    <div key={index} className="bg-white/15 rounded-lg p-2">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span>{typeIcons[item.type] || '📝'}</span>
+                            <span className="text-xs opacity-75 uppercase tracking-wider">
+                                {typeLabels[item.type] || item.type}
+                            </span>
+                            {item.confidence && (
+                                <span className="text-xs opacity-50 ml-auto">
+                                    {Math.round(item.confidence * 100)}%
+                                </span>
+                            )}
+                        </div>
+                        <div className="text-sm font-medium truncate">{item.content}</div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Quick Actions */}
+            {data.quickActions && data.quickActions.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/20">
+                    <div className="text-xs opacity-60 mb-2">快捷操作</div>
+                    <div className="flex flex-wrap gap-2">
+                        {data.quickActions.slice(0, 6).map((action: any) => (
+                            <button
+                                key={action.id}
+                                onClick={() => handleAction(action)}
+                                className="flex items-center gap-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1.5 text-sm transition-all"
+                            >
+                                <span>{action.icon}</span>
+                                <span>{action.label.replace(/^[^\s]+\s/, '')}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Raw Text Toggle */}
+            {data.rawText && (
+                <details className="mt-3">
+                    <summary className="text-xs opacity-60 cursor-pointer hover:opacity-80">
+                        查看原始文字
+                    </summary>
+                    <div className="mt-2 bg-white/10 rounded-lg p-2 text-xs opacity-80 max-h-24 overflow-y-auto">
+                        {data.rawText}
+                    </div>
+                </details>
+            )}
+        </div>
+    );
+};
+
 export default ToolResultCard;
+

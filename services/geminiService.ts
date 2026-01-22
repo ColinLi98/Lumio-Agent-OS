@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { IntentCategory, IntentResult, ServiceCard, SoulMatrix, TextDraft, ToolResultData, TaskPlan, TaskStep } from "../types";
 import { AGENT_TOOLS, getToolByName, getGeminiFunctionDeclarations } from "./agentTools";
+import { selectModel, MODELS, analyzeTaskComplexity, logModelUsage, ModelSelectionConfig } from "./modelSelector";
 
 // Create AI instance dynamically with provided API key
 const getAI = (apiKey: string) => new GoogleGenAI({ apiKey });
@@ -14,8 +15,9 @@ Strictly follow the JSON schemas provided.`;
 export const classifyIntent = async (text: string, apiKey: string): Promise<IntentResult> => {
   try {
     const ai = getAI(apiKey);
+    // 意图分类使用 Flash（快速响应）
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: MODELS.FLASH,
       contents: `Analyze this input: "${text}"`,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -123,8 +125,15 @@ export const generateDrafts = async (
       ? `\n\nIMPORTANT - Response Style: ${appScenarioHint}`
       : '';
 
+    // 智能选择模型：根据请求复杂度自动切换
+    const { model, complexity, reason } = selectModel(text, {}, {
+      hasHistory: conversationHistory.length > 0,
+      historyLength: conversationHistory.length
+    });
+    console.log(`[generateDrafts] ${reason}`);
+
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model,
       contents: `${contextPrompt}Generate 3 distinct text drafts for this request: "${text}". 
       Style: ${soul.communicationStyle}. 
       Risk Tolerance: ${soul.riskTolerance}.${styleHint}
@@ -156,13 +165,19 @@ export const generateDrafts = async (
 export const generateCards = async (intent: IntentResult, apiKey: string): Promise<ServiceCard[]> => {
   try {
     const ai = getAI(apiKey);
-    // Use Thinking model for complex planning if category implies complexity, otherwise standard search
-    const isComplex = intent.category === IntentCategory.TRAVEL || intent.category === IntentCategory.SHOPPING;
-    const model = isComplex ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
+
+    // 智能模型选择：根据意图类别和查询复杂度
+    const { model, complexity, reason } = selectModel(intent.query, {
+      // 旅行和购物类使用更高质量的模型
+      preferQuality: intent.category === IntentCategory.TRAVEL || intent.category === IntentCategory.SHOPPING
+    }, {
+      taskType: intent.category
+    });
+    console.log(`[generateCards] ${reason}`);
 
     // We utilize Google Search Grounding to get real data for cards
     const response = await ai.models.generateContent({
-      model: model,
+      model,
       contents: `Find real options for: ${intent.query}. 
       Context: ${JSON.stringify(intent.entities)}. 
       Return structured data suitable for UI cards.`,
@@ -208,8 +223,9 @@ export const executeWithTools = async (
     // Define function declarations for Gemini
     const functionDeclarations = getGeminiFunctionDeclarations();
 
+    // 工具调用使用 Flash（快速响应）
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-05-20',
+      model: MODELS.FLASH,
       contents: text,
       config: {
         systemInstruction: `You are Lumi, a helpful AI assistant integrated into a keyboard.
@@ -259,8 +275,12 @@ export const planMultiStepTask = async (
 
     const toolNames = AGENT_TOOLS.map(t => `${t.name}: ${t.description}`).join('\n');
 
+    // 多步骤任务规划使用 Pro 模型（需要更强推理能力）
+    const { model, reason } = selectModel(goal, { preferQuality: true });
+    console.log(`[planMultiStepTask] ${reason}`);
+
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-05-20',
+      model,
       contents: `Break down this goal into executable steps: "${goal}"
       
 Available tools:
@@ -362,8 +382,9 @@ export const translateText = async (
       'auto': 'auto-detected language'
     };
 
+    // 翻译使用 Flash（简单任务）
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-05-20',
+      model: MODELS.FLASH,
       contents: `Translate the following text from ${langNames[fromLang] || fromLang} to ${langNames[toLang] || toLang}. 
 Only return the translated text, nothing else.
 
@@ -390,8 +411,9 @@ export const detectComplexTask = async (
   try {
     const ai = getAI(apiKey);
 
+    // 复杂度检测使用 Flash（快速判断）
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-05-20',
+      model: MODELS.FLASH,
       contents: `Analyze if this request requires multiple steps to complete: "${text}"
 
 A complex task typically involves:

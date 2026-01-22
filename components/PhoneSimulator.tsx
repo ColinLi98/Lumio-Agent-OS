@@ -6,13 +6,15 @@ import { SceneHint } from './SceneHint';
 import { PredictionBar } from './PredictionBar';
 import { VoiceButton } from './VoiceButton';
 import { EmojiReactions } from './EmojiReactions';
+import { ImageUploadPanel, ImageUploadButton } from './ImageUploadPanel';
 import { InputMode, AgentOutput, AgentInput, SoulMatrix, PolicyConfig, TextDraft, ServiceCard, PrivacyAction, TaskPlan } from '../types';
 import { LumiAgent } from '../services/lumiAgent';
 import { ConversationMessage } from '../services/geminiService';
 import { QUICK_TEMPLATES, QuickTemplate } from '../services/quickTemplates';
 import { APP_SCENARIOS, AppScenario, getScenarioById } from '../services/appScenarios';
 import { recordInteraction } from '../services/localStorageService';
-import { Wifi, Battery, Signal, Sparkles, X, Trash2, ChevronDown, Camera } from 'lucide-react';
+import { OCRResult, QuickAction as OCRQuickAction } from '../services/ocrService';
+import { Wifi, Battery, Signal, Sparkles, X, Trash2, ChevronDown } from 'lucide-react';
 
 
 interface PhoneSimulatorProps {
@@ -80,6 +82,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
 
   const agentRef = useRef<LumiAgent>(new LumiAgent(soul, policy, apiKey));
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -234,6 +237,38 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
     }
   };
 
+  // Handle OCR recognition result
+  const handleOCRResult = (result: OCRResult, actions: OCRQuickAction[]) => {
+    onAgentLog(`OCR Result: ${result.extractedItems.length} items found`);
+
+    // Record interaction for digital avatar
+    recordInteraction('tool_used', {
+      tool: 'ocr_recognition',
+      itemCount: result.extractedItems.length,
+      types: result.extractedItems.map(i => i.type),
+      scenario: currentScenario.id
+    }, currentScenario.id);
+
+    // Convert to AgentOutput format
+    const output: AgentOutput = {
+      type: 'TOOL_RESULT',
+      result: {
+        success: true,
+        toolName: 'ocr_recognition',
+        displayType: 'ocr_result' as const,
+        data: {
+          extractedItems: result.extractedItems,
+          rawText: result.rawText,
+          summary: result.summary,
+          processingTime: result.processingTime,
+          quickActions: actions
+        }
+      }
+    };
+
+    setAgentOutput(output);
+  };
+
   // Handle scenario change
   const handleScenarioChange = (scenario: AppScenario) => {
     setCurrentScenario(scenario);
@@ -246,6 +281,15 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
 
   return (
     <div className="w-[360px] h-[720px] bg-white rounded-[3rem] border-8 border-gray-900 shadow-2xl overflow-hidden flex flex-col relative">
+      {/* Image Upload Panel Overlay */}
+      <ImageUploadPanel
+        apiKey={apiKey}
+        visible={showImageUpload}
+        onClose={() => setShowImageUpload(false)}
+        onResult={handleOCRResult}
+        onLog={onAgentLog}
+      />
+
       {/* Status Bar with Scenario Picker */}
       <div
         className="h-8 flex items-center justify-between px-6 text-xs font-semibold z-10 relative"
@@ -462,16 +506,10 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                     onAgentLog(`Voice input: ${text}`);
                   }}
                 />
-                <button
-                  onClick={() => {
-                    setInputValue('帮我找 [识别图片中的内容]');
-                    onAgentLog('Camera button clicked - simulated image recognition');
-                  }}
-                  className="w-9 h-9 rounded-full flex items-center justify-center bg-indigo-700/50 text-indigo-200 hover:bg-indigo-600 transition-colors"
-                  title="图片识别"
-                >
-                  <Camera size={18} />
-                </button>
+                <ImageUploadButton
+                  onClick={() => setShowImageUpload(true)}
+                  disabled={isLoading}
+                />
               </>
             )}
           </div>

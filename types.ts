@@ -71,7 +71,7 @@ export interface ToolResultData {
   toolName: string;
   data?: any;
   error?: string;
-  displayType: 'weather' | 'calculator' | 'translation' | 'calendar' | 'reminder' | 'search' | 'text' | 'notes' | 'location' | 'write_assist' | 'memory' | 'quick_actions';
+  displayType: 'weather' | 'calculator' | 'translation' | 'calendar' | 'reminder' | 'search' | 'text' | 'notes' | 'location' | 'write_assist' | 'memory' | 'quick_actions' | 'ocr_result';
 }
 
 // Task step for multi-step execution
@@ -454,4 +454,77 @@ export interface EnhancedDigitalAvatar extends DigitalAvatar {
   // 隐私设置
   privacyMode: boolean;              // 隐私模式 (暂停收集)
   dataRetentionDays: number;         // 数据保留天数
+}
+
+// ====================================
+// 数字分身 V2 - 新增类型
+// ====================================
+
+/**
+ * 头像等级系统
+ * 基于使用量的成长等级
+ */
+export interface AvatarLevel {
+  level: number;                     // 1-100
+  title: string;                     // 等级称号
+  xp: number;                        // 当前经验值
+  nextLevelXp: number;               // 下一级所需经验
+  badge: string;                     // 徽章 emoji
+  color: string;                     // 等级颜色
+}
+
+/**
+ * 趋势数据点
+ * 用于可视化历史趋势
+ */
+export interface TrendData {
+  date: string;                      // YYYY-MM-DD
+  value: number;                     // 数值
+  type: 'mood' | 'activity' | 'messages' | 'tools' | 'personality';
+  label?: string;                    // 可选标签
+}
+
+/**
+ * AI 洞察报告
+ * Gemini 生成的个性化分析报告
+ */
+export interface InsightReport {
+  id: string;
+  generatedAt: number;               // 生成时间戳
+  periodStart: number;               // 报告周期开始
+  periodEnd: number;                 // 报告周期结束
+  periodType: 'daily' | 'weekly' | 'monthly';
+
+  // AI 生成内容
+  summary: string;                   // 总结摘要
+  highlights: string[];              // 亮点 (3-5条)
+  suggestions: string[];             // 智能建议 (2-4条)
+
+  // 数据快照
+  personalitySnapshot: Partial<PersonalityTraits>;
+  activitySummary: {
+    totalInteractions: number;
+    totalMessages: number;
+    totalToolUses: number;
+    avgMoodScore: number;
+  };
+
+  // 对比分析
+  comparedToPrevious?: {
+    interactionChange: number;       // 百分比变化
+    moodChange: number;              // 情绪变化
+    productivityChange: number;      // 效率变化
+  };
+}
+
+/**
+ * 动态头像状态
+ * 驱动头像动画和外观
+ */
+export interface DynamicAvatarState {
+  mood: 'happy' | 'neutral' | 'thinking' | 'tired' | 'excited';
+  energy: number;                    // 0-100 能量值
+  isActive: boolean;                 // 是否活跃中
+  lastActiveTime: number;            // 最后活跃时间
+  animation?: 'idle' | 'wave' | 'nod' | 'celebrate';
 }

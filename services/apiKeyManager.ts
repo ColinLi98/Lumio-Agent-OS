@@ -3,6 +3,9 @@ import { useState, useEffect, useCallback } from 'react';
 const STORAGE_KEY = 'lumi_gemini_api_key';
 const PERSIST_KEY = 'lumi_api_key_persist';
 
+// Default API key for testing and development
+export const DEFAULT_API_KEY = 'AIzaSyCIZmwjYjdfhh4f6DMTHwNpGCFMCEKgDEY';
+
 export type ApiKeyStatus = 'empty' | 'validating' | 'valid' | 'invalid';
 
 export interface ApiKeyState {
@@ -54,13 +57,15 @@ export function useApiKey(): {
     if (typeof window !== 'undefined') {
       const persistEnabled = localStorage.getItem(PERSIST_KEY) === 'true';
       const storedKey = persistEnabled ? localStorage.getItem(STORAGE_KEY) || '' : '';
+      // Use stored key if available, otherwise use default key for development
+      const activeKey = storedKey || DEFAULT_API_KEY;
       return {
-        key: storedKey,
-        status: storedKey ? 'valid' : 'empty', // Assume valid if restored (will re-validate on use)
+        key: activeKey,
+        status: activeKey ? 'valid' : 'empty', // Assume valid if restored (will re-validate on use)
         persist: persistEnabled,
       };
     }
-    return { key: '', status: 'empty', persist: false };
+    return { key: DEFAULT_API_KEY, status: 'valid', persist: false };
   });
 
   // Update LocalStorage when persist setting changes
@@ -90,7 +95,7 @@ export function useApiKey(): {
 
   const saveAndValidate = useCallback(async (): Promise<boolean> => {
     const { key, persist } = apiKeyState;
-    
+
     if (!key.trim()) {
       setApiKeyState(prev => ({ ...prev, status: 'empty', error: 'API Key is required' }));
       return false;
@@ -102,17 +107,17 @@ export function useApiKey(): {
 
     if (result.valid) {
       setApiKeyState(prev => ({ ...prev, status: 'valid', error: undefined }));
-      
+
       // Persist if enabled
       if (persist && typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEY, key);
       }
       return true;
     } else {
-      setApiKeyState(prev => ({ 
-        ...prev, 
-        status: 'invalid', 
-        error: result.error 
+      setApiKeyState(prev => ({
+        ...prev,
+        status: 'invalid',
+        error: result.error
       }));
       return false;
     }

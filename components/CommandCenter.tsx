@@ -35,6 +35,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 }) => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [modelPreference, setModelPreference] = useState(() =>
+    localStorage.getItem('model_preference') || 'auto'
+  );
 
   const handleSaveApiKey = async () => {
     setIsSaving(true);
@@ -143,6 +146,36 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
               >
                 <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-all ${apiKeyState.persist ? 'left-6' : 'left-1'}`} />
               </button>
+            </div>
+
+            {/* Model Preference */}
+            <div className="pt-3 border-t border-gray-700">
+              <label className="block text-xs uppercase text-gray-500 mb-2">Model Preference</label>
+              <div className="flex gap-2">
+                {[
+                  { id: 'auto', label: '🤖 Auto', desc: '智能切换' },
+                  { id: 'flash', label: '⚡ Flash', desc: '快速响应' },
+                  { id: 'pro', label: '🧠 Pro', desc: '深度推理' }
+                ].map(option => (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      localStorage.setItem('model_preference', option.id);
+                      setModelPreference(option.id);
+                    }}
+                    className={`flex-1 py-2 px-2 text-xs rounded-lg border transition-all ${modelPreference === option.id
+                        ? 'bg-yellow-600/30 border-yellow-500 text-yellow-400'
+                        : 'border-gray-600 text-gray-400 hover:bg-gray-700'
+                      }`}
+                  >
+                    <div className="font-medium">{option.label}</div>
+                    <div className="text-[10px] opacity-70">{option.desc}</div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2">
+                Auto: 根据任务复杂度自动选择 Flash 或 Pro 模型
+              </p>
             </div>
           </div>
         </div>

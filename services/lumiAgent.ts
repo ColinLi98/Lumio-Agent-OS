@@ -16,6 +16,8 @@ import { ConversationMessage } from "./geminiService";
 import { getToolByName } from "./agentTools";
 import { trackAiCall } from "../components/PrivacyPanel";
 import { recordInteraction, addInterestTag } from "./localStorageService";
+import { checkAgentBoundary, InteractionLevel, BoundaryCheckResult } from "./agentBoundary";
+import { recordTrustAction } from "./trustScoreService";
 
 // Simple Privacy Regex Patterns (Client-side PrivacyGuard)
 const PRIVACY_PATTERNS = {
@@ -65,6 +67,24 @@ export class LumiAgent {
 
     const rawText = input.rawText.trim();
     if (!rawText) return { type: 'NONE' };
+
+    // 0. Agent Boundary Check (V2.1 Security)
+    const boundaryCheck = checkAgentBoundary(rawText, {
+      appName: input.appContext?.packageName,
+      isPrivate: input.appContext?.isPasswordField
+    });
+
+    // L4 Forbidden - reject immediately
+    if (!boundaryCheck.allowed) {
+      recordTrustAction('rule_followed');
+      return {
+        type: 'ERROR',
+        message: boundaryCheck.message
+      };
+    }
+
+    // Store boundary info for later use
+    const requiresConfirmation = boundaryCheck.requiresConfirmation;
 
     // 1. Privacy Guard (Local First)
     const privacyAction = this.checkPrivacy(rawText, input.appContext?.fieldHints);
