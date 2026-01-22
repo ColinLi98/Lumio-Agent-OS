@@ -119,8 +119,10 @@ export type AgentOutput =
   | { type: 'TASK_PROGRESS'; task: TaskPlan }
   | { type: 'QUICK_ACTIONS'; actions: QuickAction[]; context?: string }
   | { type: 'MEMORY_SAVED'; item: MemoryItem; message: string }
+  | { type: 'ORCHESTRATION_RESULT'; plan: OrchestrationPlan }
   | { type: 'ERROR'; message: string }
   | { type: 'NONE' };
+
 
 export interface IntentResult {
   category: IntentCategory;
@@ -129,6 +131,155 @@ export interface IntentResult {
   entities: Record<string, string>;
   constraints: Record<string, string>;
   privacyFlags: PrivacyFlag[];
+}
+
+// ====================================
+// Multi-Agent Orchestration Types
+// ====================================
+
+/**
+ * 时间范围信息
+ * 从用户输入中提取的时间相关信息
+ */
+export interface TimeFrame {
+  start: string;              // "下周", "明天", "2026-02-01"
+  end?: string;               // 结束时间
+  duration?: string;          // "一周", "3天"
+  flexibility: 'fixed' | 'flexible' | 'unknown';
+}
+
+/**
+ * 预算信息
+ */
+export interface Budget {
+  amount: number;             // 金额
+  currency: string;           // "CNY", "USD", "JPY"
+  type: 'total' | 'per_day' | 'per_person';
+  flexibility: 'strict' | 'flexible' | 'unknown';
+}
+
+/**
+ * 复杂意图分析结果
+ * 从自然对话中提取的结构化意图信息
+ */
+export interface IntentContext {
+  primaryIntent: string;              // 主要意图: "日本旅行规划"
+  category: 'travel' | 'shopping' | 'event' | 'research' | 'task' | 'other';
+  destinations?: string[];            // 目的地: ["日本", "东京"]
+  timeframe?: TimeFrame;              // 时间范围
+  budget?: Budget;                    // 预算
+  impliedNeeds: string[];             // 隐含需求: ["机票", "酒店", "餐厅", "景点"]
+  userMentionedPrefs: string[];       // 用户明确提到的偏好
+  participants?: number;              // 参与人数
+  confidence: number;                 // 分析置信度 0-100
+}
+
+/**
+ * 专业Agent类型
+ */
+export type SpecializedAgentType =
+  | 'flight_booking'    // 机票预订
+  | 'hotel_booking'     // 酒店预订
+  | 'restaurant'        // 餐厅推荐
+  | 'attraction'        // 景点搜索
+  | 'social_search'     // 社交媒体搜索
+  | 'itinerary'         // 行程规划
+  | 'shopping'          // 购物推荐
+  | 'weather'           // 天气查询
+  | 'translation'       // 翻译服务
+  | 'transportation';   // 交通出行
+
+/**
+ * Agent任务定义
+ */
+export interface AgentTask {
+  id: string;
+  agentType: SpecializedAgentType;
+  description: string;
+  params: Record<string, any>;          // 传给Agent的参数
+  appliedPreferences: string[];         // 应用的用户偏好
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  result?: AgentTaskResult;
+  priority: number;                     // 优先级 1-10
+  canRunParallel: boolean;              // 是否可并行执行
+}
+
+/**
+ * Agent任务执行结果
+ */
+export interface AgentTaskResult {
+  success: boolean;
+  data: any;
+  suggestions: any[];                   // 推荐选项列表
+  personalizedNote?: string;            // 个性化说明
+  appliedFilters: string[];             // 已应用的筛选条件
+  source?: string;                      // 数据来源
+}
+
+/**
+ * 应用的用户偏好
+ */
+export interface AppliedPreferences {
+  travel?: {
+    flightClass: string;
+    seatPreference: string;
+    wakeUpTime: string;
+    preferredAirlines: string[];
+  };
+  accommodation?: {
+    starLevel: number[];
+    amenities: string[];
+    location: string;
+  };
+  dining?: {
+    cuisines: string[];
+    priceLevel: string;
+    atmosphere: string[];
+  };
+  tourism?: {
+    style: string;
+    pace: string;
+    interests: string[];
+  };
+}
+
+/**
+ * 协调计划
+ * 多Agent任务执行的完整计划
+ */
+export interface OrchestrationPlan {
+  id: string;
+  userQuery: string;                    // 原始用户输入
+  intentContext: IntentContext;         // 分析后的意图
+  appliedPreferences: AppliedPreferences; // 应用的偏好
+  agentTasks: AgentTask[];              // Agent任务列表
+  status: 'planning' | 'executing' | 'consolidating' | 'completed' | 'failed';
+  createdAt: number;
+  completedAt?: number;
+  consolidatedResult?: ConsolidatedResult;
+}
+
+/**
+ * 整合后的结果
+ * 所有Agent结果的汇总
+ */
+export interface ConsolidatedResult {
+  summary: string;                      // 汇总说明
+  sections: OrchestrationSection[];     // 各部分结果
+  totalEstimatedCost?: number;          // 预估总费用
+  recommendations: string[];            // 综合推荐
+}
+
+/**
+ * 协调结果的一个部分
+ */
+export interface OrchestrationSection {
+  agentType: SpecializedAgentType;
+  title: string;                        // 显示标题
+  icon: string;                         // 图标
+  options: any[];                       // 选项列表
+  personalizedNote: string;             // 个性化说明
+  selected?: any;                       // 用户选择的选项
 }
 
 export interface SoulMatrix {

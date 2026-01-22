@@ -1,5 +1,5 @@
 import React from 'react';
-import { AgentOutput, ServiceCard, TextDraft, PrivacyAction, TaskPlan } from '../types';
+import { AgentOutput, ServiceCard, TextDraft, PrivacyAction, TaskPlan, OrchestrationPlan, OrchestrationSection } from '../types';
 import { ExternalLink, Copy, ShieldAlert, X, CheckCircle2, Circle, Loader2, AlertCircle } from 'lucide-react';
 import { ToolResultCard } from './ToolResultCard';
 
@@ -117,6 +117,14 @@ export const CandidateBar: React.FC<CandidateBarProps> = ({
           task={output.task}
           onAction={onTaskAction}
           onClear={onClear}
+        />
+      )}
+
+      {output.type === 'ORCHESTRATION_RESULT' && (
+        <OrchestrationResultView
+          plan={output.plan}
+          onClear={onClear}
+          onSuggestionClick={onSuggestionClick}
         />
       )}
 
@@ -470,6 +478,286 @@ const TaskProgressView: React.FC<TaskProgressViewProps> = ({ task, onAction, onC
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// Multi-Agent Orchestration Result View
+// =============================================================================
+
+interface OrchestrationResultViewProps {
+  plan: OrchestrationPlan;
+  onClear: () => void;
+  onSuggestionClick?: (suggestion: string) => void;
+}
+
+const OrchestrationResultView: React.FC<OrchestrationResultViewProps> = ({ plan, onClear, onSuggestionClick }) => {
+  const result = plan.consolidatedResult;
+
+  if (!result) {
+    return (
+      <div className="bg-gray-100 p-4 rounded-xl">
+        <Loader2 className="animate-spin mx-auto" />
+        <p className="text-center text-sm text-gray-500 mt-2">正在协调多个Agent...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="orchestration-result-container">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-t-xl p-4 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+        <div className="flex items-center justify-between relative">
+          <div>
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              ✨ {result.summary}
+            </h3>
+            {result.totalEstimatedCost && (
+              <p className="text-sm opacity-80 mt-1">
+                💰 预估总费用: ¥{result.totalEstimatedCost.toLocaleString()}
+              </p>
+            )}
+          </div>
+          <button onClick={onClear} className="text-white/70 hover:text-white">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Recommendations */}
+        {result.recommendations.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {result.recommendations.map((rec, i) => (
+              <p key={i} className="text-xs opacity-90">{rec}</p>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sections */}
+      <div className="bg-gray-50 rounded-b-xl divide-y divide-gray-200 max-h-[400px] overflow-y-auto">
+        {result.sections.map((section, idx) => (
+          <OrchestrationSectionView
+            key={idx}
+            section={section}
+            onOptionClick={(option) => {
+              console.log('Option selected:', section.agentType, option);
+              // Could trigger a more detailed view or action
+            }}
+          />
+        ))}
+      </div>
+
+      <style>{`
+        .orchestration-result-container {
+          margin: 8px;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// Single section component (flights, hotels, etc.)
+const OrchestrationSectionView: React.FC<{
+  section: OrchestrationSection;
+  onOptionClick: (option: any) => void;
+}> = ({ section, onOptionClick }) => {
+  const [expanded, setExpanded] = React.useState(section.agentType === 'flight_booking'); // First section expanded by default
+
+  return (
+    <div className="section-wrapper">
+      {/* Section Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full p-3 flex items-center justify-between hover:bg-gray-100 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xl">{section.icon}</span>
+          <div className="text-left">
+            <h4 className="font-medium text-gray-900">{section.title}</h4>
+            <p className="text-xs text-gray-500">{section.options.length} 个推荐</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+            个性化
+          </span>
+          <svg
+            className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {/* Section Content */}
+      {expanded && (
+        <div className="px-3 pb-3">
+          {/* Personalized note */}
+          <p className="text-xs text-purple-600 bg-purple-50 p-2 rounded-lg mb-2">
+            💡 {section.personalizedNote}
+          </p>
+
+          {/* Options */}
+          <div className="space-y-2">
+            {section.options.slice(0, 3).map((option, i) => (
+              <OptionCard
+                key={i}
+                option={option}
+                agentType={section.agentType}
+                onClick={() => onOptionClick(option)}
+              />
+            ))}
+          </div>
+
+          {section.options.length > 3 && (
+            <button className="w-full text-center text-sm text-purple-600 mt-2 py-1 hover:bg-purple-50 rounded">
+              查看更多 ({section.options.length - 3} 个)
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Option card component with different layouts based on agent type
+const OptionCard: React.FC<{
+  option: any;
+  agentType: string;
+  onClick: () => void;
+}> = ({ option, agentType, onClick }) => {
+  // Flight card
+  if (agentType === 'flight_booking') {
+    return (
+      <div
+        onClick={onClick}
+        className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">✈️</div>
+            <div>
+              <div className="font-medium">{option.airline}</div>
+              <div className="text-xs text-gray-500">{option.flightNo} · {option.aircraft}</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="font-bold text-purple-600">¥{option.price?.toLocaleString()}</div>
+            <div className="text-xs text-gray-500">{option.class === 'economy' ? '经济舱' : '商务舱'}</div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-2 text-sm">
+          <span>{option.departure} 出发</span>
+          <span className="text-gray-400">⟶</span>
+          <span>{option.arrival} 到达</span>
+          <span className="text-xs text-gray-500">{option.duration}</span>
+        </div>
+        {option.matchScore > 90 && (
+          <div className="mt-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded inline-block">
+            ⭐ 高度匹配您的偏好
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Hotel card
+  if (agentType === 'hotel_booking') {
+    return (
+      <div
+        onClick={onClick}
+        className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium">{option.name}</div>
+            <div className="text-xs text-gray-500">
+              {'⭐'.repeat(option.star)} · {option.location}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="font-bold text-purple-600">¥{option.pricePerNight?.toLocaleString()}</div>
+            <div className="text-xs text-gray-500">每晚</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          {option.amenities?.slice(0, 3).map((a: string, i: number) => (
+            <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded">{a}</span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Restaurant card
+  if (agentType === 'restaurant') {
+    return (
+      <div
+        onClick={onClick}
+        className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium">{option.name}</div>
+            <div className="text-xs text-gray-500">{option.type}</div>
+          </div>
+          <div className="text-xs text-gray-600">{option.priceRange}</div>
+        </div>
+        <p className="text-xs text-gray-600 mt-1">{option.highlight}</p>
+      </div>
+    );
+  }
+
+  // Attraction card
+  if (agentType === 'attraction') {
+    return (
+      <div
+        onClick={onClick}
+        className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-medium">{option.name}</div>
+            <div className="text-xs text-gray-500">{option.type} · {option.recommendTime}</div>
+          </div>
+          {option.style === 'offbeat' && (
+            <span className="text-xs bg-orange-50 text-orange-600 px-2 py-0.5 rounded">小众</span>
+          )}
+        </div>
+        <p className="text-xs text-gray-600 mt-1">{option.description}</p>
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          {option.highlights?.map((h: string, i: number) => (
+            <span key={i} className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded">{h}</span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Generic card for other types
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer"
+    >
+      <div className="font-medium">{option.name || option.title || JSON.stringify(option).slice(0, 50)}</div>
     </div>
   );
 };

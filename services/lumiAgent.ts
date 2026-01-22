@@ -9,7 +9,8 @@ import {
   PolicyConfig,
   ToolResultData,
   TaskPlan,
-  TaskStep
+  TaskStep,
+  OrchestrationPlan
 } from "../types";
 import * as GeminiService from "./geminiService";
 import { ConversationMessage } from "./geminiService";
@@ -18,6 +19,7 @@ import { trackAiCall } from "../components/PrivacyPanel";
 import { recordInteraction, addInterestTag } from "./localStorageService";
 import { checkAgentBoundary, InteractionLevel, BoundaryCheckResult } from "./agentBoundary";
 import { recordTrustAction } from "./trustScoreService";
+import { createOrchestrator } from "./agentOrchestrator";
 
 // Simple Privacy Regex Patterns (Client-side PrivacyGuard)
 const PRIVACY_PATTERNS = {
@@ -109,6 +111,21 @@ export class LumiAgent {
     const toolResult = await this.tryToolCalling(rawText);
     if (toolResult) {
       return toolResult;
+    }
+
+    // 4.5. Check for complex multi-agent orchestration scenarios
+    // (e.g., travel planning, event coordination)
+    const complexIntent = await GeminiService.analyzeComplexIntent(
+      rawText,
+      this.apiKey,
+      conversationHistory
+    );
+    if (complexIntent && complexIntent.impliedNeeds.length >= 2) {
+      console.log('[LumiAgent] Detected complex intent, triggering orchestration:', complexIntent.primaryIntent);
+      const orchestrator = createOrchestrator(this.apiKey);
+      const plan = await orchestrator.planAgentTasks(complexIntent);
+      const executedPlan = await orchestrator.executeAgentTasks(plan);
+      return { type: 'ORCHESTRATION_RESULT', plan: executedPlan };
     }
 
     // 5. Check for complex multi-step tasks

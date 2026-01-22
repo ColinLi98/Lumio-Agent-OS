@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { IntentCategory, IntentResult, ServiceCard, SoulMatrix, TextDraft, ToolResultData, TaskPlan, TaskStep } from "../types";
+import { IntentCategory, IntentResult, ServiceCard, SoulMatrix, TextDraft, ToolResultData, TaskPlan, TaskStep, IntentContext } from "../types";
 import { AGENT_TOOLS, getToolByName, getGeminiFunctionDeclarations } from "./agentTools";
 import { selectModel, MODELS, analyzeTaskComplexity, logModelUsage, ModelSelectionConfig } from "./modelSelector";
 
@@ -441,5 +441,116 @@ A simple task is:
   } catch (error) {
     console.error("Complex Task Detection Error", error);
     return { isComplex: false };
+  }
+};
+
+/**
+ * Analyze a user message for complex intents requiring multi-agent orchestration
+ * Extracts structured context from natural language for travel, shopping, event planning, etc.
+ */
+export const analyzeComplexIntent = async (
+  text: string,
+  apiKey: string,
+  conversationHistory: ConversationMessage[] = []
+): Promise<IntentContext | null> => {
+  try {
+    const ai = getAI(apiKey);
+
+    // Build context from history
+    let historyContext = '';
+    if (conversationHistory.length > 0) {
+      const recent = conversationHistory.slice(-4);
+      historyContext = `\n\nRecent conversation:\n${recent.map(m =>
+        `${m.role}: ${m.content}`
+      ).join('\n')}`;
+    }
+
+    // Use Pro model for complex intent analysis
+    const response = await ai.models.generateContent({
+      model: MODELS.PRO,
+      contents: `Analyze this user message for complex intent requiring multi-agent coordination:
+
+"${text}"${historyContext}
+
+Extract:
+1. Primary intent (e.g., "日本旅行规划", "购买礼物", "周末聚会安排")
+2. Category: travel, shopping, event, research, task, or other
+3. Destinations (if any)
+4. Time frame (start date/time, duration)
+5. Budget (amount, currency, type: total/per_day/per_person)
+6. Implied needs the user may not have explicitly stated (e.g., travel → flights, hotels, restaurants, attractions)
+7. Any preferences the user explicitly mentioned
+
+If the message is a simple query (weather, calculation, single search), return null for impliedNeeds.
+Only return substantive multi-part intents that would benefit from coordinating multiple agents.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            primaryIntent: { type: Type.STRING },
+            category: {
+              type: Type.STRING,
+              enum: ['travel', 'shopping', 'event', 'research', 'task', 'other']
+            },
+            destinations: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            timeframe: {
+              type: Type.OBJECT,
+              properties: {
+                start: { type: Type.STRING },
+                end: { type: Type.STRING },
+                duration: { type: Type.STRING },
+                flexibility: { type: Type.STRING, enum: ['fixed', 'flexible', 'unknown'] }
+              }
+            },
+            budget: {
+              type: Type.OBJECT,
+              properties: {
+                amount: { type: Type.NUMBER },
+                currency: { type: Type.STRING },
+                type: { type: Type.STRING, enum: ['total', 'per_day', 'per_person'] },
+                flexibility: { type: Type.STRING, enum: ['strict', 'flexible', 'unknown'] }
+              }
+            },
+            impliedNeeds: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            userMentionedPrefs: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            participants: { type: Type.NUMBER },
+            confidence: { type: Type.NUMBER }
+          },
+          required: ['primaryIntent', 'category', 'impliedNeeds', 'confidence']
+        }
+      }
+    });
+
+    const result = JSON.parse(response.text || '{}');
+
+    // Only return if it's genuinely a complex intent (multiple implied needs)
+    if (!result.impliedNeeds || result.impliedNeeds.length < 2) {
+      return null;
+    }
+
+    return {
+      primaryIntent: result.primaryIntent || text,
+      category: result.category || 'other',
+      destinations: result.destinations || [],
+      timeframe: result.timeframe,
+      budget: result.budget,
+      impliedNeeds: result.impliedNeeds || [],
+      userMentionedPrefs: result.userMentionedPrefs || [],
+      participants: result.participants,
+      confidence: result.confidence || 50
+    };
+  } catch (error) {
+    console.error("Complex Intent Analysis Error", error);
+    return null;
   }
 };
