@@ -26,7 +26,7 @@ export interface ToolResult {
     toolName: string;
     data?: any;
     error?: string;
-    displayType: 'weather' | 'calculator' | 'translation' | 'calendar' | 'reminder' | 'search' | 'text' | 'write_assist' | 'memory' | 'quick_actions';
+    displayType: 'weather' | 'calculator' | 'translation' | 'calendar' | 'reminder' | 'search' | 'text' | 'write_assist' | 'memory' | 'quick_actions' | 'restaurant';
 }
 
 // =============================================================================
@@ -436,56 +436,216 @@ const notesTool: AgentTool = {
  */
 const locationTool: AgentTool = {
     name: 'location',
-    description: 'Search for places, restaurants, hotels, attractions, or other points of interest.',
+    description: 'Search for places, restaurants, hotels, attractions, or other points of interest. For restaurants, provides detailed info including menus, prices, reviews.',
     parameters: [
         { name: 'query', type: 'string', description: 'Place or area to search in', required: true },
-        { name: 'type', type: 'string', description: 'Type of place', required: false, enum: ['restaurant', 'hotel', 'attraction', 'cafe', 'shopping', 'general'] }
+        { name: 'type', type: 'string', description: 'Type of place', required: false, enum: ['restaurant', 'hotel', 'attraction', 'cafe', 'shopping', 'general'] },
+        { name: 'purpose', type: 'string', description: 'Purpose of visit (e.g., date, business, family)', required: false }
     ],
     execute: async (params) => {
-        const { query, type = 'general' } = params;
+        const { query, type = 'general', purpose = '' } = params;
+
+        // Enhanced restaurant data with detailed information
+        const restaurantData = [
+            {
+                name: 'TRB Hutong 庭院餐厅',
+                address: '北京东城区沙滩北街23号',
+                rating: 4.8,
+                reviewCount: 2847,
+                priceLevel: '¥¥¥¥',
+                priceRange: '人均 ¥680',
+                type: '西餐·法式',
+                atmosphere: ['约会圣地', '浪漫氛围', '私密包间'],
+                highlights: ['米其林推荐', '故宫旁边', '历史建筑改造'],
+                signature: ['法式鹅肝', '惠灵顿牛排', '黑松露意面'],
+                phone: '010-84020088',
+                hours: '11:30-14:30, 17:30-22:00',
+                dianpingUrl: 'https://www.dianping.com/shop/H3qJvWZZhMxJnQnP',
+                meituanUrl: 'https://www.meituan.com/',
+                bookingAvailable: true,
+                waitTime: '建议提前3天预订'
+            },
+            {
+                name: 'Ling Long 玲珑',
+                address: '北京朝阳区三里屯太古里北区N8-52',
+                rating: 4.7,
+                reviewCount: 1923,
+                priceLevel: '¥¥¥¥',
+                priceRange: '人均 ¥520',
+                type: '创意融合菜',
+                atmosphere: ['约会首选', '网红打卡', '景观位'],
+                highlights: ['360°玻璃穹顶', '日落美景', '创意摆盘'],
+                signature: ['和牛塔塔', '松露菌菇汤', '分子料理甜点'],
+                phone: '010-64177818',
+                hours: '11:00-14:00, 17:00-22:30',
+                dianpingUrl: 'https://www.dianping.com/shop/k4mVZqGKgMnxNWNq',
+                meituanUrl: 'https://www.meituan.com/',
+                bookingAvailable: true,
+                waitTime: '建议提前1天预订'
+            },
+            {
+                name: 'Opera BOMBANA 意大利餐厅',
+                address: '北京朝阳区金融街购物中心LG层',
+                rating: 4.9,
+                reviewCount: 3156,
+                priceLevel: '¥¥¥¥',
+                priceRange: '人均 ¥850',
+                type: '意大利菜',
+                atmosphere: ['奢华氛围', '求婚胜地', 'VIP包厢'],
+                highlights: ['米其林一星', 'Umberto Bombana主理', '顶级食材'],
+                signature: ['白松露意面', '48个月帕尔马火腿', '提拉米苏'],
+                phone: '010-65051799',
+                hours: '12:00-14:30, 18:00-22:00',
+                dianpingUrl: 'https://www.dianping.com/shop/G5nQxTnCM8MJqWOu',
+                meituanUrl: 'https://www.meituan.com/',
+                bookingAvailable: true,
+                waitTime: '建议提前1周预订'
+            },
+            {
+                name: '大董烤鸭店 (工体店)',
+                address: '北京朝阳区工体东路2号',
+                rating: 4.6,
+                reviewCount: 8234,
+                priceLevel: '¥¥¥',
+                priceRange: '人均 ¥320',
+                type: '北京菜·烤鸭',
+                atmosphere: ['商务宴请', '情侣约会', '品质保证'],
+                highlights: ['酥不腻烤鸭', '艺术摆盘', '传统与创新结合'],
+                signature: ['酥不腻烤鸭', '乌鱼子炒饭', '董氏烧海参'],
+                phone: '010-65828803',
+                hours: '11:00-14:00, 17:00-21:30',
+                dianpingUrl: 'https://www.dianping.com/shop/FVDtLZ4CiR19EOpO',
+                meituanUrl: 'https://www.meituan.com/',
+                bookingAvailable: true,
+                waitTime: '建议提前预订'
+            },
+            {
+                name: 'Atmosphere 天空餐厅',
+                address: '北京朝阳区国贸大酒店80层',
+                rating: 4.7,
+                reviewCount: 1567,
+                priceLevel: '¥¥¥¥',
+                priceRange: '人均 ¥750',
+                type: '西餐·景观餐厅',
+                atmosphere: ['360°高空美景', '浪漫夕阳', '求婚圣地'],
+                highlights: ['北京最高餐厅', 'CBD全景', '现场乐队'],
+                signature: ['澳洲和牛', '波士顿龙虾', '甜点拼盘'],
+                phone: '010-65052299',
+                hours: '17:30-23:00',
+                dianpingUrl: 'https://www.dianping.com/shop/H2nVMPZZqOxJnQnP',
+                meituanUrl: 'https://www.meituan.com/',
+                bookingAvailable: true,
+                waitTime: '需提前预约靠窗位'
+            }
+        ];
+
+        // Filter based on query keywords
+        const isDatePurpose = purpose.includes('约会') || purpose.includes('date') ||
+            query.includes('约会') || query.includes('浪漫') || query.includes('情侣');
 
         // Simulated POI data (in production, call a real Maps API)
         const mockPOIs: Record<string, any[]> = {
-            restaurant: [
-                { name: '翠园酒楼', address: `${query}市中心商业街88号`, rating: 4.5, priceLevel: '¥¥¥', type: '粤菜' },
-                { name: '海底捞火锅', address: `${query}万达广场3楼`, rating: 4.7, priceLevel: '¥¥¥', type: '火锅' },
-                { name: '外婆家', address: `${query}购物中心B1层`, rating: 4.3, priceLevel: '¥¥', type: '杭帮菜' }
+            restaurant: isDatePurpose ? restaurantData : [
+                {
+                    name: '翠园酒楼',
+                    address: `${query}市中心商业街88号`,
+                    rating: 4.5,
+                    reviewCount: 1256,
+                    priceLevel: '¥¥¥',
+                    priceRange: '人均 ¥180',
+                    type: '粤菜',
+                    atmosphere: ['家庭聚餐', '商务宴请'],
+                    signature: ['白切鸡', '烧鹅', '虾饺'],
+                    dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent('翠园酒楼 ' + query)}`,
+                    bookingAvailable: true
+                },
+                {
+                    name: '海底捞火锅',
+                    address: `${query}万达广场3楼`,
+                    rating: 4.7,
+                    reviewCount: 5678,
+                    priceLevel: '¥¥¥',
+                    priceRange: '人均 ¥150',
+                    type: '火锅',
+                    atmosphere: ['朋友聚会', '服务一流'],
+                    signature: ['番茄锅底', '捞派牛肉', '小酥肉'],
+                    dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent('海底捞 ' + query)}`,
+                    bookingAvailable: true
+                },
+                {
+                    name: '外婆家',
+                    address: `${query}购物中心B1层`,
+                    rating: 4.3,
+                    reviewCount: 3421,
+                    priceLevel: '¥¥',
+                    priceRange: '人均 ¥75',
+                    type: '杭帮菜',
+                    atmosphere: ['性价比高', '家常菜'],
+                    signature: ['麻婆豆腐', '茶香鸡', '西湖醋鱼'],
+                    dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent('外婆家 ' + query)}`,
+                    bookingAvailable: false
+                }
             ],
             hotel: [
-                { name: '希尔顿酒店', address: `${query}金融中心1号`, rating: 4.8, priceLevel: '¥¥¥¥', type: '五星级' },
-                { name: '全季酒店', address: `${query}火车站对面`, rating: 4.4, priceLevel: '¥¥', type: '商务型' },
-                { name: '如家酒店', address: `${query}步行街旁`, rating: 4.1, priceLevel: '¥', type: '经济型' }
+                { name: '希尔顿酒店', address: `${query}金融中心1号`, rating: 4.8, reviewCount: 2345, priceLevel: '¥¥¥¥', priceRange: '¥1200起/晚', type: '五星级', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent('希尔顿 ' + query)}` },
+                { name: '全季酒店', address: `${query}火车站对面`, rating: 4.4, reviewCount: 1876, priceLevel: '¥¥', priceRange: '¥380起/晚', type: '商务型', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent('全季酒店 ' + query)}` },
+                { name: '如家酒店', address: `${query}步行街旁`, rating: 4.1, reviewCount: 2567, priceLevel: '¥', priceRange: '¥180起/晚', type: '经济型', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent('如家 ' + query)}` }
             ],
             attraction: [
-                { name: `${query}博物馆`, address: `${query}文化路100号`, rating: 4.6, priceLevel: '免费', type: '博物馆' },
-                { name: `${query}公园`, address: `${query}湖滨路`, rating: 4.5, priceLevel: '免费', type: '公园' },
-                { name: `${query}古城`, address: `${query}老城区`, rating: 4.7, priceLevel: '¥', type: '历史古迹' }
+                { name: `${query}博物馆`, address: `${query}文化路100号`, rating: 4.6, reviewCount: 8765, priceLevel: '免费', type: '博物馆', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent(query + '博物馆')}` },
+                { name: `${query}公园`, address: `${query}湖滨路`, rating: 4.5, reviewCount: 4532, priceLevel: '免费', type: '公园', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent(query + '公园')}` },
+                { name: `${query}古城`, address: `${query}老城区`, rating: 4.7, reviewCount: 6789, priceLevel: '¥60', type: '历史古迹', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent(query + '古城')}` }
             ],
             cafe: [
-                { name: '星巴克咖啡', address: `${query}商业中心`, rating: 4.3, priceLevel: '¥¥', type: '连锁咖啡' },
-                { name: '漫咖啡', address: `${query}创意园区`, rating: 4.5, priceLevel: '¥¥', type: '精品咖啡' }
+                { name: '星巴克咖啡', address: `${query}商业中心`, rating: 4.3, reviewCount: 567, priceLevel: '¥¥', priceRange: '人均 ¥45', type: '连锁咖啡', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent('星巴克 ' + query)}` },
+                { name: '% Arabica', address: `${query}太古里`, rating: 4.6, reviewCount: 1234, priceLevel: '¥¥', priceRange: '人均 ¥50', type: '精品咖啡', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent('%Arabica ' + query)}` }
             ],
             shopping: [
-                { name: `${query}万达广场`, address: `${query}新区`, rating: 4.4, priceLevel: '¥¥¥', type: '购物中心' },
-                { name: `${query}步行街`, address: `${query}市中心`, rating: 4.2, priceLevel: '¥¥', type: '商业街' }
+                { name: `${query}万达广场`, address: `${query}新区`, rating: 4.4, reviewCount: 3456, priceLevel: '¥¥¥', type: '购物中心', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent(query + '万达广场')}` },
+                { name: `${query}步行街`, address: `${query}市中心`, rating: 4.2, reviewCount: 2345, priceLevel: '¥¥', type: '商业街', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent(query + '步行街')}` }
             ],
             general: [
-                { name: `${query}中心广场`, address: `${query}市中心`, rating: 4.3, priceLevel: '免费', type: '地标' },
-                { name: `${query}火车站`, address: `${query}站前路`, rating: 4.0, priceLevel: '-', type: '交通枢纽' }
+                { name: `${query}中心广场`, address: `${query}市中心`, rating: 4.3, reviewCount: 1234, priceLevel: '免费', type: '地标', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent(query + '中心广场')}` },
+                { name: `${query}火车站`, address: `${query}站前路`, rating: 4.0, reviewCount: 5678, priceLevel: '-', type: '交通枢纽', dianpingUrl: `https://www.dianping.com/search?q=${encodeURIComponent(query + '火车站')}` }
             ]
         };
 
         const pois = mockPOIs[type] || mockPOIs.general;
 
+        // Apply personalization to results
+        let personalizedPlaces = pois;
+        try {
+            const { personalizeResults, getUserPreferences } = await import('./personalizationService');
+            const prefs = getUserPreferences();
+            const personalized = personalizeResults(query, pois, { purpose: isDatePurpose ? 'date' : purpose });
+
+            // Add personalization data to each place
+            personalizedPlaces = personalized.map(rec => ({
+                ...rec.originalData,
+                matchScore: rec.analysis.matchScore,
+                matchReasons: rec.analysis.matchReasons,
+                personalNote: rec.analysis.personalNote,
+                warnings: rec.analysis.warnings,
+                relatedQueries: rec.suggestions.relatedQueries,
+                followUpActions: rec.suggestions.followUpActions,
+            }));
+        } catch (e) {
+            console.warn('Personalization not available:', e);
+        }
+
         return {
             success: true,
             toolName: 'location',
-            displayType: 'search',
+            displayType: 'restaurant', // Use specialized display for restaurants
             data: {
                 query,
                 type,
-                places: pois,
-                message: `在${query}找到 ${pois.length} 个${type === 'general' ? '地点' : type}`
+                purpose: isDatePurpose ? 'date' : purpose,
+                places: personalizedPlaces,
+                isPersonalized: personalizedPlaces !== pois,
+                message: isDatePurpose
+                    ? `为您精选 ${personalizedPlaces.length} 家${query}约会餐厅`
+                    : `在${query}找到 ${personalizedPlaces.length} 个${type === 'general' ? '地点' : type}`
             }
         };
     }

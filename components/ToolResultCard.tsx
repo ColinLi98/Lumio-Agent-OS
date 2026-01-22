@@ -52,6 +52,8 @@ export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary,
             return <OCRResultCard data={result.data} onDismiss={onDismiss} />;
         case 'search':
             return <SearchResultCard data={result.data} onDismiss={onDismiss} />;
+        case 'restaurant':
+            return <RestaurantCard data={result.data} onDismiss={onDismiss} />;
         default:
             return <TextCard data={result.data} summary={summary} onDismiss={onDismiss} />;
     }
@@ -637,6 +639,222 @@ const OCRResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, 
                     </div>
                 </details>
             )}
+        </div>
+    );
+};
+
+// =====================================
+// 餐厅搜索结果卡片 (约会/精选餐厅)
+// =====================================
+
+const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => {
+    const isDateMode = data.purpose === 'date';
+
+    return (
+        <div className="restaurant-card-wrapper">
+            {/* Header */}
+            <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-t-xl p-4 text-white">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xl">💕</span>
+                        <span className="font-medium text-sm opacity-90">
+                            {isDateMode ? '约会餐厅精选' : '餐厅推荐'}
+                        </span>
+                        <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">
+                            {data.places?.length || 0} 家
+                        </span>
+                    </div>
+                    {onDismiss && (
+                        <button onClick={onDismiss} className="text-white/70 hover:text-white">
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
+                <div className="text-xs opacity-75">
+                    {data.message}
+                </div>
+            </div>
+
+            {/* Restaurant List */}
+            <div className="bg-white rounded-b-xl max-h-80 overflow-y-auto">
+                {data.places?.map((place: any, index: number) => (
+                    <div
+                        key={index}
+                        className="restaurant-item border-b border-gray-100 last:border-0 p-4 hover:bg-gray-50 transition-all"
+                    >
+                        {/* Match Score Badge */}
+                        {place.matchScore && (
+                            <div className="flex items-center justify-between mb-2">
+                                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${place.matchScore >= 80 ? 'bg-green-100 text-green-700' :
+                                        place.matchScore >= 60 ? 'bg-blue-100 text-blue-700' :
+                                            'bg-gray-100 text-gray-600'
+                                    }`}>
+                                    <span>{place.matchScore >= 80 ? '🎯' : place.matchScore >= 60 ? '👍' : '📍'}</span>
+                                    <span>匹配度 {place.matchScore}%</span>
+                                </div>
+                                {index === 0 && place.matchScore >= 70 && (
+                                    <span className="text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full">
+                                        ❤️ 最佳推荐
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Restaurant Header */}
+                        <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-bold text-gray-900">{place.name}</span>
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                        {place.type}
+                                    </span>
+                                    {place.highlights?.some((h: string) => h.includes('米其林')) && (
+                                        <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
+                                            🌟 米其林
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1 text-sm">
+                                    <span className="text-yellow-500 font-medium">⭐ {place.rating}</span>
+                                    {place.reviewCount && (
+                                        <span className="text-gray-400 text-xs">
+                                            {place.reviewCount}条评价
+                                        </span>
+                                    )}
+                                    <span className="text-rose-500 font-medium">{place.priceRange || place.priceLevel}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Personalized Note */}
+                        {place.personalNote && (
+                            <div className="bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-100 rounded-lg p-2 mb-2">
+                                <p className="text-xs text-rose-700">{place.personalNote}</p>
+                            </div>
+                        )}
+
+                        {/* Match Reasons */}
+                        {place.matchReasons && place.matchReasons.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                                {place.matchReasons.slice(0, 3).map((reason: string, i: number) => (
+                                    <span key={i} className="text-xs text-gray-600 bg-gray-50 px-2 py-0.5 rounded">
+                                        {reason}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Address */}
+                        <div className="text-xs text-gray-500 flex items-center gap-1 mb-2">
+                            <MapPin size={10} />
+                            {place.address}
+                        </div>
+
+                        {/* Atmosphere Tags */}
+                        {place.atmosphere && place.atmosphere.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                                {place.atmosphere.map((tag: string, i: number) => (
+                                    <span
+                                        key={i}
+                                        className="text-xs px-2 py-0.5 bg-rose-50 text-rose-600 rounded-full"
+                                    >
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Signature Dishes */}
+                        {place.signature && place.signature.length > 0 && (
+                            <div className="mb-2">
+                                <span className="text-xs text-gray-400">招牌菜: </span>
+                                <span className="text-xs text-gray-600">
+                                    {place.signature.join(' · ')}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Highlights */}
+                        {place.highlights && place.highlights.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-3">
+                                {place.highlights.map((highlight: string, i: number) => (
+                                    <span
+                                        key={i}
+                                        className="text-xs px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded"
+                                    >
+                                        ✨ {highlight}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 mt-3">
+                            {place.phone && (
+                                <a
+                                    href={`tel:${place.phone}`}
+                                    className="flex-1 flex items-center justify-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg py-2 px-3 text-xs transition-all"
+                                >
+                                    <Phone size={12} />
+                                    <span>电话</span>
+                                </a>
+                            )}
+                            {place.dianpingUrl && (
+                                <a
+                                    href={place.dianpingUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 flex items-center justify-center gap-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg py-2 px-3 text-xs transition-all"
+                                >
+                                    <ExternalLink size={12} />
+                                    <span>大众点评</span>
+                                </a>
+                            )}
+                            {place.bookingAvailable && (
+                                <button
+                                    className="flex-1 flex items-center justify-center gap-1 bg-rose-500 hover:bg-rose-600 text-white rounded-lg py-2 px-3 text-xs transition-all"
+                                    onClick={() => {
+                                        if (place.dianpingUrl) {
+                                            window.open(place.dianpingUrl, '_blank');
+                                        }
+                                    }}
+                                >
+                                    <Calendar size={12} />
+                                    <span>预订</span>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Wait Time Notice */}
+                        {place.waitTime && (
+                            <div className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+                                <Bell size={10} />
+                                {place.waitTime}
+                            </div>
+                        )}
+
+                        {/* Hours */}
+                        {place.hours && (
+                            <div className="mt-1 text-xs text-gray-400">
+                                🕐 营业时间: {place.hours}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            <style>{`
+                .restaurant-card-wrapper {
+                    margin: 8px;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                }
+                
+                .restaurant-item:hover {
+                    transform: translateX(2px);
+                }
+            `}</style>
         </div>
     );
 };
