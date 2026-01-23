@@ -1002,9 +1002,36 @@ const SuperAgentSection: React.FC<SuperAgentSectionProps> = ({
 const FlightResults: React.FC<{ data: any }> = ({ data }) => {
   const flights = data.flights || data.options || [];
   const lowestPrice = data.lowestPrice;
+  const priceComparisonLinks = data.priceComparisonLinks;
+
+  // Handle opening booking URL
+  const handleBookingClick = (url: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="space-y-2">
+      {/* Quick comparison links */}
+      {priceComparisonLinks && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+          <div className="text-xs text-blue-700 mb-2 font-medium">🔍 快速比价平台</div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(priceComparisonLinks).map(([key, link]: [string, any]) => (
+              <a
+                key={key}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs bg-white border border-blue-200 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors flex items-center gap-1"
+              >
+                {link.icon} {link.name}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Lowest price highlight */}
       {lowestPrice && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
@@ -1027,7 +1054,8 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
       {flights.slice(0, 5).map((flight: any, idx: number) => (
         <div
           key={idx}
-          className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
+          onClick={(e) => flight.bookingUrl && handleBookingClick(flight.bookingUrl, e)}
+          className={`bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all ${flight.bookingUrl ? 'cursor-pointer' : ''}`}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1055,9 +1083,24 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
               {flight.duration && <span className="text-xs text-gray-400">{flight.duration}</span>}
             </div>
           )}
-          {flight.source && (
-            <div className="text-xs text-gray-400 mt-1">来源: {flight.source}</div>
-          )}
+          {/* Booking link */}
+          <div className="flex items-center justify-between mt-2">
+            {flight.source && (
+              <span className="text-xs text-gray-400">来源: {flight.source}</span>
+            )}
+            {flight.bookingUrl && (
+              <a
+                href={flight.bookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <ExternalLink size={12} />
+                查看详情
+              </a>
+            )}
+          </div>
         </div>
       ))}
     </div>

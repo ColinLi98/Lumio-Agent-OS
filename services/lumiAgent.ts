@@ -113,6 +113,36 @@ export class LumiAgent {
 
     if (isTravelQuery) {
       console.log('[LumiAgent] Detected travel query, using Super Agent Brain');
+
+      // 4.1 Check for missing required information (dates)
+      const hasDate = /\d{1,4}[-\/年]\d{1,2}[-\/月]\d{1,2}|下周|明天|后天|周[一二三四五六日末]|月底|月初|next week|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d+号|\d+日/i.test(rawText);
+      const hasDestination = /去|到|飞往|前往|to\s+\w+|tokyo|东京|大阪|北京|上海|香港|纽约|伦敦|巴黎|新加坡|首尔|曼谷/i.test(rawText);
+
+      // If missing date, ask the user for clarification
+      if (!hasDate) {
+        console.log('[LumiAgent] Missing travel date, asking for clarification');
+        return {
+          type: 'DRAFTS',
+          drafts: [
+            {
+              id: 'clarify-date-1',
+              text: '我可以帮您搜索航班，请问您计划什么时候出发？',
+              tone: '询问'
+            },
+            {
+              id: 'clarify-date-2',
+              text: '好的，我来帮您查机票。请告诉我您的出行日期，比如"3月15日"或"下周五"',
+              tone: '友好'
+            },
+            {
+              id: 'clarify-date-3',
+              text: '请问您想哪天出发？我可以帮您比较多个平台的价格。',
+              tone: '专业'
+            }
+          ]
+        };
+      }
+
       try {
         const globalSolution = await superAgentOrchestrate(rawText, this.apiKey, (task, status) => {
           console.log(`[SuperAgent] Task ${task.id}: ${status}`);
