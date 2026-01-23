@@ -1,6 +1,6 @@
 import React from 'react';
-import { AgentOutput, ServiceCard, TextDraft, PrivacyAction, TaskPlan, OrchestrationPlan, OrchestrationSection } from '../types';
-import { ExternalLink, Copy, ShieldAlert, X, CheckCircle2, Circle, Loader2, AlertCircle } from 'lucide-react';
+import { AgentOutput, ServiceCard, TextDraft, PrivacyAction, TaskPlan, OrchestrationPlan, OrchestrationSection, SuperAgentSolution } from '../types';
+import { ExternalLink, Copy, ShieldAlert, X, CheckCircle2, Circle, Loader2, AlertCircle, Sparkles, Plane, DollarSign } from 'lucide-react';
 import { ToolResultCard } from './ToolResultCard';
 
 interface CandidateBarProps {
@@ -125,6 +125,16 @@ export const CandidateBar: React.FC<CandidateBarProps> = ({
           plan={output.plan}
           onClear={onClear}
           onSuggestionClick={onSuggestionClick}
+        />
+      )}
+
+      {output.type === 'SUPER_AGENT_RESULT' && (
+        <SuperAgentResultView
+          solution={output.globalSolution}
+          summary={output.summary}
+          recommendation={output.recommendation}
+          results={output.results}
+          onClear={onClear}
         />
       )}
 
@@ -758,6 +768,468 @@ const OptionCard: React.FC<{
       className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer"
     >
       <div className="font-medium">{option.name || option.title || JSON.stringify(option).slice(0, 50)}</div>
+    </div>
+  );
+};
+
+// =============================================================================
+// Super Agent Result View - Global Solution Display
+// =============================================================================
+
+interface SuperAgentResultViewProps {
+  solution: SuperAgentSolution;
+  summary: string;
+  recommendation: string;
+  results: any[];
+  onClear: () => void;
+}
+
+const SuperAgentResultView: React.FC<SuperAgentResultViewProps> = ({
+  solution,
+  summary,
+  recommendation,
+  results,
+  onClear
+}) => {
+  const [expandedSection, setExpandedSection] = React.useState<string | null>('flight_booking');
+
+  // Group results by agent type
+  const groupedResults = React.useMemo(() => {
+    const groups: Record<string, any> = {};
+    results.forEach(r => {
+      groups[r.agentType] = r.result;
+    });
+    return groups;
+  }, [results]);
+
+  // Get agent type icon
+  const getAgentIcon = (type: string) => {
+    switch (type) {
+      case 'flight_booking': return '✈️';
+      case 'hotel_booking': return '🏨';
+      case 'weather': return '🌤️';
+      case 'attraction': return '🎯';
+      case 'restaurant': return '🍽️';
+      case 'itinerary': return '📅';
+      case 'translation': return '🌐';
+      default: return '📋';
+    }
+  };
+
+  // Get agent type label
+  const getAgentLabel = (type: string) => {
+    switch (type) {
+      case 'flight_booking': return '航班搜索';
+      case 'hotel_booking': return '酒店推荐';
+      case 'weather': return '天气预报';
+      case 'attraction': return '景点推荐';
+      case 'restaurant': return '餐厅推荐';
+      case 'itinerary': return '行程安排';
+      case 'translation': return '翻译服务';
+      default: return type;
+    }
+  };
+
+  return (
+    <div className="super-agent-result-container">
+      {/* Header with gradient */}
+      <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 rounded-t-xl p-4 text-white relative overflow-hidden">
+        {/* Shimmer effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+
+        <div className="flex items-center justify-between relative">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 rounded-full p-2">
+              <Sparkles size={24} className="text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">🧠 Super Agent 智能规划</h3>
+              <p className="text-sm opacity-80">
+                已完成 {results.length} 项搜索 · 优化评分: {solution.optimizationScore}%
+              </p>
+            </div>
+          </div>
+          <button onClick={onClear} className="text-white/70 hover:text-white z-10">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Summary */}
+        {summary && (
+          <div className="mt-3 text-sm opacity-90 whitespace-pre-line">
+            {summary}
+          </div>
+        )}
+
+        {/* Execution time */}
+        <div className="mt-2 text-xs opacity-60">
+          ⏱️ 耗时 {(solution.executionTime / 1000).toFixed(1)} 秒
+        </div>
+      </div>
+
+      {/* Results sections */}
+      <div className="bg-gray-50 rounded-b-xl divide-y divide-gray-200 max-h-[350px] overflow-y-auto">
+        {results.map((result, idx) => (
+          <SuperAgentSection
+            key={idx}
+            agentType={result.agentType}
+            data={result.result}
+            icon={getAgentIcon(result.agentType)}
+            label={getAgentLabel(result.agentType)}
+            isExpanded={expandedSection === result.agentType}
+            onToggle={() => setExpandedSection(
+              expandedSection === result.agentType ? null : result.agentType
+            )}
+          />
+        ))}
+      </div>
+
+      {/* Recommendation footer */}
+      {recommendation && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-b-xl border-t border-green-200">
+          <div className="text-sm text-green-800 whitespace-pre-line">
+            {recommendation}
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .super-agent-result-container {
+          margin: 8px;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+        
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+// Super Agent section component
+interface SuperAgentSectionProps {
+  agentType: string;
+  data: any;
+  icon: string;
+  label: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+const SuperAgentSection: React.FC<SuperAgentSectionProps> = ({
+  agentType,
+  data,
+  icon,
+  label,
+  isExpanded,
+  onToggle
+}) => {
+  if (!data) return null;
+
+  const getItemCount = () => {
+    switch (agentType) {
+      case 'flight_booking':
+        return data.flights?.length || data.options?.length || 0;
+      case 'hotel_booking':
+        return data.hotels?.length || 0;
+      case 'weather':
+        return data.forecast?.length || 1;
+      case 'attraction':
+        return data.attractions?.length || 0;
+      case 'restaurant':
+        return data.restaurants?.length || 0;
+      default:
+        return 0;
+    }
+  };
+
+  return (
+    <div className="section-wrapper">
+      {/* Section Header */}
+      <button
+        onClick={onToggle}
+        className="w-full p-3 flex items-center justify-between hover:bg-gray-100 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xl">{icon}</span>
+          <div className="text-left">
+            <h4 className="font-medium text-gray-900">{label}</h4>
+            <p className="text-xs text-gray-500">{getItemCount()} 个结果</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {data.lowestPrice && (
+            <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <DollarSign size={10} />
+              最低 ${data.lowestPrice.price}
+            </span>
+          )}
+          <svg
+            className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {/* Section Content */}
+      {isExpanded && (
+        <div className="px-3 pb-3 space-y-2">
+          {agentType === 'flight_booking' && <FlightResults data={data} />}
+          {agentType === 'hotel_booking' && <HotelResults data={data} />}
+          {agentType === 'weather' && <WeatherResults data={data} />}
+          {agentType === 'attraction' && <AttractionResults data={data} />}
+          {agentType === 'restaurant' && <RestaurantResults data={data} />}
+          {agentType === 'itinerary' && <ItineraryResults data={data} />}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Flight results component
+const FlightResults: React.FC<{ data: any }> = ({ data }) => {
+  const flights = data.flights || data.options || [];
+  const lowestPrice = data.lowestPrice;
+
+  return (
+    <div className="space-y-2">
+      {/* Lowest price highlight */}
+      {lowestPrice && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="bg-green-500 text-white text-xs px-2 py-0.5 rounded">最低价</div>
+              <span className="font-medium">{lowestPrice.airline || lowestPrice.source}</span>
+            </div>
+            <div className="text-xl font-bold text-green-600">${lowestPrice.price}</div>
+          </div>
+          {lowestPrice.departure && (
+            <div className="text-sm text-gray-600 mt-1">
+              {lowestPrice.departure} → {lowestPrice.arrival}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Flight list */}
+      {flights.slice(0, 5).map((flight: any, idx: number) => (
+        <div
+          key={idx}
+          className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Plane size={20} className="text-blue-500" />
+              <div>
+                <div className="font-medium">{flight.airline || flight.name}</div>
+                <div className="text-xs text-gray-500">
+                  {flight.flightNo && `${flight.flightNo} · `}
+                  {flight.aircraft || flight.type || ''}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-bold text-blue-600">
+                {flight.price ? `$${flight.price}` : flight.priceRange}
+              </div>
+              <div className="text-xs text-gray-500">{flight.class || '经济舱'}</div>
+            </div>
+          </div>
+          {flight.departure && (
+            <div className="flex items-center justify-between mt-2 text-sm text-gray-600">
+              <span>{flight.departure}</span>
+              <span className="text-gray-400">✈️</span>
+              <span>{flight.arrival}</span>
+              {flight.duration && <span className="text-xs text-gray-400">{flight.duration}</span>}
+            </div>
+          )}
+          {flight.source && (
+            <div className="text-xs text-gray-400 mt-1">来源: {flight.source}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Hotel results component
+const HotelResults: React.FC<{ data: any }> = ({ data }) => {
+  const hotels = data.hotels || [];
+
+  return (
+    <div className="space-y-2">
+      {hotels.slice(0, 5).map((hotel: any, idx: number) => (
+        <div
+          key={idx}
+          className="bg-white rounded-lg p-3 border border-gray-200 hover:border-purple-300 hover:shadow-sm transition-all cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">{hotel.name}</div>
+              <div className="text-xs text-gray-500">
+                {'⭐'.repeat(hotel.rating || hotel.star || 3)} · {hotel.location || hotel.area}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-bold text-purple-600">
+                {hotel.pricePerNight ? `¥${hotel.pricePerNight}` : hotel.priceRange}
+              </div>
+              <div className="text-xs text-gray-500">每晚</div>
+            </div>
+          </div>
+          {hotel.amenities && (
+            <div className="flex items-center gap-1 mt-2 flex-wrap">
+              {hotel.amenities.slice(0, 4).map((a: string, i: number) => (
+                <span key={i} className="text-xs bg-gray-100 px-2 py-0.5 rounded">{a}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Weather results component
+const WeatherResults: React.FC<{ data: any }> = ({ data }) => {
+  const forecast = data.forecast || [data];
+
+  return (
+    <div className="space-y-2">
+      {forecast.slice(0, 5).map((day: any, idx: number) => (
+        <div
+          key={idx}
+          className="bg-white rounded-lg p-3 border border-gray-200 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">{day.icon || '☀️'}</div>
+            <div>
+              <div className="font-medium">{day.date || '今天'}</div>
+              <div className="text-sm text-gray-600">{day.condition}</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="font-bold text-lg">{day.temp || day.temperature}</div>
+            {day.humidity && <div className="text-xs text-gray-500">湿度 {day.humidity}</div>}
+          </div>
+        </div>
+      ))}
+      {data.travelAdvice && (
+        <div className="bg-blue-50 rounded-lg p-2 text-sm text-blue-700">
+          💡 {data.travelAdvice}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Attraction results component
+const AttractionResults: React.FC<{ data: any }> = ({ data }) => {
+  const attractions = data.attractions || [];
+
+  return (
+    <div className="space-y-2">
+      {attractions.slice(0, 5).map((attraction: any, idx: number) => (
+        <div
+          key={idx}
+          className="bg-white rounded-lg p-3 border border-gray-200 hover:border-orange-300 hover:shadow-sm transition-all cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">{attraction.name}</div>
+              <div className="text-xs text-gray-500">
+                {attraction.type} {attraction.recommendTime && `· ${attraction.recommendTime}`}
+              </div>
+            </div>
+            {attraction.rating && (
+              <div className="text-sm text-orange-600">
+                ⭐ {attraction.rating}
+              </div>
+            )}
+          </div>
+          {attraction.description && (
+            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{attraction.description}</p>
+          )}
+          {attraction.highlights && (
+            <div className="flex items-center gap-1 mt-2 flex-wrap">
+              {attraction.highlights.slice(0, 3).map((h: string, i: number) => (
+                <span key={i} className="text-xs bg-orange-50 text-orange-600 px-2 py-0.5 rounded">{h}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Restaurant results component
+const RestaurantResults: React.FC<{ data: any }> = ({ data }) => {
+  const restaurants = data.restaurants || [];
+
+  return (
+    <div className="space-y-2">
+      {restaurants.slice(0, 5).map((restaurant: any, idx: number) => (
+        <div
+          key={idx}
+          className="bg-white rounded-lg p-3 border border-gray-200 hover:border-red-300 hover:shadow-sm transition-all cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">{restaurant.name}</div>
+              <div className="text-xs text-gray-500">{restaurant.type || restaurant.cuisine}</div>
+            </div>
+            <div className="text-xs text-gray-600">{restaurant.priceRange}</div>
+          </div>
+          {restaurant.highlight && (
+            <p className="text-xs text-gray-600 mt-1">{restaurant.highlight}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Itinerary results component
+const ItineraryResults: React.FC<{ data: any }> = ({ data }) => {
+  const days = data.days || data.schedule || [];
+
+  return (
+    <div className="space-y-2">
+      {Array.isArray(days) ? days.slice(0, 5).map((day: any, idx: number) => (
+        <div
+          key={idx}
+          className="bg-white rounded-lg p-3 border border-gray-200"
+        >
+          <div className="font-medium text-indigo-600">{day.date || `第 ${idx + 1} 天`}</div>
+          {day.activities && (
+            <div className="mt-2 space-y-1">
+              {day.activities.map((activity: any, i: number) => (
+                <div key={i} className="text-sm text-gray-600 flex items-center gap-2">
+                  <span className="text-gray-400">{activity.time || '•'}</span>
+                  <span>{activity.name || activity}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )) : (
+        <div className="bg-white rounded-lg p-3 border border-gray-200">
+          <pre className="text-sm text-gray-600 whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre>
+        </div>
+      )}
     </div>
   );
 };

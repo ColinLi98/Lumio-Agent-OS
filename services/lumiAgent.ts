@@ -20,6 +20,7 @@ import { recordInteraction, addInterestTag } from "./localStorageService";
 import { checkAgentBoundary, InteractionLevel, BoundaryCheckResult } from "./agentBoundary";
 import { recordTrustAction } from "./trustScoreService";
 import { createOrchestrator } from "./agentOrchestrator";
+import { superAgentOrchestrate, analyzeAndDecompose } from "./superAgentBrain";
 
 // Simple Privacy Regex Patterns (Client-side PrivacyGuard)
 const PRIVACY_PATTERNS = {
@@ -107,13 +108,39 @@ export class LumiAgent {
       return this.handleOfflineFallback(rawText);
     }
 
-    // 4. Try Tool Calling First (Super Agent Mode)
+    // 4. Check for travel/flight queries - use Super Agent Brain
+    const isTravelQuery = /机票|航班|飞机|flight|travel|旅行|旅游|去.*(玩|旅)|酒店|hotel/i.test(rawText);
+
+    if (isTravelQuery) {
+      console.log('[LumiAgent] Detected travel query, using Super Agent Brain');
+      try {
+        const globalSolution = await superAgentOrchestrate(rawText, this.apiKey, (task, status) => {
+          console.log(`[SuperAgent] Task ${task.id}: ${status}`);
+        });
+
+        if (globalSolution.success && globalSolution.results.length > 0) {
+          // Convert Super Agent results to AgentOutput format
+          return {
+            type: 'SUPER_AGENT_RESULT' as any,
+            globalSolution,
+            summary: globalSolution.summary,
+            recommendation: globalSolution.recommendation,
+            results: globalSolution.results
+          };
+        }
+      } catch (e) {
+        console.error('[SuperAgent] Orchestration failed:', e);
+        // Fall through to regular flow
+      }
+    }
+
+    // 5. Try Tool Calling (for simpler queries)
     const toolResult = await this.tryToolCalling(rawText);
     if (toolResult) {
       return toolResult;
     }
 
-    // 4.5. Check for complex multi-agent orchestration scenarios
+    // 5.5. Check for complex multi-agent orchestration scenarios
     // (e.g., travel planning, event coordination)
     const complexIntent = await GeminiService.analyzeComplexIntent(
       rawText,

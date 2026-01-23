@@ -120,8 +120,24 @@ export type AgentOutput =
   | { type: 'QUICK_ACTIONS'; actions: QuickAction[]; context?: string }
   | { type: 'MEMORY_SAVED'; item: MemoryItem; message: string }
   | { type: 'ORCHESTRATION_RESULT'; plan: OrchestrationPlan }
+  | { type: 'SUPER_AGENT_RESULT'; globalSolution: SuperAgentSolution; summary: string; recommendation: string; results: any[] }
   | { type: 'ERROR'; message: string }
   | { type: 'NONE' };
+
+// Super Agent global solution type
+export interface SuperAgentSolution {
+  success: boolean;
+  summary: string;
+  results: Array<{
+    taskId: string;
+    agentType: string;
+    result: any;
+  }>;
+  recommendation: string;
+  optimizationScore: number;
+  reasoning: string;
+  executionTime: number;
+}
 
 
 export interface IntentResult {
