@@ -884,6 +884,58 @@ const SuperAgentResultView: React.FC<SuperAgentResultViewProps> = ({
         ))}
       </div>
 
+      {/* 💡 联想建议 - 发散性思维 */}
+      {solution.associatedSuggestions && solution.associatedSuggestions.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-3 border-t border-amber-200">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">💡</span>
+            <span className="text-sm font-medium text-amber-800">智能联想</span>
+            <span className="text-xs text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">AI 发散思维</span>
+          </div>
+          <div className="space-y-2">
+            {solution.associatedSuggestions.map((suggestion: any) => (
+              <div
+                key={suggestion.id}
+                className={`flex items-start gap-2 p-2 rounded-lg transition-all cursor-pointer hover:shadow-sm ${suggestion.category === 'warning'
+                    ? 'bg-red-50 hover:bg-red-100 border border-red-200'
+                    : suggestion.category === 'opportunity'
+                      ? 'bg-green-50 hover:bg-green-100 border border-green-200'
+                      : 'bg-white hover:bg-gray-50 border border-gray-200'
+                  }`}
+              >
+                <span className="text-xl flex-shrink-0">{suggestion.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm text-gray-900">{suggestion.title}</span>
+                    {suggestion.category === 'warning' && (
+                      <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">注意</span>
+                    )}
+                    {suggestion.category === 'opportunity' && (
+                      <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">机会</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{suggestion.description}</p>
+                  {suggestion.actionText && (
+                    <button
+                      className="text-xs text-blue-600 hover:text-blue-800 mt-1 flex items-center gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (suggestion.actionQuery) {
+                          // Could trigger a new search with the actionQuery
+                          console.log('Action query:', suggestion.actionQuery);
+                        }
+                      }}
+                    >
+                      {suggestion.actionText} →
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recommendation footer */}
       {recommendation && (
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-b-xl border-t border-green-200">

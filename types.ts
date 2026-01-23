@@ -137,6 +137,20 @@ export interface SuperAgentSolution {
   optimizationScore: number;
   reasoning: string;
   executionTime: number;
+  // 联想建议 - 发散性思维
+  associatedSuggestions?: AssociatedSuggestion[];
+}
+
+// 联想建议类型
+export interface AssociatedSuggestion {
+  id: string;
+  category: 'related_need' | 'reminder' | 'tip' | 'warning' | 'opportunity';
+  icon: string;
+  title: string;
+  description: string;
+  actionText?: string;
+  actionQuery?: string;  // 点击后发送的查询
+  priority: number;  // 1-10, 越高越重要
 }
 
 

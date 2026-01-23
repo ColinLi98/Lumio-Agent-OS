@@ -48,6 +48,16 @@ export interface GlobalSolution {
     optimizationScore: number;  // 0-100
     reasoning: string;
     executionTime: number;
+    associatedSuggestions?: Array<{
+        id: string;
+        category: 'related_need' | 'reminder' | 'tip' | 'warning' | 'opportunity';
+        icon: string;
+        title: string;
+        description: string;
+        actionText?: string;
+        actionQuery?: string;
+        priority: number;
+    }>;
 }
 
 // ============================================================================
@@ -503,6 +513,9 @@ function synthesizeGlobalSolution(
         }
     }
 
+    // 生成联想建议 - 发散性思维
+    const associatedSuggestions = generateAssociatedSuggestions(decomposition, results);
+
     return {
         success: completedTasks === totalTasks,
         summary: summaryParts.join('\n'),
@@ -510,8 +523,187 @@ function synthesizeGlobalSolution(
         recommendation: generateRecommendation(decomposition, results),
         optimizationScore: Math.round(score),
         reasoning: `Executed ${completedTasks}/${totalTasks} sub-tasks. ${decomposition.reasoning}`,
-        executionTime: 0
+        executionTime: 0,
+        associatedSuggestions
     };
+}
+
+/**
+ * 生成联想建议 - 发散性思维
+ * 基于用户意图和搜索结果，主动联想相关需求
+ */
+function generateAssociatedSuggestions(
+    decomposition: TaskDecomposition,
+    results: GlobalSolution['results']
+): Array<{
+    id: string;
+    category: 'related_need' | 'reminder' | 'tip' | 'warning' | 'opportunity';
+    icon: string;
+    title: string;
+    description: string;
+    actionText?: string;
+    actionQuery?: string;
+    priority: number;
+}> {
+    const suggestions: Array<{
+        id: string;
+        category: 'related_need' | 'reminder' | 'tip' | 'warning' | 'opportunity';
+        icon: string;
+        title: string;
+        description: string;
+        actionText?: string;
+        actionQuery?: string;
+        priority: number;
+    }> = [];
+
+    const destination = decomposition.subTasks[0]?.params?.destination || '';
+    const hasFlights = results.some(r => r.agentType === 'flight_booking');
+    const hasHotels = results.some(r => r.agentType === 'hotel_booking');
+    const hasWeather = results.some(r => r.agentType === 'weather');
+
+    // 1. 签证相关提醒
+    if (hasFlights && /日本|东京|大阪|tokyo|osaka|japan/i.test(destination)) {
+        suggestions.push({
+            id: 'visa-reminder',
+            category: 'reminder',
+            icon: '📋',
+            title: '签证提醒',
+            description: '中国公民前往日本需要办理旅游签证，建议提前2-3周申请',
+            actionText: '查询签证要求',
+            actionQuery: '日本旅游签证怎么办理',
+            priority: 9
+        });
+    }
+
+    // 2. 货币兑换建议
+    if (hasFlights) {
+        const currencyMap: Record<string, { currency: string; tip: string }> = {
+            '日本|东京|大阪|tokyo|osaka': { currency: '日元', tip: '建议在国内银行提前兑换，机场汇率较差' },
+            '英国|伦敦|london': { currency: '英镑', tip: '可使用信用卡，但建议携带少量现金' },
+            '美国|纽约|new york|洛杉矶': { currency: '美元', tip: '信用卡非常普及，建议办理Visa/Master卡' },
+            '泰国|曼谷|bangkok': { currency: '泰铢', tip: '当地ATM取款汇率较好，记得带银联卡' }
+        };
+
+        for (const [pattern, info] of Object.entries(currencyMap)) {
+            if (new RegExp(pattern, 'i').test(destination)) {
+                suggestions.push({
+                    id: 'currency-tip',
+                    category: 'tip',
+                    icon: '💱',
+                    title: `货币兑换 - ${info.currency}`,
+                    description: info.tip,
+                    actionText: '查看汇率',
+                    actionQuery: `${info.currency}兑人民币汇率`,
+                    priority: 7
+                });
+                break;
+            }
+        }
+    }
+
+    // 3. 保险建议
+    if (hasFlights) {
+        suggestions.push({
+            id: 'travel-insurance',
+            category: 'related_need',
+            icon: '🛡️',
+            title: '旅行保险',
+            description: '建议购买旅行意外险和医疗险，以防突发状况',
+            actionText: '了解保险方案',
+            actionQuery: '推荐旅行保险',
+            priority: 6
+        });
+    }
+
+    // 4. 天气相关建议
+    if (hasWeather) {
+        const weatherResult = results.find(r => r.agentType === 'weather')?.result;
+        const forecast = weatherResult?.forecast || [];
+        const hasRain = forecast.some((f: any) => /雨|rain/i.test(f.condition));
+        const hasCold = forecast.some((f: any) => {
+            const temp = parseInt(f.temp);
+            return !isNaN(temp) && temp < 10;
+        });
+
+        if (hasRain) {
+            suggestions.push({
+                id: 'rain-warning',
+                category: 'warning',
+                icon: '☔',
+                title: '降雨提醒',
+                description: '目的地近期有降雨，记得携带雨具',
+                priority: 8
+            });
+        }
+
+        if (hasCold) {
+            suggestions.push({
+                id: 'cold-warning',
+                category: 'warning',
+                icon: '🧥',
+                title: '低温提醒',
+                description: '目的地气温较低，建议携带保暖衣物',
+                priority: 7
+            });
+        }
+    }
+
+    // 5. 通讯建议
+    if (hasFlights) {
+        suggestions.push({
+            id: 'sim-card',
+            category: 'tip',
+            icon: '📱',
+            title: '网络通讯',
+            description: '建议提前购买当地流量卡或开通国际漫游',
+            actionText: '查看流量卡',
+            actionQuery: `${destination}旅游流量卡推荐`,
+            priority: 5
+        });
+    }
+
+    // 6. 交通卡建议
+    if (/日本|东京|大阪|tokyo|osaka/i.test(destination)) {
+        suggestions.push({
+            id: 'transport-card',
+            category: 'tip',
+            icon: '🚃',
+            title: '交通卡推荐',
+            description: '建议购买 Suica 或 PASMO 交通卡，乘车更方便',
+            actionText: '了解更多',
+            actionQuery: '日本交通卡怎么买',
+            priority: 6
+        });
+    }
+
+    // 7. 最佳购物时机
+    if (/日本|东京|tokyo/i.test(destination)) {
+        suggestions.push({
+            id: 'shopping-opportunity',
+            category: 'opportunity',
+            icon: '🛍️',
+            title: '购物机会',
+            description: '日本药妆店和电器店经常有优惠，可提前做好购物清单',
+            actionText: '热门购物清单',
+            actionQuery: '日本必买清单',
+            priority: 4
+        });
+    }
+
+    // 8. 紧急联系方式
+    suggestions.push({
+        id: 'emergency-contact',
+        category: 'reminder',
+        icon: '🆘',
+        title: '紧急联系',
+        description: '记得保存中国驻当地大使馆联系方式和当地报警电话',
+        priority: 5
+    });
+
+    // 按优先级排序并返回前5个
+    return suggestions
+        .sort((a, b) => b.priority - a.priority)
+        .slice(0, 5);
 }
 
 /**
