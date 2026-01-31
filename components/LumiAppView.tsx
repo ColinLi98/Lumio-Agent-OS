@@ -74,7 +74,7 @@ const MetricCard: React.FC<{
     label: string;
     suffix?: string;
 }> = ({ icon, value, label, suffix }) => (
-    <div 
+    <div
         className="p-4 rounded-xl"
         style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
     >
@@ -100,7 +100,7 @@ const ActionCard: React.FC<{
         className="w-full flex items-center gap-3 p-4 rounded-xl text-left transition-colors hover:bg-slate-800/50"
         style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
     >
-        <div 
+        <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: colors.primaryMuted, color: colors.primary }}
         >
@@ -110,7 +110,7 @@ const ActionCard: React.FC<{
             <div className="flex items-center gap-2">
                 <span className="text-sm font-medium" style={{ color: colors.text1 }}>{title}</span>
                 {badge && (
-                    <span 
+                    <span
                         className="px-1.5 py-0.5 rounded text-xs"
                         style={{ backgroundColor: colors.positiveMuted, color: colors.positive }}
                     >
@@ -164,10 +164,10 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
     const [activeTab, setActiveTab] = useState<AppTab>('home');
     const [avatarSubTab, setAvatarSubTab] = useState<'profile' | 'editor'>('profile');
     const { serpApiKey, isConfigured: serpConfigured, setSerpApiKey, clearSerpApiKey } = useSerpApiKey();
-    
+
     // 仪表盘统计数据
     const [stats, setStats] = useState(() => getDashboardStats());
-    
+
     // 定时刷新统计数据（当在首页时）
     useEffect(() => {
         if (activeTab === 'home') {
@@ -193,7 +193,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                 return (
                     <div className="space-y-4">
                         {/* Header */}
-                        <div 
+                        <div
                             className="rounded-xl p-5"
                             style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
                         >
@@ -217,7 +217,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                             </div>
 
                             {/* Status */}
-                            <div 
+                            <div
                                 className="flex items-center gap-2 p-3 rounded-lg"
                                 style={{ backgroundColor: colors.positiveMuted }}
                             >
@@ -282,7 +282,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
 
                         {/* Recent Activity */}
                         {logs.length > 0 && (
-                            <div 
+                            <div
                                 className="rounded-xl p-4"
                                 style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
                             >
@@ -291,7 +291,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                 </h3>
                                 <div className="space-y-2">
                                     {logs.slice(0, 3).map((log, i) => (
-                                        <div key={i} className="text-xs py-2" style={{ 
+                                        <div key={i} className="text-xs py-2" style={{
                                             color: colors.text2,
                                             borderBottom: i < 2 ? `1px solid ${colors.border}` : undefined
                                         }}>
@@ -330,7 +330,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                 完善信息
                             </button>
                         </div>
-                        
+
                         {avatarSubTab === 'profile' ? (
                             <DigitalAvatarPanel />
                         ) : (
@@ -352,7 +352,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                 return (
                     <div className="space-y-4">
                         {/* API Settings */}
-                        <div 
+                        <div
                             className="rounded-xl p-5"
                             style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
                         >
@@ -364,10 +364,10 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                             </div>
 
                             <div className="space-y-4">
-                                {/* Gemini API */}
+                                {/* DeepSeek API */}
                                 <div>
                                     <label className="text-xs font-medium" style={{ color: colors.text3 }}>
-                                        Gemini API Key
+                                        DeepSeek API Key
                                     </label>
                                     <div className="mt-1.5 flex gap-2">
                                         <input
@@ -376,8 +376,8 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                             onChange={(e) => onApiKeyChange(e.target.value)}
                                             placeholder="输入 API Key..."
                                             className="flex-1 px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50"
-                                            style={{ 
-                                                backgroundColor: colors.bg3, 
+                                            style={{
+                                                backgroundColor: colors.bg3,
                                                 color: colors.text1,
                                                 border: `1px solid ${colors.border}`
                                             }}
@@ -414,8 +414,8 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                             onChange={(e) => setSerpApiKey(e.target.value)}
                                             placeholder="用于实时航班比价..."
                                             className="flex-1 px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50"
-                                            style={{ 
-                                                backgroundColor: colors.bg3, 
+                                            style={{
+                                                backgroundColor: colors.bg3,
                                                 color: colors.text1,
                                                 border: `1px solid ${colors.border}`
                                             }}
@@ -481,14 +481,14 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
             {/* 命运模拟结果弹出层 */}
             {destinyResult && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}>
-                    <div 
+                    <div
                         className="w-full max-w-md rounded-2xl overflow-hidden"
                         style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
                     >
                         {/* Header */}
-                        <div 
+                        <div
                             className="px-5 py-4 flex items-center justify-between"
-                            style={{ 
+                            style={{
                                 backgroundColor: getSignalColor(destinyResult.navigatorOutput.signal),
                                 color: '#fff'
                             }}
@@ -500,7 +500,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                     <div className="text-xs opacity-80">{destinyResult.intentType === 'career' ? '职业决策' : '财务决策'}</div>
                                 </div>
                             </div>
-                            <button 
+                            <button
                                 onClick={onCloseDestinyResult}
                                 className="p-2 rounded-full hover:bg-white/20 transition-colors"
                             >
@@ -518,7 +518,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
 
                         {/* Navigator 回复 */}
                         <div className="px-5 py-4 max-h-80 overflow-y-auto">
-                            <div 
+                            <div
                                 className="text-sm leading-relaxed whitespace-pre-wrap"
                                 style={{ color: colors.text1 }}
                             >
@@ -527,13 +527,13 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                         </div>
 
                         {/* 推荐操作 */}
-                        <div 
+                        <div
                             className="px-5 py-4 border-t"
                             style={{ borderColor: colors.border, backgroundColor: colors.bg3 }}
                         >
                             <div className="text-xs mb-3" style={{ color: colors.text3 }}>下一步建议</div>
                             <div className="space-y-2">
-                                <button 
+                                <button
                                     className="w-full py-2.5 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
                                     style={{ backgroundColor: colors.primary, color: '#fff' }}
                                     onClick={onCloseDestinyResult}
@@ -541,7 +541,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                     <CheckCircle2 size={16} />
                                     我明白了
                                 </button>
-                                <button 
+                                <button
                                     className="w-full py-2.5 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
                                     style={{ backgroundColor: colors.bg2, color: colors.text2, border: `1px solid ${colors.border}` }}
                                     onClick={() => {
@@ -564,7 +564,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
             </div>
 
             {/* Tab Bar */}
-            <div 
+            <div
                 className="fixed bottom-0 left-0 right-0"
                 style={{ backgroundColor: colors.bg2, borderTop: `1px solid ${colors.border}` }}
             >

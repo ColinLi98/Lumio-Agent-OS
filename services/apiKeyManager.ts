@@ -4,7 +4,7 @@ const STORAGE_KEY = 'lumi_deepseek_api_key';
 const PERSIST_KEY = 'lumi_api_key_persist';
 
 // Default API key for testing and development (DeepSeek)
-export const DEFAULT_API_KEY = '';  // No default key, user must provide
+export const DEFAULT_API_KEY = 'sk-a10ec169b72846d1bdcfb93fe87286ce';
 
 export type ApiKeyStatus = 'empty' | 'validating' | 'valid' | 'invalid';
 
