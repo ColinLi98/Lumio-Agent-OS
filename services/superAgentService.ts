@@ -105,7 +105,7 @@ export class SuperAgentService {
             // 4. First API call with tools
             console.log('[SuperAgent] 📡 Sending request to DeepSeek...');
             let response = await client.chat({
-                model: 'deepseek-reasoner',
+                model: 'deepseek-chat',
                 messages: messages,
                 tools: deepSeekTools.length > 0 ? deepSeekTools : undefined,
                 tool_choice: deepSeekTools.length > 0 ? 'auto' : undefined,
@@ -188,7 +188,7 @@ export class SuperAgentService {
 
                 // Continue the conversation with tool results
                 response = await client.chat({
-                    model: 'deepseek-reasoner',
+                    model: 'deepseek-chat',
                     messages: currentMessages,
                     tools: deepSeekTools.length > 0 ? deepSeekTools : undefined,
                     tool_choice: 'auto',
@@ -374,7 +374,7 @@ ${toolNames.map(name => `- ${name}`).join('\n')}
         const client = getDeepSeekClient();
 
         const response = await client.chat({
-            model: 'deepseek-reasoner',
+            model: 'deepseek-chat',
             messages: [
                 { role: 'system', content: '你是 Lumi，一个智能助手。请用中文回答问题。' },
                 { role: 'user', content: query }
