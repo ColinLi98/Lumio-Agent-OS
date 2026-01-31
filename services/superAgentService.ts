@@ -5,7 +5,7 @@
  * Implements a ReAct (Reasoning + Acting) loop for multi-turn tool execution.
  */
 
-import { GoogleGenAI, FunctionCallingConfigMode } from '@anthropic-ai/sdk';
+// Note: @google/generative-ai is imported dynamically in getGeminiClient()
 import { getToolRegistry, setToolRegistryApiKey, GeminiFunctionDeclaration } from './toolRegistry';
 import { runShadowProfiling, setProfilingApiKey, ProfilingResult, onProfileUpdate } from './profilingService';
 import { getMemR3Router } from './memr3Service';
@@ -116,7 +116,7 @@ export class SuperAgentService {
             // 3. Get Gemini client and model
             const client = getGeminiClient(this.apiKey);
             const model = client.getGenerativeModel({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-3',
                 systemInstruction: systemPrompt,
                 tools: tools.length > 0 ? [{ functionDeclarations: tools }] : undefined
             });
@@ -175,7 +175,7 @@ export class SuperAgentService {
                             runShadowProfiling(output, tool.profiling.target_dimension, tool.profiling.instruction)
                                 .then(result => {
                                     if (result) {
-                                        onProfileUpdate(result);
+                                        console.log('[SuperAgent] Shadow profiling result:', result);
                                     }
                                 })
                                 .catch(err => console.warn('[SuperAgent] Shadow profiling failed:', err));
@@ -352,7 +352,7 @@ ${toolNames.map(name => `- ${name}`).join('\n')}
      */
     private async simpleLLMCall(query: string): Promise<string> {
         const client = getGeminiClient(this.apiKey);
-        const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = client.getGenerativeModel({ model: 'gemini-3' });
 
         const result = await model.generateContent(query);
         return result.response.text() || '抱歉，我无法回答这个问题。';
@@ -399,6 +399,7 @@ interface LegacySolution {
     results: SkillResult[];
     confidence: number;
     executionTimeMs: number;
+    followUpSuggestions?: string[];
 }
 
 // ============================================================================
