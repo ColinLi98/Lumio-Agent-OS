@@ -118,8 +118,20 @@ export class SuperAgentService {
             let currentMessages = [...messages];
 
             while (turns < MAX_TURNS) {
+                // Validate response structure
+                if (!response.choices || response.choices.length === 0) {
+                    console.error('[SuperAgent] ❌ Empty choices in response');
+                    throw new Error('DeepSeek returned empty response');
+                }
+
                 const choice = response.choices[0];
                 const assistantMessage = choice.message;
+
+                // Validate message exists
+                if (!assistantMessage) {
+                    console.error('[SuperAgent] ❌ No message in response');
+                    throw new Error('DeepSeek returned no message');
+                }
 
                 // Check for tool calls
                 if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {

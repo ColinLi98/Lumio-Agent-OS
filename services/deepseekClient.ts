@@ -67,6 +67,12 @@ export class DeepSeekClient {
     }
 
     async chat(request: DeepSeekChatRequest): Promise<DeepSeekChatResponse> {
+        console.log('[DeepSeek] Sending request:', {
+            model: request.model,
+            messagesCount: request.messages.length,
+            toolsCount: request.tools?.length || 0
+        });
+
         const response = await fetch(`${DEEPSEEK_BASE_URL}/v1/chat/completions`, {
             method: 'POST',
             headers: {
@@ -85,7 +91,19 @@ export class DeepSeekClient {
             throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
         }
 
-        return response.json();
+        const data = await response.json();
+
+        // Log response for debugging
+        console.log('[DeepSeek] Response:', {
+            id: data.id,
+            model: data.model,
+            choicesCount: data.choices?.length || 0,
+            hasContent: !!data.choices?.[0]?.message?.content,
+            hasToolCalls: !!data.choices?.[0]?.message?.tool_calls,
+            finishReason: data.choices?.[0]?.finish_reason
+        });
+
+        return data;
     }
 }
 
