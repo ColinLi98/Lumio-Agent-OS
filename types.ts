@@ -8,6 +8,9 @@ export enum IntentCategory {
   WRITE_ASSIST = 'WRITE_ASSIST',     // 帮我写 - 解决表达焦虑
   SEARCH_ASSIST = 'SEARCH_ASSIST',   // 帮我找 - 解决信息割裂
   MEMORY_ASSIST = 'MEMORY_ASSIST',   // 帮我记 - 解决信息过载
+  // 第四大功能：人生优化
+  LIFE_OPTIMIZATION = 'LIFE_OPTIMIZATION',  // 帮我选 - 解决决策焦虑
+  ANXIETY_RELIEF = 'ANXIETY_RELIEF',        // 缓解焦虑
   // 原有意图类别
   REWRITE = 'REWRITE',
   SHOPPING = 'SHOPPING',
@@ -72,6 +75,7 @@ export interface ToolResultData {
   data?: any;
   error?: string;
   displayType: 'weather' | 'calculator' | 'translation' | 'calendar' | 'reminder' | 'search' | 'text' | 'notes' | 'location' | 'write_assist' | 'memory' | 'quick_actions' | 'ocr_result';
+  decision?: DecisionMeta;
 }
 
 // Task step for multi-step execution
@@ -112,17 +116,40 @@ export interface TaskPlan {
 }
 
 export type AgentOutput =
-  | { type: 'DRAFTS'; drafts: TextDraft[] }
-  | { type: 'CARDS'; cards: ServiceCard[] }
+  | { type: 'DRAFTS'; drafts: TextDraft[]; decision?: DecisionMeta; associatedSuggestions?: AssociatedSuggestion[] }
+  | { type: 'CLARIFICATION'; prompt: string; missingFields?: string[]; contextQuery?: string; associatedSuggestions?: AssociatedSuggestion[] }
+  | { type: 'CARDS'; cards: ServiceCard[]; decision?: DecisionMeta; associatedSuggestions?: AssociatedSuggestion[] }
   | { type: 'PRIVACY'; action: PrivacyAction }
-  | { type: 'TOOL_RESULT'; result: ToolResultData; summary?: string }
-  | { type: 'TASK_PROGRESS'; task: TaskPlan }
-  | { type: 'QUICK_ACTIONS'; actions: QuickAction[]; context?: string }
-  | { type: 'MEMORY_SAVED'; item: MemoryItem; message: string }
-  | { type: 'ORCHESTRATION_RESULT'; plan: OrchestrationPlan }
-  | { type: 'SUPER_AGENT_RESULT'; globalSolution: SuperAgentSolution; summary: string; recommendation: string; results: any[] }
+  | { type: 'TOOL_RESULT'; result: ToolResultData; summary?: string; associatedSuggestions?: AssociatedSuggestion[] }
+  | { type: 'TASK_PROGRESS'; task: TaskPlan; associatedSuggestions?: AssociatedSuggestion[] }
+  | { type: 'QUICK_ACTIONS'; actions: QuickAction[]; context?: string; associatedSuggestions?: AssociatedSuggestion[] }
+  | { type: 'MEMORY_SAVED'; item: MemoryItem; message: string; associatedSuggestions?: AssociatedSuggestion[] }
+  | { type: 'ORCHESTRATION_RESULT'; plan: OrchestrationPlan; decision?: DecisionMeta; associatedSuggestions?: AssociatedSuggestion[] }
+  | { type: 'SUPER_AGENT_RESULT'; globalSolution: SuperAgentSolution; summary: string; recommendation: string; results: any[]; decision?: DecisionMeta }
+  | { type: 'NEXT_BEST_ACTION'; recommendation: LifeActionRecommendation; gamma: number }
   | { type: 'ERROR'; message: string }
   | { type: 'NONE' };
+
+// Life Action Recommendation from Bellman optimizer
+export interface LifeActionRecommendation {
+  action: {
+    id: string;
+    name: string;
+    description: string;
+    domain: string;
+    timeHorizon: 'immediate' | 'short' | 'medium' | 'long';
+  };
+  qValue: number;
+  confidence: number;
+  reasoning: string;
+  expectedOutcome: string;
+  alternatives: Array<{
+    action: { id: string; name: string; description: string };
+    qValue: number;
+    tradeoff: string;
+  }>;
+  anxietyRelief: string;
+}
 
 // Super Agent global solution type
 export interface SuperAgentSolution {
@@ -151,6 +178,38 @@ export interface AssociatedSuggestion {
   actionText?: string;
   actionQuery?: string;  // 点击后发送的查询
   priority: number;  // 1-10, 越高越重要
+}
+
+export interface DecisionMeta {
+  title: string;
+  summary: string;
+  bestOption?: any;
+  reasons?: string[];
+  criteria?: string[];
+  assumptions?: string[];
+  followUpQuestions?: string[];
+  quickReplies?: Array<{
+    label: string;
+    options: string[];
+  }>;
+  confidence: number;
+  bellman?: BellmanPolicyTrace;
+}
+
+export type BellmanDecisionState = 'NO_CONTEXT' | 'PARTIAL_CONTEXT' | 'UNCERTAIN' | 'READY' | 'DONE';
+
+export type BellmanDecisionAction =
+  | 'ASK_CLARIFY'
+  | 'EXPAND_SEARCH'
+  | 'PROVIDE_ALTERNATIVES'
+  | 'RECOMMEND_BEST'
+  | 'END';
+
+export interface BellmanPolicyTrace {
+  startState: BellmanDecisionState;
+  bestAction: BellmanDecisionAction;
+  expectedValue: number;
+  path: BellmanDecisionAction[];
 }
 
 
@@ -316,6 +375,8 @@ export interface SoulMatrix {
   communicationStyle: 'Professional' | 'Casual' | 'Friendly' | 'Concise';
   riskTolerance: 'Low' | 'Medium' | 'High';
   privacyLevel: 'Strict' | 'Balanced' | 'Open';
+  // PRD V0.1: 消费偏好 - 价格优先(-50) / 均衡(0) / 品质优先(+50)
+  spendingPreference: 'PriceFirst' | 'Balanced' | 'QualityFirst';
 }
 
 export interface PolicyConfig {
@@ -378,7 +439,7 @@ export interface WriteStyle {
  */
 export interface UserInteraction {
   id: string;
-  type: 'message_sent' | 'draft_selected' | 'tool_used' | 'card_clicked' | 'emoji_reaction' | 'session_start' | 'session_end';
+  type: 'message_sent' | 'draft_selected' | 'draft_accept' | 'draft_edit' | 'tool_used' | 'card_clicked' | 'card_click' | 'card_dismiss' | 'query_refine' | 'confirm_send' | 'emoji_reaction' | 'session_start' | 'session_end';
   data: Record<string, any>;
   timestamp: number;
   appContext?: string;
@@ -608,6 +669,151 @@ export interface Milestone {
 }
 
 /**
+ * 人生阶段定义
+ * 用于命运导航系统的人生阶段分类
+ */
+export type LifeStage = 
+  | 'student'           // 学生阶段
+  | 'early_career'      // 职业早期 (22-30)
+  | 'career_growth'     // 职业成长期 (30-40)
+  | 'career_peak'       // 职业巅峰期 (40-55)
+  | 'late_career'       // 职业后期 (55+)
+  | 'retired';          // 退休
+
+/**
+ * 人生状态快照
+ * 命运导航系统的核心数据
+ */
+export interface LifeStateSnapshot {
+  // 基本信息
+  age: number;                        // 年龄
+  birthYear?: number;                 // 出生年份 (可选，用于自动更新年龄)
+  lifeStage: LifeStage;               // 当前人生阶段
+  
+  // 教育背景
+  education: {
+    highestDegree: 'high_school' | 'bachelor' | 'master' | 'phd' | 'other';
+    field?: string;                   // 专业领域
+    institutions?: string[];          // 就读院校
+  };
+  
+  // 职业状态
+  career: {
+    currentStatus: 'student' | 'employed' | 'self_employed' | 'freelance' | 'unemployed' | 'retired';
+    industry?: string;                // 行业
+    role?: string;                    // 职位
+    yearsOfExperience: number;        // 工作年限
+    careerSatisfaction: number;       // 职业满意度 (0-100)
+  };
+  
+  // 财务状况 (相对评估，不涉及具体数字)
+  finance: {
+    incomeLevel: 'low' | 'medium' | 'high' | 'very_high';  // 收入水平
+    savingsLevel: 'none' | 'low' | 'medium' | 'high';      // 储蓄水平
+    debtLevel: 'none' | 'low' | 'medium' | 'high';         // 负债水平
+    financialStress: number;          // 财务压力 (0-100)
+    hasInvestments: boolean;          // 是否有投资
+    hasProperty: boolean;             // 是否有房产
+  };
+  
+  // 健康状况
+  health: {
+    physicalHealth: number;           // 身体健康 (0-100)
+    mentalHealth: number;             // 心理健康 (0-100)
+    energyLevel: number;              // 精力水平 (0-100)
+    sleepQuality: number;             // 睡眠质量 (0-100)
+    exerciseFrequency: 'none' | 'rarely' | 'weekly' | 'daily';
+    chronicConditions?: string[];     // 慢性疾病 (可选)
+  };
+  
+  // 关系状态
+  relationships: {
+    status: 'single' | 'dating' | 'married' | 'divorced' | 'widowed';
+    hasChildren: boolean;
+    childrenCount?: number;
+    familyRelationshipQuality: number;   // 家庭关系质量 (0-100)
+    socialCircleSize: 'small' | 'medium' | 'large';
+    socialSatisfaction: number;          // 社交满意度 (0-100)
+  };
+  
+  // 技能与能力
+  skills: {
+    topSkills: string[];              // 核心技能 (最多5个)
+    learningGoals: string[];          // 学习目标
+    languageAbilities: string[];      // 语言能力
+    technicalProficiency: number;     // 技术能力 (0-100)
+    leadershipExperience: number;     // 领导经验 (0-100)
+  };
+  
+  // 人生目标
+  lifeGoals: {
+    shortTerm: string[];              // 短期目标 (1年内)
+    mediumTerm: string[];             // 中期目标 (1-5年)
+    longTerm: string[];               // 长期目标 (5年+)
+    coreValues: string[];             // 核心价值观
+    dreamJob?: string;                // 理想职业
+    lifeVision?: string;              // 人生愿景
+  };
+  
+  // 当前挑战与焦虑
+  currentChallenges: {
+    primaryConcerns: string[];        // 主要担忧
+    stressLevel: number;              // 压力水平 (0-100)
+    anxietyTriggers: string[];        // 焦虑触发因素
+    bigDecisions: string[];           // 面临的重大决策
+  };
+  
+  // 资源与优势
+  resources: {
+    networkQuality: number;           // 人脉质量 (0-100)
+    mentorAccess: boolean;            // 是否有导师
+    uniqueAdvantages: string[];       // 独特优势
+    availableTime: 'limited' | 'moderate' | 'abundant';  // 可用时间
+  };
+  
+  // 元数据
+  lastUpdated: number;                // 最后更新时间
+  completeness: number;               // 完整度 (0-100)
+  dataSource: 'questionnaire' | 'inferred' | 'manual' | 'mixed';
+}
+
+/**
+ * 人生转折点记录
+ * 追踪用户生命中的重大事件
+ */
+export interface LifeTransition {
+  id: string;
+  type: 'education' | 'career' | 'relationship' | 'health' | 'finance' | 'relocation' | 'other';
+  title: string;
+  description: string;
+  date: number;                       // 发生时间
+  impact: 'positive' | 'negative' | 'neutral' | 'mixed';
+  impactScore: number;                // 影响程度 (-100 到 100)
+  lessonsLearned?: string;            // 经验教训
+  isPrivate: boolean;                 // 是否隐私
+}
+
+/**
+ * 决策历史记录
+ * 追踪用户的重大决策
+ */
+export interface DecisionHistory {
+  id: string;
+  date: number;
+  context: string;                    // 决策背景
+  options: string[];                  // 可选项
+  chosen: string;                     // 选择的选项
+  reasoning: string;                  // 决策理由
+  outcome?: {
+    description: string;
+    satisfaction: number;             // 满意度 (0-100)
+    evaluatedAt: number;              // 评估时间
+  };
+  lumiAdvice?: string;                // Lumi 当时给的建议
+  followedAdvice: boolean;            // 是否采纳了 Lumi 建议
+}
+
+/**
  * 增强型数字分身 (完整版)
  * 用户的全方位人性化画像
  */
@@ -621,6 +827,26 @@ export interface EnhancedDigitalAvatar extends DigitalAvatar {
   emotionalProfile: EmotionalProfile;
   socialGraph: SocialGraph;
   valuesProfile: ValuesProfile;
+
+  // === 新增：人生状态维度 ===
+  lifeState: LifeStateSnapshot;           // 人生状态快照
+  lifeTransitions: LifeTransition[];      // 人生转折点
+  decisionHistory: DecisionHistory[];     // 决策历史
+  
+  // === 新增：命运导航偏好 ===
+  destinyPreferences: {
+    optimizationGoal: 'wealth' | 'happiness' | 'health' | 'balance' | 'achievement';
+    riskAppetite: number;                 // 风险偏好 (0-100)
+    timeHorizon: 'short' | 'medium' | 'long' | 'very_long';  // 规划时间跨度
+    priorityWeights: {
+      wealth: number;                     // 财富权重
+      health: number;                     // 健康权重
+      relationships: number;              // 关系权重
+      career: number;                     // 事业权重
+      fulfillment: number;                // 实现权重
+    };
+    gamma: number;                        // Bellman 折扣因子 (0.8-0.99)
+  };
 
   // 成长记录
   milestones: Milestone[];

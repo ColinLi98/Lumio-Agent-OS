@@ -10,6 +10,7 @@
 
 import { SpecializedAgentType } from '../types';
 import { SPECIALIZED_AGENTS, executeSpecializedAgent } from './specializedAgents';
+import { getEnhancedDigitalAvatar } from './localStorageService';
 
 // ============================================================================
 // Types
@@ -121,6 +122,13 @@ const AGENT_CAPABILITIES: AgentCapability[] = [
         capabilities: ['translate text', 'language help'],
         costWeight: 0.3,
         qualityWeight: 0.9
+    },
+    {
+        type: 'transportation',
+        domains: ['transportation', 'transfer', 'airport'],
+        capabilities: ['airport transfer', 'ground transport', 'time planning'],
+        costWeight: 0.4,
+        qualityWeight: 0.8
     }
 ];
 
@@ -136,17 +144,23 @@ export async function analyzeAndDecompose(
     userRequest: string,
     apiKey?: string
 ): Promise<TaskDecomposition> {
+    let decomposition: TaskDecomposition | null = null;
+
     // Try LLM-based analysis if API key available
     if (apiKey) {
         try {
-            return await llmBasedDecomposition(userRequest, apiKey);
+            decomposition = await llmBasedDecomposition(userRequest, apiKey);
         } catch (e) {
             console.warn('LLM decomposition failed, using pattern matching:', e);
         }
     }
 
     // Fallback to pattern-based decomposition
-    return patternBasedDecomposition(userRequest);
+    if (!decomposition) {
+        decomposition = patternBasedDecomposition(userRequest);
+    }
+
+    return normalizeTravelDecomposition(decomposition, userRequest);
 }
 
 /**
@@ -169,7 +183,7 @@ Analyze this request and provide a JSON response with:
     {
       "id": "t1",
       "description": "Task description",
-      "agentType": "One of: flight_booking, hotel_booking, restaurant, attraction, weather, itinerary, translation",
+      "agentType": "One of: flight_booking, hotel_booking, restaurant, attraction, weather, itinerary, transportation, translation",
       "priority": 1,
       "dependsOn": [],
       "params": {}
@@ -226,6 +240,342 @@ Think step by step about dependencies between tasks. For travel requests, weathe
     };
 }
 
+// =============================================================================
+// Travel Helpers
+// =============================================================================
+
+const COMMON_CITIES = [
+    '伦敦', 'london',
+    '大连', 'dalian',
+    '北京', 'beijing',
+    '上海', 'shanghai',
+    '广州', 'guangzhou',
+    '深圳', 'shenzhen',
+    '杭州', 'hangzhou',
+    '成都', 'chengdu',
+    '香港', 'hong kong',
+    '东京', 'tokyo',
+    '大阪', 'osaka',
+    '巴黎', 'paris',
+    '纽约', 'new york',
+    '首尔', 'seoul',
+    '曼谷', 'bangkok',
+    '新加坡', 'singapore'
+];
+
+const LOCATION_NOISE = [
+    '机票', '航班', '飞机', '航线', '票', '酒店', '住宿', '旅行', '旅游', '出行', '攻略', '路线',
+    'flight', 'flights', 'ticket', 'tickets', 'hotel', 'travel', 'trip', 'route'
+];
+
+const LOCATION_HINT_STOPWORDS = [
+    '附近', '本地', '当地', '这里', '那里', '这边', '那边', '目的地', '市中心', '市区'
+];
+
+const LOCATION_HINT_PATTERNS = [
+    /在\s*([A-Za-z\u4e00-\u9fa5]{2,16})\s*(?:吃|美食|餐厅|饭店|小吃|玩|住|酒店|天气|景点|旅游|旅行|攻略)/i,
+    /([A-Za-z\u4e00-\u9fa5]{2,16})(?:美食|餐厅|饭店|小吃|酒店|住宿|景点|天气|旅游|旅行|攻略)/i
+];
+
+function sanitizeLocationToken(value: string): string {
+    let token = value.trim();
+    token = token.replace(/[，,。.!?]+/g, '');
+    token = token.replace(/^(从|到|去|飞往|前往)\s*/g, '');
+    token = token.replace(/^(中国|中国大陆|中国地区)\s*/g, '');
+    const noisePattern = new RegExp(`(${LOCATION_NOISE.join('|')})+$`, 'i');
+    token = token.replace(noisePattern, '');
+    return token.trim();
+}
+
+function formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function buildDate(year: number, month: number, day: number): Date | null {
+    const date = new Date(year, month - 1, day);
+    if (Number.isNaN(date.getTime())) return null;
+    if (date.getMonth() + 1 !== month || date.getDate() !== day) return null;
+    return date;
+}
+
+function nextWeekday(targetDay: number, baseDate: Date, offsetWeeks: number): Date {
+    const currentDay = baseDate.getDay();
+    let delta = (targetDay - currentDay + 7) % 7;
+    if (delta === 0) delta = 7;
+    delta += offsetWeeks * 7;
+    return new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + delta);
+}
+
+export function extractDepartureDate(userRequest: string): string | null {
+    const text = userRequest.toLowerCase();
+    const today = new Date();
+
+    const fullMatch = text.match(/(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/);
+    if (fullMatch) {
+        const date = buildDate(parseInt(fullMatch[1], 10), parseInt(fullMatch[2], 10), parseInt(fullMatch[3], 10));
+        if (date) return formatDate(date);
+    }
+
+    const monthDayMatch = text.match(/(\d{1,2})[\/\-.月](\d{1,2})(?:日|号)?/);
+    if (monthDayMatch) {
+        const month = parseInt(monthDayMatch[1], 10);
+        const day = parseInt(monthDayMatch[2], 10);
+        let year = today.getFullYear();
+        let date = buildDate(year, month, day);
+        if (date && date < today) {
+            year += 1;
+            date = buildDate(year, month, day);
+        }
+        if (date) return formatDate(date);
+    }
+
+    if (text.includes('明天') || text.includes('tomorrow')) {
+        const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+        return formatDate(date);
+    }
+    if (text.includes('后天')) {
+        const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+        return formatDate(date);
+    }
+    if (text.includes('大后天')) {
+        const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3);
+        return formatDate(date);
+    }
+
+    const nextWeekMatch = text.match(/下周([一二三四五六日天])/);
+    if (nextWeekMatch) {
+        const map: Record<string, number> = { '日': 0, '天': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6 };
+        const targetDay = map[nextWeekMatch[1]];
+        const date = nextWeekday(targetDay, today, 1);
+        return formatDate(date);
+    }
+
+    const weekDayMatch = text.match(/周([一二三四五六日天])/);
+    if (weekDayMatch) {
+        const map: Record<string, number> = { '日': 0, '天': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6 };
+        const targetDay = map[weekDayMatch[1]];
+        const date = nextWeekday(targetDay, today, 0);
+        return formatDate(date);
+    }
+
+    if (text.includes('next week')) {
+        const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+        return formatDate(date);
+    }
+
+    const englishDayMatch = text.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/);
+    if (englishDayMatch) {
+        const map: Record<string, number> = {
+            sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+            thursday: 4, friday: 5, saturday: 6
+        };
+        const targetDay = map[englishDayMatch[1]];
+        const date = nextWeekday(targetDay, today, text.includes('next') ? 1 : 0);
+        return formatDate(date);
+    }
+
+    return null;
+}
+
+export function extractRoute(userRequest: string): { origin?: string; destination?: string } {
+    const directMatch = userRequest.match(/从\s*([^\s到]+)\s*到\s*([^\s]+)|([^\s]+)\s*到\s*([^\s]+)/);
+    if (directMatch) {
+        const origin = directMatch[1] || directMatch[3];
+        const destination = directMatch[2] || directMatch[4];
+        const cleanOrigin = origin ? sanitizeLocationToken(origin) : origin;
+        const cleanDestination = destination ? sanitizeLocationToken(destination) : destination;
+        if (cleanOrigin && cleanDestination && cleanOrigin !== cleanDestination) {
+            return { origin: cleanOrigin, destination: cleanDestination };
+        }
+    }
+
+    const lowerRequest = userRequest.toLowerCase();
+    const matched = COMMON_CITIES
+        .map((city) => ({ city, index: lowerRequest.indexOf(city.toLowerCase()) }))
+        .filter((item) => item.index >= 0)
+        .sort((a, b) => a.index - b.index);
+
+    if (matched.length >= 2) {
+        return {
+            origin: sanitizeLocationToken(matched[0].city),
+            destination: sanitizeLocationToken(matched[1].city)
+        };
+    }
+
+    if (matched.length === 1) {
+        return { destination: sanitizeLocationToken(matched[0].city) };
+    }
+
+    return {};
+}
+
+function extractLocationHint(userRequest: string): string | undefined {
+    const route = extractRoute(userRequest);
+    const direct = route.destination || route.origin;
+    if (direct) return direct;
+
+    for (const pattern of LOCATION_HINT_PATTERNS) {
+        const match = userRequest.match(pattern);
+        if (match?.[1]) {
+            const cleaned = sanitizeLocationToken(match[1]).replace(/的$/g, '').trim();
+            if (cleaned && !LOCATION_HINT_STOPWORDS.includes(cleaned)) {
+                return cleaned;
+            }
+        }
+    }
+
+    return undefined;
+}
+
+function buildOptimizationGoal(): string {
+    const avatar = getEnhancedDigitalAvatar();
+    const priceVsQuality = avatar.valuesProfile?.priceVsQuality ?? 0;
+    const stability = avatar.valuesProfile?.stability ?? 50;
+    const efficiency = avatar.valuesProfile?.efficiency ?? 50;
+    const multitasking = avatar.behaviorPatterns?.multitaskingTendency ?? 50;
+
+    const priceFocus = priceVsQuality < -20 ? '成本优先' : priceVsQuality > 20 ? '舒适优先' : '性价比优先';
+    const stabilityFocus = stability > 65 ? '尽量减少中转' : '中转可接受';
+    const efficiencyFocus = efficiency > 65 ? '缩短总耗时' : '时间要求灵活';
+    const paceFocus = multitasking > 65 ? '行程紧凑' : multitasking < 40 ? '行程舒缓' : '行程平衡';
+
+    return `综合偏好：${priceFocus}、${stabilityFocus}、${efficiencyFocus}、${paceFocus}`;
+}
+
+function normalizeTravelDecomposition(
+    decomposition: TaskDecomposition,
+    userRequest: string
+): TaskDecomposition {
+    const isTravel = /旅行|旅游|出行|行程|trip|travel|机票|航班/i.test(userRequest);
+    const route = extractRoute(userRequest);
+    const locationHint = extractLocationHint(userRequest);
+    const tasks = decomposition.subTasks.map((task) => {
+        const params = { ...(task.params || {}) };
+        if (locationHint && ['hotel_booking', 'weather', 'attraction', 'restaurant', 'itinerary', 'transportation'].includes(task.agentType)) {
+            if (!params.destination) {
+                params.destination = locationHint;
+            }
+        }
+        if (route.origin && ['flight_booking', 'transportation'].includes(task.agentType)) {
+            if (!params.origin) params.origin = route.origin;
+        }
+        if (route.destination && ['flight_booking', 'transportation'].includes(task.agentType)) {
+            if (!params.destination) params.destination = route.destination;
+        }
+        return { ...task, params };
+    });
+
+    if (!isTravel) {
+        return { ...decomposition, subTasks: tasks };
+    }
+    const departureDate = extractDepartureDate(userRequest);
+    const travelTasks = [...tasks];
+    let nextId = tasks.length + 1;
+
+    const hasAgent = (type: SpecializedAgentType) => travelTasks.some(t => t.agentType === type);
+    const addTask = (task: Omit<SubTask, 'id' | 'status'>) => {
+        travelTasks.push({
+            ...task,
+            id: `t${nextId++}`,
+            status: 'pending'
+        });
+    };
+
+    if (!hasAgent('weather')) {
+        addTask({
+            description: `Check weather forecast for ${route.destination || 'destination'}`,
+            agentType: 'weather',
+            priority: 1,
+            dependsOn: [],
+            params: { destination: route.destination }
+        });
+    }
+
+    if (!hasAgent('flight_booking')) {
+        addTask({
+            description: `Search flights to ${route.destination || 'destination'}`,
+            agentType: 'flight_booking',
+            priority: 1,
+            dependsOn: [],
+            params: { origin: route.origin, destination: route.destination, departureDate }
+        });
+    }
+
+    if (!hasAgent('hotel_booking')) {
+        addTask({
+            description: `Find hotels in ${route.destination || 'destination'}`,
+            agentType: 'hotel_booking',
+            priority: 2,
+            dependsOn: [],
+            params: { destination: route.destination }
+        });
+    }
+
+    if (!hasAgent('restaurant')) {
+        addTask({
+            description: `Find restaurants in ${route.destination || 'destination'}`,
+            agentType: 'restaurant',
+            priority: 3,
+            dependsOn: [],
+            params: { destination: route.destination }
+        });
+    }
+
+    if (!hasAgent('attraction')) {
+        addTask({
+            description: `Discover attractions in ${route.destination || 'destination'}`,
+            agentType: 'attraction',
+            priority: 2,
+            dependsOn: [],
+            params: { destination: route.destination }
+        });
+    }
+
+    if (!hasAgent('transportation')) {
+        const flightTask = travelTasks.find(t => t.agentType === 'flight_booking');
+        addTask({
+            description: `Plan airport transfer and ground transport`,
+            agentType: 'transportation',
+            priority: 3,
+            dependsOn: flightTask ? [flightTask.id] : [],
+            params: { origin: route.origin, destination: route.destination, departureDate }
+        });
+    }
+
+    if (!hasAgent('itinerary')) {
+        addTask({
+            description: `Create optimized itinerary for ${route.destination || 'destination'}`,
+            agentType: 'itinerary',
+            priority: 4,
+            dependsOn: travelTasks.filter(t => ['weather', 'flight_booking', 'hotel_booking', 'attraction', 'restaurant', 'transportation'].includes(t.agentType))
+                .map(t => t.id),
+            params: { destination: route.destination }
+        });
+    }
+
+    travelTasks.forEach((task) => {
+        const destination = route.destination || task.params?.destination;
+        const origin = route.origin || task.params?.origin;
+        if (task.agentType === 'flight_booking') {
+            task.params = { ...task.params, origin, destination, departureDate: task.params?.departureDate || departureDate };
+        } else if (['hotel_booking', 'weather', 'attraction', 'restaurant', 'itinerary', 'transportation'].includes(task.agentType)) {
+            task.params = { ...task.params, destination, origin };
+        }
+    });
+
+    return {
+        ...decomposition,
+        subTasks: travelTasks,
+        optimizationGoal: decomposition.optimizationGoal || buildOptimizationGoal(),
+        implicitNeeds: decomposition.implicitNeeds.length
+            ? decomposition.implicitNeeds
+            : ['transportation', 'accommodation', 'activities', 'dining', 'ground_transfer']
+    };
+}
+
 /**
  * Pattern-based decomposition (fallback)
  */
@@ -235,12 +585,13 @@ function patternBasedDecomposition(userRequest: string): TaskDecomposition {
     let taskId = 0;
 
     // Detect travel/trip planning
-    const isTravelRequest = /旅行|旅游|出行|行程|trip|travel|去.*(玩|旅)|planning/i.test(request);
+    const isTravelRequest = /旅行|旅游|出行|行程|trip|travel|去.*(玩|旅)|planning|机票|航班|飞机/i.test(request);
 
-    // Detect destination
-    const destinations = ['东京', 'tokyo', '大阪', 'osaka', '北京', 'beijing', '上海', 'shanghai',
-        '伦敦', 'london', '巴黎', 'paris', '纽约', 'new york'];
-    const destination = destinations.find(d => request.includes(d.toLowerCase())) || 'destination';
+    // Detect origin and destination
+    const route = extractRoute(userRequest);
+    const departureDate = extractDepartureDate(userRequest);
+    const destination = route.destination || 'destination';
+    const origin = route.origin || 'origin';
 
     // Detect budget constraint
     const budgetMatch = request.match(/(\d+)\s*(?:万|k|元|¥|\$|日元|美元)/i);
@@ -265,7 +616,7 @@ function patternBasedDecomposition(userRequest: string): TaskDecomposition {
             agentType: 'flight_booking',
             priority: 1,
             dependsOn: [],
-            params: { destination, budget },
+            params: { origin, destination, budget, departureDate },
             status: 'pending'
         });
 
@@ -302,13 +653,24 @@ function patternBasedDecomposition(userRequest: string): TaskDecomposition {
             status: 'pending'
         });
 
+        // Transportation (depends on flight info)
+        subTasks.push({
+            id: `t${++taskId}`,
+            description: `Plan airport transfer and ground transport`,
+            agentType: 'transportation',
+            priority: 3,
+            dependsOn: ['t2'],
+            params: { origin, destination, departureDate },
+            status: 'pending'
+        });
+
         // Final itinerary (depends on all)
         subTasks.push({
             id: `t${++taskId}`,
             description: `Create optimized itinerary for ${destination}`,
             agentType: 'itinerary',
             priority: 4,
-            dependsOn: ['t1', 't2', 't3', 't4', 't5'],
+            dependsOn: ['t1', 't2', 't3', 't4', 't5', 't6'],
             params: { destination },
             status: 'pending'
         });
@@ -321,7 +683,7 @@ function patternBasedDecomposition(userRequest: string): TaskDecomposition {
             agentType: agent,
             priority: 1,
             dependsOn: [],
-            params: extractParams(request),
+            params: extractParams(userRequest),
             status: 'pending'
         });
     }
@@ -330,15 +692,15 @@ function patternBasedDecomposition(userRequest: string): TaskDecomposition {
         originalRequest: userRequest,
         userIntent: isTravelRequest ? `Plan a trip to ${destination}` : 'Execute user request',
         implicitNeeds: isTravelRequest
-            ? ['transportation', 'accommodation', 'activities', 'dining']
+            ? ['transportation', 'accommodation', 'activities', 'dining', 'ground_transfer']
             : [],
         constraints: budget ? [`Budget: ${budget}`] : [],
         subTasks,
         optimizationGoal: isTravelRequest
-            ? 'Minimize cost while maximizing experience quality'
+            ? buildOptimizationGoal()
             : 'Complete request efficiently',
         reasoning: isTravelRequest
-            ? 'Decomposed into weather → flights/hotels → attractions → itinerary pipeline'
+            ? 'Decomposed into weather → flights/hotels → attractions/transport → itinerary pipeline'
             : 'Single-task routing to best agent'
     };
 }
@@ -375,9 +737,14 @@ function detectBestAgent(request: string): SpecializedAgentType {
 function extractParams(request: string): Record<string, any> {
     const params: Record<string, any> = {};
 
-    // Extract destination
-    const destMatch = request.match(/去|到|from|to\s+(\S+)/);
-    if (destMatch) params.destination = destMatch[1];
+    const route = extractRoute(request);
+    if (route.origin) params.origin = route.origin;
+    if (route.destination) params.destination = route.destination;
+
+    if (!params.destination) {
+        const locationHint = extractLocationHint(request);
+        if (locationHint) params.destination = locationHint;
+    }
 
     // Extract date
     const dateMatch = request.match(/(\d{1,2})[\/\-](\d{1,2})|下周|明天|next week|tomorrow/);
@@ -478,8 +845,14 @@ function synthesizeGlobalSolution(
     const totalTasks = decomposition.subTasks.length;
     const completedTasks = successfulResults.length;
 
-    // Calculate optimization score
-    let score = (completedTasks / totalTasks) * 100;
+    // Calculate optimization score (completion + personalization fit)
+    let score = (completedTasks / totalTasks) * 70;
+    const flightResult = successfulResults.find(r => r.agentType === 'flight_booking')?.result;
+    if (flightResult?.bestOption?.matchScore) {
+        score += Math.round((flightResult.bestOption.matchScore / 100) * 30);
+    } else {
+        score += 15;
+    }
 
     // Generate summary
     const summaryParts: string[] = [];
@@ -487,8 +860,11 @@ function synthesizeGlobalSolution(
     for (const result of successfulResults) {
         switch (result.agentType) {
             case 'flight_booking':
+                const bestFlight = result.result?.bestOption;
                 const lowestFlight = result.result?.lowestPrice;
-                if (lowestFlight) {
+                if (bestFlight) {
+                    summaryParts.push(`✈️ 推荐航班: ${bestFlight.airline} $${bestFlight.price} (匹配度 ${bestFlight.matchScore}%)`);
+                } else if (lowestFlight) {
                     summaryParts.push(`✈️ Best flight: $${lowestFlight.price} via ${lowestFlight.source}`);
                 }
                 break;
@@ -496,6 +872,12 @@ function synthesizeGlobalSolution(
                 const hotels = result.result?.hotels;
                 if (hotels?.[0]) {
                     summaryParts.push(`🏨 Top hotel: ${hotels[0].name} (${hotels[0].priceRange})`);
+                }
+                break;
+            case 'restaurant':
+                const restaurants = result.result?.restaurants;
+                if (restaurants?.[0]) {
+                    summaryParts.push(`🍽️ 推荐餐厅: ${restaurants[0].name} (${restaurants[0].type || restaurants[0].cuisine || '本地特色'})`);
                 }
                 break;
             case 'weather':
@@ -510,7 +892,17 @@ function synthesizeGlobalSolution(
                     summaryParts.push(`🎯 Top attraction: ${attractions[0].name}`);
                 }
                 break;
+            case 'transportation':
+                const transfer = result.result?.toAirport?.[0];
+                if (transfer) {
+                    summaryParts.push(`🚖 交通建议: ${transfer.mode} (${transfer.duration})`);
+                }
+                break;
         }
+    }
+
+    if (decomposition.optimizationGoal) {
+        summaryParts.push(`🧭 优化目标: ${decomposition.optimizationGoal}`);
     }
 
     // 生成联想建议 - 发散性思维
@@ -556,6 +948,9 @@ function generateAssociatedSuggestions(
         priority: number;
     }> = [];
 
+    const avatar = getEnhancedDigitalAvatar();
+    const adventurousness = avatar.personality?.openness ?? 50;
+    const priceVsQuality = avatar.valuesProfile?.priceVsQuality ?? 0;
     const destination = decomposition.subTasks[0]?.params?.destination || '';
     const hasFlights = results.some(r => r.agentType === 'flight_booking');
     const hasHotels = results.some(r => r.agentType === 'hotel_booking');
@@ -612,6 +1007,65 @@ function generateAssociatedSuggestions(
             actionText: '了解保险方案',
             actionQuery: '推荐旅行保险',
             priority: 6
+        });
+    }
+
+    if (adventurousness > 70) {
+        suggestions.push({
+            id: 'offbeat-experience',
+            category: 'opportunity',
+            icon: '🧭',
+            title: '小众体验',
+            description: '根据你喜欢探索的风格，推荐一两个小众路线',
+            actionText: '查看小众路线',
+            actionQuery: `${destination} 小众景点推荐`,
+            priority: 6
+        });
+    } else if (adventurousness < 40) {
+        suggestions.push({
+            id: 'popular-spots',
+            category: 'tip',
+            icon: '📸',
+            title: '热门打卡',
+            description: '优先安排经典景点，避免踩雷',
+            actionText: '查看热门景点',
+            actionQuery: `${destination} 必去景点`,
+            priority: 6
+        });
+    }
+
+    if (priceVsQuality < -30) {
+        suggestions.push({
+            id: 'budget-tip',
+            category: 'tip',
+            icon: '💸',
+            title: '省钱技巧',
+            description: '关注交通卡、餐饮套餐和景点通票',
+            actionText: '查看省钱攻略',
+            actionQuery: `${destination} 省钱攻略`,
+            priority: 5
+        });
+    }
+
+    // 3.5 接送机与出发时间提醒
+    if (hasFlights) {
+        suggestions.push({
+            id: 'airport-transfer',
+            category: 'related_need',
+            icon: '🚖',
+            title: '接送机规划',
+            description: '根据航班时间规划去机场/到酒店的交通方式',
+            actionText: '查看接送机',
+            actionQuery: `${destination} 机场到市区交通方式`,
+            priority: 7
+        });
+        suggestions.push({
+            id: 'airport-buffer',
+            category: 'reminder',
+            icon: '⏰',
+            title: '到机场时间',
+            description: '国际航班建议提前 2.5-3 小时到达机场',
+            priority: 7
         });
     }
 
@@ -719,10 +1173,14 @@ function generateRecommendation(
     if (decomposition.userIntent.includes('trip') || decomposition.userIntent.includes('旅')) {
         const flightResult = results.find(r => r.agentType === 'flight_booking');
         const hotelResult = results.find(r => r.agentType === 'hotel_booking');
+        const transportResult = results.find(r => r.agentType === 'transportation');
+        const optimizationGoal = decomposition.optimizationGoal || buildOptimizationGoal();
 
         let rec = `🎯 **Recommended Plan for ${destination}**\n\n`;
 
-        if (flightResult?.result?.lowestPrice) {
+        if (flightResult?.result?.bestOption) {
+            rec += `1. 选择匹配度最高的航班：${flightResult.result.bestOption.airline} $${flightResult.result.bestOption.price}\n`;
+        } else if (flightResult?.result?.lowestPrice) {
             rec += `1. Book flight via ${flightResult.result.lowestPrice.source} at $${flightResult.result.lowestPrice.price}\n`;
         }
 
@@ -730,12 +1188,41 @@ function generateRecommendation(
             rec += `2. Stay at ${hotelResult.result.hotels[0].name}\n`;
         }
 
-        rec += `\n💡 This combination optimizes for ${decomposition.optimizationGoal}`;
+        if (transportResult?.result?.recommendedLeaveTime) {
+            rec += `3. 出发时间建议：${transportResult.result.recommendedLeaveTime}\n`;
+        }
+
+        rec += `\n💡 ${optimizationGoal}`;
 
         return rec;
     }
 
-    return `✅ Request completed based on ${decomposition.optimizationGoal}`;
+    const restaurantResult = results.find(r => r.agentType === 'restaurant')?.result;
+    if (restaurantResult?.restaurants?.length) {
+        const topRestaurants = restaurantResult.restaurants.slice(0, 3).map((r: any) => r.name).filter(Boolean);
+        const highlight = restaurantResult.restaurants[0]?.highlight;
+        const cityLabel = restaurantResult.destination ? `（${restaurantResult.destination}）` : '';
+        const base = topRestaurants.length
+            ? `🍽️ 推荐${cityLabel}优先尝试：${topRestaurants.join('、')}`
+            : `🍽️ 已筛选${cityLabel}口碑较好的餐厅`;
+        return highlight ? `${base}\n✨ ${highlight}` : base;
+    }
+
+    const attractionResult = results.find(r => r.agentType === 'attraction')?.result;
+    if (attractionResult?.attractions?.length) {
+        const topAttractions = attractionResult.attractions.slice(0, 3).map((a: any) => a.name).filter(Boolean);
+        if (topAttractions.length > 0) {
+            return `🎯 推荐景点：${topAttractions.join('、')}`;
+        }
+    }
+
+    const weatherResult = results.find(r => r.agentType === 'weather')?.result;
+    if (weatherResult?.forecast?.[0]) {
+        const today = weatherResult.forecast[0];
+        return `🌤️ 今日天气：${today.condition} ${today.temp}，适合安排轻松行程。`;
+    }
+
+    return `✅ 已完成请求，建议查看详细结果获取更多细节。`;
 }
 
 // ============================================================================

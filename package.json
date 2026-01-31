@@ -11,14 +11,21 @@
   "dependencies": {
     "@google/genai": "^1.37.0",
     "lucide-react": "^0.562.0",
+    "mammoth": "^1.11.0",
+    "pdfjs-dist": "^5.4.530",
+    "pinyin-pro": "^3.28.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-simple-keyboard": "^3.8.141",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.0",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
+    "playwright": "^1.58.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

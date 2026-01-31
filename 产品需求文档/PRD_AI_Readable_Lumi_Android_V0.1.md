@@ -19,6 +19,11 @@
 - **PrivacyAction（隐私掩码/填充建议）**
 - **Error（安全错误提示）**
 
+补充目标：
+- 构建用户本地“数字分身（DigitalSoul）”，作为长期偏好与风险参数的载体
+- 基于 **马尔可夫决策过程（MDP）/Bellman 方程** 输出最优行动路径
+- 选择 IME 作为载体，确保数据留在本地、降低 GDPR/合规风险
+
 ### 1.2 开发顺序（强制）
 1) **先构建 Agent Core**：可独立运行、可单测、与键盘无关  
 2) **再集成到键盘（IME）**：IME 只负责 UI/状态机/输入路由/提交  
@@ -53,6 +58,20 @@
 
 ### R5. V0.1 禁止 Accessibility/RPA
 - 第一版不实现 AccessibilityService 自动点击/自动填表（默认 OFF、后续版本再评估）
+
+### R6. Sensitive App Blacklist（Shield）
+- Agent Policy Engine 必须检测前台 App 的 packageName
+- 若命中黑名单（银行、密码管理器、企业安全类 App），Agent **必须严格禁用**
+- UI 必须明确提示 **“Shield Up”**
+
+### R7. Data Expiration（TTL）
+- OCR 缓存与聊天上下文缓存必须设置 TTL
+- 默认 TTL = 24 小时，到期后自动清理
+
+### R8. Bellman 优化决策（MDP）
+- core-agent 内必须实现 Bellman/MDP 决策引擎
+- 输入：DigitalSoul + Intent + 可选项集合
+- 输出：最优行动路径（策略）+ 推荐理由（仅本地）
 
 ---
 
@@ -89,7 +108,7 @@ Agent 输出必须被渲染在键盘候选区/扩展区：
 
 ### 4.2 REWRITE（Drafts）
 输入：`不想加班` 或 `帮我委婉拒绝加班`  
-输出：3 条草稿，按 SoulMatrix 的沟通风格生成（MVP 可用模板）
+输出：3 条草稿，按 DigitalSoul 的沟通风格生成（MVP 可用模板）
 
 ### 4.3 Cards（服务卡片）
 输入：`买降噪耳机 预算2000`  
@@ -106,11 +125,41 @@ Agent 输出必须被渲染在键盘候选区/扩展区：
 - Debug Console：输入命令 -> 调 agent.handle -> 展示结果
 - Constitution & Policy：简易设置（privacy level、tone、allowedServices）
 
+### 4.6 DigitalSoul 快速建模（30 秒冷启动 + 被动学习）
+**冷启动问卷（最多 3 题）**
+- 表达风格：Professional / Friendly / Concise / Humorous
+- 消费倾向：Price-first / Balanced / Quality-first
+- 隐私偏好：Strict / Balanced / Open
+
+**初始化映射**
+- communicationStyle = 选择的表达风格
+- valuesProfile.priceVsQuality = -50 / 0 / +50
+- privacyLevel = Strict / Balanced / Open
+- riskTolerance 初始 50
+
+**被动学习事件（仅本地，不含明文）**
+- draft_accept, draft_edit, card_click, card_dismiss, query_refine, confirm_send
+
+**更新规则（EMA）**
+- 对目标字段进行 EMA 更新：new = old * 0.9 + signal * 0.1
+- draft_accept => communicationStyle 权重提升
+- draft_edit => communicationStyle 权重下降 + 语气偏移
+- card_click => 兴趣标签/预算偏好权重提升
+- query_refine => 不确定性上升（促使后续追问）
+
+**周期合并**
+- 每日/每周批处理合并信号，避免实时开销
+
+### 4.7 通用发散思维（Domain-Agnostic）
+- 不局限于餐饮/购物/旅行等固定场景
+- 统一扩展维度：目标、时间、预算、地点、参与人、风险、备选方案、执行步骤
+- 缺失关键维度时优先追问或补齐再给最优解
+
 ---
 
 ## 5. 不在范围内 (Out of Scope V0.1)
 - 端侧大模型推理（可后续接入）
-- 本地向量数据库（V0.1 用关键词/摘要即可）
+- 云端向量数据库（V0.1 使用本地轻量向量检索）
 - Accessibility 自动化
 - iOS 版本
 
@@ -120,7 +169,7 @@ Agent 输出必须被渲染在键盘候选区/扩展区：
 
 ### 6.1 模块划分（必须）
 - `core-domain`（Kotlin）：数据模型 & 接口
-- `core-agent`（Kotlin）：Agent 实现（规则/模板/策略）
+- `core-agent`（Kotlin）：Agent 实现（规则/模板/策略 + Bellman 决策引擎 + 轻量本地向量检索）
 - `app-command-center`（Android）：设置 + Debug Console
 - `ime-keyboard`（Android）：InputMethodService + 状态机 + 渲染
 
@@ -149,12 +198,25 @@ Agent 输出必须被渲染在键盘候选区/扩展区：
 - constraints: Map<String,String>
 - privacyFlags: Set<PrivacyFlag { PHONE, ID_CARD, ADDRESS, BANK, PASSWORD }>
 
-**SoulMatrix / PolicyConfig**
-- SoulMatrix(communicationStyle, riskTolerance, spendingLogic, privacyLevel)
+**DigitalSoul / PolicyConfig**
+- DigitalSoul(communicationStyle, riskTolerance, spendingLogic, privacyLevel, uarStats?)
+- DigitalSoul 必须支持动态更新：记录草稿 UAR（接受率）与用户编辑 diff，作为负反馈调整参数（仅本地）
 - PolicyConfig(allowNetworkInAgentMode, requireConfirmBeforeSend, allowedServices:Set<String>, budgetCapCny:Int?)
 
 **ServiceCard**
 - id, title, subtitle, actionType(WEBVIEW/DEEPLINK/SHARE), actionUri, payload(Map)
+
+### 6.4 Storage & Data Lifecycle
+- 本地加密存储必须使用 SQLCipher（或同等级加密库）
+- 加密 key 优先派生自系统锁屏凭证；若不可用则使用用户 PIN
+- OCR 缓存与聊天上下文缓存默认 TTL = 24 小时
+- Personal Knowledge Graph 必须支持标准化导出：JSON + Markdown
+
+### 6.5 Bellman 决策引擎（MDP）
+- 状态：是否具备偏好、是否有候选、候选匹配度
+- 行动：补充偏好 / 拓展搜索 / 推荐最优 / 给出备选
+- 输出：策略路径 + 价值评分
+- 与 DigitalSoul 绑定（风险偏好、隐私偏好）
 
 ---
 

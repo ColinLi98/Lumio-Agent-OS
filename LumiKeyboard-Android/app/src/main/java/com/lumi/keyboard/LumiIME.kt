@@ -64,7 +64,15 @@ class LumiIME : InputMethodService() {
 
     private fun handleKeyPress(key: String) {
         vibrateKey()
-        
+
+        if (isAgentMode) {
+            handleAgentKeyPress(key)
+        } else {
+            handleTypingKeyPress(key)
+        }
+    }
+
+    private fun handleTypingKeyPress(key: String) {
         when (key) {
             "SHIFT" -> {
                 isShiftPressed = !isShiftPressed
@@ -74,11 +82,7 @@ class LumiIME : InputMethodService() {
                 currentInputConnection?.deleteSurroundingText(1, 0)
             }
             "ENTER" -> {
-                if (isAgentMode) {
-                    handleAgentSubmit(currentInput.toString())
-                } else {
-                    currentInputConnection?.performEditorAction(EditorInfo.IME_ACTION_DONE)
-                }
+                currentInputConnection?.performEditorAction(EditorInfo.IME_ACTION_DONE)
             }
             "SPACE" -> {
                 currentInputConnection?.commitText(" ", 1)
@@ -92,18 +96,56 @@ class LumiIME : InputMethodService() {
                 keyboardView?.setNumberMode(false)
             }
             "LANG" -> {
-                // Toggle language (EN/ZH)
                 keyboardView?.toggleLanguage()
             }
             else -> {
                 val textToCommit = if (isShiftPressed) key.uppercase() else key.lowercase()
                 currentInputConnection?.commitText(textToCommit, 1)
-                
-                if (isAgentMode) {
-                    currentInput.append(textToCommit)
+
+                // Auto-disable shift after typing
+                if (isShiftPressed) {
+                    isShiftPressed = false
+                    keyboardView?.setShiftState(false)
+                }
+            }
+        }
+    }
+
+    private fun handleAgentKeyPress(key: String) {
+        when (key) {
+            "SHIFT" -> {
+                isShiftPressed = !isShiftPressed
+                keyboardView?.setShiftState(isShiftPressed)
+            }
+            "DELETE" -> {
+                if (currentInput.isNotEmpty()) {
+                    currentInput.deleteCharAt(currentInput.length - 1)
                     keyboardView?.updateAgentInput(currentInput.toString())
                 }
-                
+            }
+            "ENTER" -> {
+                handleAgentSubmit(currentInput.toString())
+            }
+            "SPACE" -> {
+                currentInput.append(" ")
+                keyboardView?.updateAgentInput(currentInput.toString())
+            }
+            "123" -> {
+                isNumberMode = true
+                keyboardView?.setNumberMode(true)
+            }
+            "ABC" -> {
+                isNumberMode = false
+                keyboardView?.setNumberMode(false)
+            }
+            "LANG" -> {
+                keyboardView?.toggleLanguage()
+            }
+            else -> {
+                val textToCommit = if (isShiftPressed) key.uppercase() else key.lowercase()
+                currentInput.append(textToCommit)
+                keyboardView?.updateAgentInput(currentInput.toString())
+
                 // Auto-disable shift after typing
                 if (isShiftPressed) {
                     isShiftPressed = false
@@ -171,4 +213,3 @@ class LumiIME : InputMethodService() {
         keyboardView?.post(action)
     }
 }
-

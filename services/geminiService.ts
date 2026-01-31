@@ -111,6 +111,19 @@ export const generateDrafts = async (
   try {
     const ai = getAI(apiKey);
 
+    // 🆕 MemR³ 记忆上下文注入
+    let memoryContext = '';
+    try {
+      const { queryMemory } = await import('./memr3Service');
+      const memoryResult = await queryMemory(text);
+      if (memoryResult && !memoryResult.includes('没有找到') && !memoryResult.includes('没有存储')) {
+        memoryContext = `\n\n[用户记忆上下文]: ${memoryResult}`;
+        console.log('[generateDrafts] MemR³ 注入记忆上下文');
+      }
+    } catch (memError) {
+      console.log('[generateDrafts] MemR³ 未启用或无相关记忆');
+    }
+
     // Build context from conversation history
     let contextPrompt = '';
     if (conversationHistory.length > 0) {
@@ -132,12 +145,18 @@ export const generateDrafts = async (
     });
     console.log(`[generateDrafts] ${reason}`);
 
+    // 消费偏好提示
+    const spendingHint = soul.spendingPreference
+      ? `\nSpending Preference: ${soul.spendingPreference === 'PriceFirst' ? 'Price-sensitive, prefer budget-friendly options' : soul.spendingPreference === 'QualityFirst' ? 'Quality-focused, prefer premium options' : 'Balanced between price and quality'}.`
+      : '';
+
     const response = await ai.models.generateContent({
       model,
-      contents: `${contextPrompt}Generate 3 distinct text drafts for this request: "${text}". 
+      contents: `${contextPrompt}Generate 3 distinct text drafts for this request: "${text}".${memoryContext}
       Style: ${soul.communicationStyle}. 
-      Risk Tolerance: ${soul.riskTolerance}.${styleHint}
-      ${conversationHistory.length > 0 ? 'Make sure the drafts are contextually appropriate based on the conversation history.' : ''}`,
+      Risk Tolerance: ${soul.riskTolerance}.${spendingHint}${styleHint}
+      ${conversationHistory.length > 0 ? 'Make sure the drafts are contextually appropriate based on the conversation history.' : ''}
+      ${memoryContext ? 'Use the user memory context to personalize the drafts.' : ''}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

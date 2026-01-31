@@ -23,6 +23,9 @@
 - 🔐 **本地优先**：拒绝云端数据收集，用户数据加密存储在个人设备
 - 🔗 **跨应用工作**：在任意 App 的输入场景都能使用
 - 🧠 **渐进式身份构建**：使用过程中自然积累个人知识图谱
+- 🧭 **Bellman 决策引擎**：基于数字分身做多步推演与最优建议（MDP）
+
+**合规策略**：选择键盘（IME）作为超级 Agent 的载体，使计算与数据停留在本地，降低 GDPR / 合规风险。
 
 ---
 
@@ -79,7 +82,7 @@ interface WriteResult {
 }
 ```
 
-**隐私设计**：上下文分析完全在**设备端**进行，不上传任何对话历史。
+**隐私设计**：上下文分析完全在**设备端**进行，不上传任何对话历史；聊天上下文缓存默认 TTL 24 小时。
 
 ---
 
@@ -116,7 +119,7 @@ interface FindResult {
 }
 ```
 
-**隐私设计**：OCR 完全在**设备端**运行，提取的信息仅用于本次操作，**不存储**。
+**隐私设计**：OCR 完全在**设备端**运行，提取的信息仅用于本次操作；如需缓存，默认 TTL 24 小时并自动清理。
 
 ---
 
@@ -188,6 +191,20 @@ interface RememberResult {
 ### R5. V1.0 禁止自动化操作
 - 第一版不实现自动点击/自动填表（默认 OFF、后续版本再评估）
 
+### R6. Sensitive App Blacklist（Shield）
+- Policy Engine 必须检测前台 App 的 packageName
+- 若命中黑名单（银行、密码管理器、企业安全类 App），Agent 必须严格禁用
+- UI 必须明确提示 **“Shield Up”**
+
+### R7. Data Expiration（TTL）
+- OCR 缓存与聊天上下文缓存必须设置 TTL
+- 默认 TTL = 24 小时，到期后自动清理
+
+### R8. Bellman 优化决策（MDP）
+- Agent Core 必须包含 Bellman/MDP 决策引擎
+- 输入为 DigitalSoul + 当前意图 + 选项集合
+- 输出为**最优行动路径**与建议理由（仅本地计算）
+
 ---
 
 ## 五、数字身份的渐进式构建
@@ -203,8 +220,43 @@ interface RememberResult {
 **用户控制权**：
 - ✅ 可随时**查看**所有数据
 - ✅ 可随时**编辑**或**删除**
-- ✅ 可随时**导出**完整数据
+- ✅ 可随时**导出**完整数据（标准化 JSON + Markdown）
 - ✅ 可一键**清空**所有数据
+
+**DigitalSoul 动态更新**：
+- 记录草稿 UAR（接受率），用于调整风险偏好、语气等参数
+- 用户编辑草稿时记录 diff，作为负反馈信号（仅本地）
+
+**Bellman/MDP 推演**：
+- DigitalSoul 作为状态价值函数的个性化参数
+- 对候选方案进行多步结果推演，输出最优行动序列（如：先补充偏好 → 生成备选 → 推荐最优）
+
+**通用发散思维（不限定场景）**：
+- 联想与追问必须适用于所有问题类型（工作/学习/生活/决策）
+- 统一维度：目标、时间、预算、地点、参与人、风险、备选方案、执行步骤
+- 若缺失关键维度，优先补齐而非直接给单一答案
+
+### 5.1 快速构建路径（30 秒冷启动 + 被动学习）
+
+**30 秒冷启动问卷（最多 3 题）**
+1) 表达风格：专业 / 亲切 / 简洁 / 幽默
+2) 消费偏好：价格优先 / 均衡 / 品质优先
+3) 隐私偏好：严格 / 平衡 / 开放
+
+**映射逻辑（仅本地）**
+- communicationStyle = 用户选择的表达风格
+- priceVsQuality = 价格优先(-50) / 均衡(0) / 品质优先(+50)
+- privacyLevel = 严格/平衡/开放
+- riskTolerance 初始值 = 50（后续由行为更新）
+
+**被动学习机制**
+- 采集事件（不含明文）：draft_accept、draft_edit、card_click、card_dismiss、query_refine、confirm_send
+- 更新方式：对对应偏好做指数滑动平均（EMA），并设置上下界
+  - draft_accept => communicationStyle 权重提升
+  - draft_edit => communicationStyle 权重下降 + 语气偏移
+  - card_click => 兴趣标签/预算/场景权重提升
+  - query_refine => 偏好不确定性上升（触发更多追问）
+- 周期性归纳：按天/周做增量合并，避免实时计算开销
 
 ---
 
@@ -224,10 +276,14 @@ interface RememberResult {
 │  │           LumiAgent Core            │  ← Agent Core │
 │  └────┬─────────────┬─────────────┬────┘               │
 │       │             │             │                     │
-│  ┌────┴────┐  ┌─────┴────┐  ┌─────┴────┐               │
-│  │ Intent  │  │ Policy   │  │ Template │  ← Engines    │
-│  │ Engine  │  │ Engine   │  │ Generator│               │
-│  └─────────┘  └──────────┘  └──────────┘               │
+│  ┌────┴────┐  ┌─────┴────┐  ┌─────┴────┐  ┌─────┴────┐ │
+│  │ Intent  │  │ Policy   │  │ Bellman  │  │ Template │ │
+│  │ Engine  │  │ Engine   │  │ Optimizer│  │ Generator│ │
+│  └─────────┘  └──────────┘  └──────────┘  └──────────┘ │
+│                     ┌──────────────────────────────┐   │
+│                     │ Embedded Vector Store        │   │
+│                     │ (local context retrieval)    │   │
+│                     └──────────────────────────────┘   │
 ├─────────────────────────────────────────────────────────┤
 │  ┌──────────────────────────────────────────────────┐  │
 │  │            Local Encrypted Storage               │  │
@@ -261,11 +317,15 @@ type AgentOutput =
   | { type: 'SAVE_SUGGESTIONS'; suggestions: SaveOption[] }
   | { type: 'ERROR'; message: string };
 
-// Soul Matrix - 个性化配置
-interface SoulMatrix {
+// DigitalSoul - 个性化配置（动态）
+interface DigitalSoul {
   communicationStyle: 'professional' | 'casual' | 'warm' | 'humorous';
   riskTolerance: 'low' | 'medium' | 'high';
   privacyLevel: 'strict' | 'balanced' | 'relaxed';
+  uarStats?: {
+    accepted: number;
+    rejected: number;
+  };
 }
 
 // Policy 配置
@@ -275,6 +335,11 @@ interface PolicyConfig {
   allowedServices: string[];
 }
 ```
+
+### 6.3 Storage & Security
+- Local Encrypted Storage 必须使用 SQLCipher（或同等级加密库）
+- 加密 key 优先派生自系统锁屏凭证；若不可用则使用用户 PIN
+- OCR 缓存与聊天上下文缓存默认 TTL = 24 小时
 
 ---
 
@@ -317,7 +382,7 @@ interface PolicyConfig {
 ### AC2. 帮我写 可用
 - ✅ "帮我委婉拒绝加班" => 输出 3 条不同风格的草稿
 - ✅ "写一条生日祝福" => 输出 3 条草稿
-- ✅ 草稿风格符合 SoulMatrix 设置
+- ✅ 草稿风格符合 DigitalSoul 设置
 
 ### AC3. 帮我找 可用
 - ✅ 屏幕上有商品名 => 识别并提供比价链接

@@ -214,6 +214,44 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                 ))}
               </div>
             </div>
+
+            <div>
+              <label className="block text-xs uppercase text-gray-500 mb-1">Spending Preference</label>
+              <div className="flex gap-2">
+                {[
+                  { value: 'PriceFirst', label: '💰 Price', labelFull: 'Price First' },
+                  { value: 'Balanced', label: '⚖️ Balanced', labelFull: 'Balanced' },
+                  { value: 'QualityFirst', label: '✨ Quality', labelFull: 'Quality First' }
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => onUpdateSoul({ ...soul, spendingPreference: value as any })}
+                    className={`flex-1 py-1.5 text-xs rounded-md border ${soul.spendingPreference === value ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-gray-600 text-gray-400 hover:bg-gray-700'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase text-gray-500 mb-1">Privacy Level</label>
+              <div className="flex gap-2">
+                {[
+                  { value: 'Strict', label: '🔒 Strict' },
+                  { value: 'Balanced', label: '⚖️ Balanced' },
+                  { value: 'Open', label: '🔓 Open' }
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => onUpdateSoul({ ...soul, privacyLevel: value as any })}
+                    className={`flex-1 py-1.5 text-xs rounded-md border ${soul.privacyLevel === value ? 'bg-amber-600 border-amber-600 text-white' : 'border-gray-600 text-gray-400 hover:bg-gray-700'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

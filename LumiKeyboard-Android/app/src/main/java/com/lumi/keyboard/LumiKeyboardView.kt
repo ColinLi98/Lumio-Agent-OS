@@ -258,7 +258,6 @@ class LumiKeyboardView @JvmOverloads constructor(
 
     fun toggleLanguage() {
         language = if (language == "EN") "ZH" else "EN"
-        onKeyPress?.invoke("LANG")
         renderKeyboard()
     }
 

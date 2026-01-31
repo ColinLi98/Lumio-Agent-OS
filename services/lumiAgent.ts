@@ -20,7 +20,20 @@ import { recordInteraction, addInterestTag } from "./localStorageService";
 import { checkAgentBoundary, InteractionLevel, BoundaryCheckResult } from "./agentBoundary";
 import { recordTrustAction } from "./trustScoreService";
 import { createOrchestrator } from "./agentOrchestrator";
-import { superAgentOrchestrate, analyzeAndDecompose } from "./superAgentBrain";
+import { superAgentOrchestrate, analyzeAndDecompose, extractDepartureDate, extractRoute } from "./superAgentBrain";
+import { buildDecisionForAgentOutput } from "./optimalAnswerService";
+import { quickAssociate } from "./associativeThinkingService";
+import { getRecommendationForQuery, inferGamma, ActionRecommendation } from "./bellmanLifeService";
+import { extractCurrentState } from "./stateExtractor";
+import { getEnhancedDigitalAvatar } from "./localStorageService";
+
+// Life optimization keywords
+const LIFE_OPT_KEYWORDS = [
+  '我该怎么办', '该怎么办', '下一步', '怎么选', '纠结', '焦虑',
+  '不知道该', '犹豫', '要不要', '值不值得', '该不该',
+  '怎么办才好', '应该怎么', '迷茫', '困惑', '选择困难',
+  'what should I', 'next step', 'should I', 'what to do'
+];
 
 // Simple Privacy Regex Patterns (Client-side PrivacyGuard)
 const PRIVACY_PATTERNS = {
@@ -38,6 +51,19 @@ const TOOL_KEYWORDS = {
   calendar: ['日程', '日历', '安排', '日程表', 'calendar', 'schedule', 'meeting'],
   reminder: ['提醒', '提醒我', '别忘了', 'remind', 'reminder', 'alarm']
 };
+
+const MAX_FLIGHT_SEARCH_DAYS_AHEAD = 330;
+
+function getDateRangeStatus(dateStr: string): 'ok' | 'past' | 'too_far' | 'invalid' {
+  const parsed = new Date(dateStr);
+  if (Number.isNaN(parsed.getTime())) return 'invalid';
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diffDays = Math.floor((parsed.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return 'past';
+  if (diffDays > MAX_FLIGHT_SEARCH_DAYS_AHEAD) return 'too_far';
+  return 'ok';
+}
 
 export class LumiAgent {
   private soul: SoulMatrix;
@@ -95,52 +121,133 @@ export class LumiAgent {
       return { type: 'PRIVACY', action: privacyAction };
     }
 
-    // 2. Check network policy
-    if (!this.policy.allowNetworkInAgentMode) {
-      return { type: 'ERROR', message: "Network disabled by policy." };
+    // 2. Check online status and policy for network usage
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const networkAllowed = this.policy.allowNetworkInAgentMode && isOnline;
+
+    if (!networkAllowed) {
+      const reason = isOnline ? 'policy' : 'offline';
+      return this.handleLocalOnly(rawText, reason);
     }
 
-    // 3. Check online status - use local fallback if offline
-    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const route = extractRoute(rawText);
+    const wantsFlight = /机票|航班|飞机|flight/i.test(rawText);
 
-    if (!isOnline) {
-      // Offline fallback - use local templates
-      return this.handleOfflineFallback(rawText);
+    // 3. Check for Life Optimization / Decision Support queries
+    const isLifeOptQuery = LIFE_OPT_KEYWORDS.some(kw => rawText.toLowerCase().includes(kw.toLowerCase()));
+    if (isLifeOptQuery) {
+      console.log('[LumiAgent] Detected life optimization query, using Bellman optimizer');
+
+      try {
+        const avatar = getEnhancedDigitalAvatar();
+        const state = extractCurrentState(avatar, input.appContext);
+        const gamma = inferGamma(avatar?.personality);
+        const recommendation = getRecommendationForQuery(rawText, input.appContext);
+
+        // Convert to LifeActionRecommendation format
+        const lifeRecommendation = {
+          action: {
+            id: recommendation.action.id,
+            name: recommendation.action.name,
+            description: recommendation.action.description,
+            domain: recommendation.action.domain,
+            timeHorizon: recommendation.action.timeHorizon
+          },
+          qValue: recommendation.qValue,
+          confidence: recommendation.confidence,
+          reasoning: recommendation.reasoning,
+          expectedOutcome: recommendation.expectedOutcome,
+          alternatives: recommendation.alternatives.map(alt => ({
+            action: {
+              id: alt.action.id,
+              name: alt.action.name,
+              description: alt.action.description
+            },
+            qValue: alt.qValue,
+            tradeoff: alt.tradeoff
+          })),
+          anxietyRelief: recommendation.anxietyRelief
+        };
+
+        console.log(`[LumiAgent] Bellman recommendation: ${recommendation.action.name} (γ=${gamma.toFixed(2)}, Q=${recommendation.qValue.toFixed(2)})`);
+
+        return {
+          type: 'NEXT_BEST_ACTION',
+          recommendation: lifeRecommendation,
+          gamma
+        };
+      } catch (e) {
+        console.error('[LumiAgent] Bellman optimization failed:', e);
+        // Fall through to regular flow
+      }
     }
 
     // 4. Check for travel/flight queries - use Super Agent Brain
-    const isTravelQuery = /机票|航班|飞机|flight|travel|旅行|旅游|去.*(玩|旅)|酒店|hotel/i.test(rawText);
+    const isTravelQuery = /机票|航班|飞机|flight|travel|旅行|旅游|去.*(玩|旅)|酒店|hotel/i.test(rawText)
+      || Boolean(route.origin || route.destination);
 
     if (isTravelQuery) {
       console.log('[LumiAgent] Detected travel query, using Super Agent Brain');
 
+      if (!route.destination) {
+        return {
+          type: 'CLARIFICATION',
+          prompt: '请告诉我要去的城市/目的地？',
+          missingFields: ['destination'],
+          contextQuery: rawText
+        };
+      }
+
+      if (wantsFlight && !route.origin) {
+        return {
+          type: 'CLARIFICATION',
+          prompt: '请告诉我从哪座城市出发？',
+          missingFields: ['origin'],
+          contextQuery: rawText
+        };
+      }
+
       // 4.1 Check for missing required information (dates)
       const hasDate = /\d{1,4}[-\/年]\d{1,2}[-\/月]\d{1,2}|下周|明天|后天|周[一二三四五六日末]|月底|月初|next week|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d+号|\d+日/i.test(rawText);
-      const hasDestination = /去|到|飞往|前往|to\s+\w+|tokyo|东京|大阪|北京|上海|香港|纽约|伦敦|巴黎|新加坡|首尔|曼谷/i.test(rawText);
 
       // If missing date, ask the user for clarification
-      if (!hasDate) {
+      if (!hasDate && wantsFlight) {
         console.log('[LumiAgent] Missing travel date, asking for clarification');
         return {
-          type: 'DRAFTS',
-          drafts: [
-            {
-              id: 'clarify-date-1',
-              text: '我可以帮您搜索航班，请问您计划什么时候出发？',
-              tone: '询问'
-            },
-            {
-              id: 'clarify-date-2',
-              text: '好的，我来帮您查机票。请告诉我您的出行日期，比如"3月15日"或"下周五"',
-              tone: '友好'
-            },
-            {
-              id: 'clarify-date-3',
-              text: '请问您想哪天出发？我可以帮您比较多个平台的价格。',
-              tone: '专业'
-            }
-          ]
+          type: 'CLARIFICATION',
+          prompt: '我可以帮您搜索航班，请问您计划什么时候出发？',
+          missingFields: ['date'],
+          contextQuery: rawText
         };
+      }
+
+      const parsedDate = extractDepartureDate(rawText);
+      if (parsedDate) {
+        const dateStatus = getDateRangeStatus(parsedDate);
+        if (dateStatus === 'past') {
+          return {
+            type: 'CLARIFICATION',
+            prompt: '出发日期已过期，请告诉我新的出发日期（航班通常只能查询未来 11 个月）。',
+            missingFields: ['date'],
+            contextQuery: rawText
+          };
+        }
+        if (dateStatus === 'too_far') {
+          return {
+            type: 'CLARIFICATION',
+            prompt: '出发日期超出可查询范围（通常为未来 11 个月内）。请给我一个更近的日期。',
+            missingFields: ['date'],
+            contextQuery: rawText
+          };
+        }
+        if (dateStatus === 'invalid') {
+          return {
+            type: 'CLARIFICATION',
+            prompt: '日期格式不太清楚，可以告诉我具体出发日期吗？',
+            missingFields: ['date'],
+            contextQuery: rawText
+          };
+        }
       }
 
       try {
@@ -150,12 +257,20 @@ export class LumiAgent {
 
         if (globalSolution.success && globalSolution.results.length > 0) {
           // Convert Super Agent results to AgentOutput format
+          const decision = buildDecisionForAgentOutput({
+            outputType: 'SUPER_AGENT_RESULT',
+            query: rawText,
+            solution: globalSolution,
+            summary: globalSolution.summary,
+            recommendation: globalSolution.recommendation
+          });
           return {
             type: 'SUPER_AGENT_RESULT' as any,
             globalSolution,
             summary: globalSolution.summary,
             recommendation: globalSolution.recommendation,
-            results: globalSolution.results
+            results: globalSolution.results,
+            decision
           };
         }
       } catch (e) {
@@ -182,7 +297,12 @@ export class LumiAgent {
       const orchestrator = createOrchestrator(this.apiKey);
       const plan = await orchestrator.planAgentTasks(complexIntent);
       const executedPlan = await orchestrator.executeAgentTasks(plan);
-      return { type: 'ORCHESTRATION_RESULT', plan: executedPlan };
+      const decision = buildDecisionForAgentOutput({
+        outputType: 'ORCHESTRATION_RESULT',
+        query: rawText,
+        plan: executedPlan
+      });
+      return { type: 'ORCHESTRATION_RESULT', plan: executedPlan, decision };
     }
 
     // 5. Check for complex multi-step tasks
@@ -204,13 +324,22 @@ export class LumiAgent {
       // 三大核心功能
       // =====================================
       case IntentCategory.WRITE_ASSIST:
-      case IntentCategory.REWRITE:
+      case IntentCategory.REWRITE: {
         // 帮我写 - 生成多风格回复建议
         const drafts = await GeminiService.generateDrafts(rawText, this.soul, this.apiKey, conversationHistory, appScenarioHint);
         trackAiCall(); // Track successful AI call
-        return { type: 'DRAFTS', drafts };
+        // 添加联想建议
+        const suggestions = quickAssociate(rawText, 'DRAFTS');
+        const decision = buildDecisionForAgentOutput({
+          outputType: 'DRAFTS',
+          query: rawText,
+          drafts,
+          soul: this.soul
+        });
+        return { type: 'DRAFTS', drafts, decision, associatedSuggestions: suggestions };
+      }
 
-      case IntentCategory.SEARCH_ASSIST:
+      case IntentCategory.SEARCH_ASSIST: {
         // 帮我找 - 尝试使用工具（比价、搜索等）
         const searchResult = await this.tryToolCalling(rawText);
         if (searchResult) return searchResult;
@@ -219,27 +348,33 @@ export class LumiAgent {
         if (searchTool) {
           const result = await searchTool.execute({ query: rawText });
           const enrichedResult = await enrichWithSuggestions(result, rawText);
+          const suggestions = quickAssociate(rawText, 'TOOL_RESULT');
           return {
             type: 'TOOL_RESULT',
             result: enrichedResult as ToolResultData,
-            summary: `搜索: ${rawText}`
+            summary: `搜索: ${rawText}`,
+            associatedSuggestions: suggestions
           };
         }
         return { type: 'ERROR', message: '搜索功能暂不可用' };
+      }
 
-      case IntentCategory.MEMORY_ASSIST:
+      case IntentCategory.MEMORY_ASSIST: {
         // 帮我记 - 使用智能保存工具
         const saveTool = getToolByName('smart_save');
         if (saveTool) {
           const result = await saveTool.execute({ content: rawText });
           const enrichedResult = await enrichWithSuggestions(result, rawText);
+          const suggestions = quickAssociate(rawText, 'TOOL_RESULT');
           return {
             type: 'TOOL_RESULT',
             result: enrichedResult as ToolResultData,
-            summary: result.data?.message || '已保存'
+            summary: result.data?.message || '已保存',
+            associatedSuggestions: suggestions
           };
         }
         return { type: 'ERROR', message: '保存功能暂不可用' };
+      }
 
       // =====================================
       // 原有功能
@@ -247,9 +382,16 @@ export class LumiAgent {
       case IntentCategory.SHOPPING:
       case IntentCategory.TRAVEL:
       case IntentCategory.DINING:
-      case IntentCategory.CALENDAR:
+      case IntentCategory.CALENDAR: {
         const cards = await GeminiService.generateCards(intent, this.apiKey);
-        return { type: 'CARDS', cards };
+        const cardSuggestions = quickAssociate(rawText, 'CARDS');
+        const decision = buildDecisionForAgentOutput({
+          outputType: 'CARDS',
+          query: rawText,
+          cards
+        });
+        return { type: 'CARDS', cards, decision, associatedSuggestions: cardSuggestions };
+      }
 
       case IntentCategory.PRIVACY_MASK:
         return {
@@ -263,10 +405,18 @@ export class LumiAgent {
         };
 
       case IntentCategory.UNKNOWN:
-      default:
+      default: {
         // Fallback to chat/drafts if unknown
         const fallbackDrafts = await GeminiService.generateDrafts(rawText, this.soul, this.apiKey, conversationHistory, appScenarioHint);
-        return { type: 'DRAFTS', drafts: fallbackDrafts };
+        const fallbackSuggestions = quickAssociate(rawText, 'DRAFTS');
+        const decision = buildDecisionForAgentOutput({
+          outputType: 'DRAFTS',
+          query: rawText,
+          drafts: fallbackDrafts,
+          soul: this.soul
+        });
+        return { type: 'DRAFTS', drafts: fallbackDrafts, decision, associatedSuggestions: fallbackSuggestions };
+      }
     }
   }
 
@@ -311,14 +461,79 @@ export class LumiAgent {
       templates = offlineTemplates.confirm;
     }
 
+    const drafts = templates.map((t, i) => ({
+      id: `offline-${Date.now()}-${i}`,
+      text: t.text,
+      tone: t.tone
+    }));
+    const decision = buildDecisionForAgentOutput({
+      outputType: 'DRAFTS',
+      query: rawText,
+      drafts,
+      soul: this.soul
+    });
     return {
       type: 'DRAFTS',
-      drafts: templates.map((t, i) => ({
-        id: `offline-${Date.now()}-${i}`,
-        text: t.text,
-        tone: t.tone
-      }))
+      drafts,
+      decision
     };
+  }
+
+  /**
+   * Local-only handling for offline or policy-restricted mode
+   */
+  private async handleLocalOnly(
+    rawText: string,
+    reason: 'offline' | 'policy'
+  ): Promise<AgentOutput> {
+    const intent = this.classifyLocalIntent(rawText);
+
+    if (intent === 'FIND') {
+      return {
+        type: 'ERROR',
+        message: reason === 'offline'
+          ? '当前离线，无法执行搜索/比价/导航。'
+          : '当前策略禁止联网，无法执行搜索/比价/导航。'
+      };
+    }
+
+    if (intent === 'REMEMBER') {
+      const saveTool = getToolByName('smart_save');
+      if (saveTool) {
+        const result = await saveTool.execute({ content: rawText });
+        const enrichedResult = await enrichWithSuggestions(result, rawText);
+        const suggestions = quickAssociate(rawText, 'TOOL_RESULT');
+        return {
+          type: 'TOOL_RESULT',
+          result: enrichedResult as ToolResultData,
+          summary: result.data?.message || '已保存',
+          associatedSuggestions: suggestions
+        };
+      }
+      return { type: 'ERROR', message: '保存功能暂不可用' };
+    }
+
+    // Default to local draft templates for write/unknown intents
+    return this.handleOfflineFallback(rawText);
+  }
+
+  /**
+   * Lightweight local intent detection to avoid network calls
+   */
+  private classifyLocalIntent(
+    rawText: string
+  ): 'WRITE' | 'FIND' | 'REMEMBER' | 'UNKNOWN' {
+    const text = rawText.toLowerCase();
+
+    const findRegex = /帮我找|搜索|查找|比价|导航|地图|路线|地址|位置|去哪|价格|链接|网址|open link|search/i;
+    const rememberRegex = /帮我记|记录|保存|待办|提醒|日程|会议|开会|稍后阅读|明天|后天|下周|周[一二三四五六日天]|\d{1,2}[:：]\d{2}|\d{1,2}[月\/]\d{1,2}[日号]?/i;
+    const writeRegex = /帮我写|写一条|写个|写封|回复|回一下|改写|润色|文案|邮件|祝福|道歉|感谢|拒绝|请假/i;
+
+    if (findRegex.test(text)) return 'FIND';
+    if (rememberRegex.test(text)) return 'REMEMBER';
+    if (writeRegex.test(text)) return 'WRITE';
+
+    return 'UNKNOWN';
   }
 
   /**

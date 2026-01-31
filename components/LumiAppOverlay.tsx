@@ -1,13 +1,53 @@
 import React from 'react';
 import { ArrowLeft, Home, Search, User, MapPin, Star, Phone, ExternalLink, Heart } from 'lucide-react';
+import { SuperAgentResultPanel, SuperAgentResult } from './SuperAgentResultPanel';
 
 interface LumiAppOverlayProps {
     visible: boolean;
     data: any;
     onClose: () => void;
+    superAgentResult?: SuperAgentResult | null;  // 新增：Super Agent 结果
+    onFollowUp?: (question: string) => void;     // 新增：继续提问回调
 }
 
-export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({ visible, data, onClose }) => {
+export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
+    visible,
+    data,
+    onClose,
+    superAgentResult,
+    onFollowUp
+}) => {
+    // 如果有 Super Agent 结果，优先显示
+    if (visible && superAgentResult) {
+        return (
+            <div className="absolute inset-0 z-50 bg-gray-900 flex flex-col animate-in slide-in-from-bottom duration-300">
+                {/* App Header */}
+                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 flex items-center gap-3 shadow-lg">
+                    <button
+                        onClick={onClose}
+                        className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
+                    >
+                        <ArrowLeft size={20} className="text-white" />
+                    </button>
+                    <div className="flex-1">
+                        <h1 className="text-white font-bold text-lg">Lumi.AI 分析结果</h1>
+                        <p className="text-white/70 text-xs">Super Agent</p>
+                    </div>
+                    <img src="/lumi-logo.jpg" alt="Lumi" className="w-8 h-8 rounded-lg" />
+                </div>
+
+                {/* Super Agent Result Panel */}
+                <div className="flex-1 overflow-hidden">
+                    <SuperAgentResultPanel
+                        result={superAgentResult}
+                        onClose={onClose}
+                        onFollowUp={onFollowUp}
+                    />
+                </div>
+            </div>
+        );
+    }
+
     if (!visible || !data) return null;
 
     const places = data.places || [];

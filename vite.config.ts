@@ -8,6 +8,14 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          '/api/serpapi': {
+            target: 'https://serpapi.com',
+            changeOrigin: true,
+            secure: true,
+            rewrite: (path) => path.replace(/^\/api\/serpapi/, '')
+          }
+        }
       },
       plugins: [react()],
       define: {

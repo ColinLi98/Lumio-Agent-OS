@@ -21,7 +21,10 @@ import {
     EmotionalProfile,
     SocialGraph,
     ValuesProfile,
-    Milestone
+    Milestone,
+    LifeStateSnapshot,
+    LifeTransition,
+    DecisionHistory
 } from '../types';
 
 // ============================================================================
@@ -41,6 +44,8 @@ export const StorageKeys = {
     USER_PROFILE: 'lumi_user_profile',
     INTERACTIONS: 'lumi_interactions',
     DIGITAL_AVATAR: 'lumi_digital_avatar',
+    DIGITAL_SOUL: 'lumi_digital_soul',
+    DIGITAL_SOUL_STATS: 'lumi_digital_soul_stats',
 
     // 增强型数字分身
     ENHANCED_AVATAR: 'lumi_enhanced_avatar',
@@ -143,8 +148,21 @@ export function recordInteraction(
 
     saveData(StorageKeys.INTERACTIONS, interactions);
 
-    // 同时更新数字分身
+    // 同时更新数字分身（旧版）
     updateDigitalAvatar(interaction);
+    
+    // 同时更新增强版数字分身（调用 DigitalSoulManager）
+    try {
+        // 动态导入避免循环依赖
+        import('./digitalSoulManager').then(({ getDigitalSoulManager }) => {
+            const manager = getDigitalSoulManager();
+            manager.inferFromInteraction(interaction);
+        }).catch(() => {
+            // 如果 manager 还没准备好，忽略
+        });
+    } catch (e) {
+        // 忽略初始化阶段的错误
+    }
 }
 
 /**
@@ -189,6 +207,43 @@ export function getInteractionStats(): {
     }
 
     return stats;
+}
+
+/**
+ * 获取仪表盘统计数据
+ */
+export function getDashboardStats(): {
+    todayAssists: number;
+    acceptanceRate: number;
+    timeSavedMinutes: number;
+    profileCompleteness: number;
+} {
+    const interactions = getInteractions();
+    const now = Date.now();
+    const todayStart = new Date().setHours(0, 0, 0, 0);
+    
+    // 今日辅助次数（今天的所有交互）
+    const todayAssists = interactions.filter(i => i.timestamp >= todayStart).length;
+    
+    // 接受率（draft_accept / (draft_accept + draft_edit)）
+    const accepts = interactions.filter(i => i.type === 'draft_accept' || i.type === 'draft_selected').length;
+    const edits = interactions.filter(i => i.type === 'draft_edit').length;
+    const totalDrafts = accepts + edits;
+    const acceptanceRate = totalDrafts > 0 ? Math.round((accepts / totalDrafts) * 100) : 0;
+    
+    // 节省时间估算（每次辅助平均节省 30 秒）
+    const timeSavedMinutes = Math.round((interactions.length * 0.5) / 60);
+    
+    // 画像完整度
+    const avatar = getEnhancedDigitalAvatar();
+    const profileCompleteness = avatar.profileCompleteness || 0;
+    
+    return {
+        todayAssists,
+        acceptanceRate,
+        timeSavedMinutes,
+        profileCompleteness
+    };
 }
 
 // ============================================================================
@@ -268,6 +323,7 @@ function updateDigitalAvatar(interaction: UserInteraction): void {
             break;
 
         case 'draft_selected':
+        case 'draft_accept':
             // 记录偏好的语气风格
             const tone = interaction.data.tone;
             if (tone && !avatar.writingPreference.preferredTones.includes(tone)) {
@@ -278,6 +334,15 @@ function updateDigitalAvatar(interaction: UserInteraction): void {
                 }
             }
             break;
+
+        case 'card_clicked':
+        case 'card_click': {
+            const title = interaction.data.title || interaction.data.cardTitle;
+            if (title) {
+                updateInterestTag(avatar, title, 0.4);
+            }
+            break;
+        }
     }
 
     // 更新活跃时间
@@ -490,6 +555,91 @@ function getDefaultEnhancedAvatar(): EnhancedDigitalAvatar {
             preferredTopics: [],
             contentDepthPreference: 'mixed',
             learningStyle: 'textual',
+        },
+
+        // === 新增：人生状态维度 ===
+        lifeState: {
+            age: 28,
+            lifeStage: 'early_career',
+            education: {
+                highestDegree: 'bachelor',
+                field: undefined,
+                institutions: []
+            },
+            career: {
+                currentStatus: 'employed',
+                industry: undefined,
+                role: undefined,
+                yearsOfExperience: 5,
+                careerSatisfaction: 60
+            },
+            finance: {
+                incomeLevel: 'medium',
+                savingsLevel: 'low',
+                debtLevel: 'low',
+                financialStress: 40,
+                hasInvestments: false,
+                hasProperty: false
+            },
+            health: {
+                physicalHealth: 70,
+                mentalHealth: 65,
+                energyLevel: 65,
+                sleepQuality: 60,
+                exerciseFrequency: 'rarely'
+            },
+            relationships: {
+                status: 'single',
+                hasChildren: false,
+                familyRelationshipQuality: 70,
+                socialCircleSize: 'medium',
+                socialSatisfaction: 60
+            },
+            skills: {
+                topSkills: [],
+                learningGoals: [],
+                languageAbilities: ['中文'],
+                technicalProficiency: 50,
+                leadershipExperience: 30
+            },
+            lifeGoals: {
+                shortTerm: [],
+                mediumTerm: [],
+                longTerm: [],
+                coreValues: []
+            },
+            currentChallenges: {
+                primaryConcerns: [],
+                stressLevel: 40,
+                anxietyTriggers: [],
+                bigDecisions: []
+            },
+            resources: {
+                networkQuality: 50,
+                mentorAccess: false,
+                uniqueAdvantages: [],
+                availableTime: 'moderate'
+            },
+            lastUpdated: Date.now(),
+            completeness: 10,
+            dataSource: 'manual'
+        },
+        lifeTransitions: [],
+        decisionHistory: [],
+        
+        // === 新增：命运导航偏好 ===
+        destinyPreferences: {
+            optimizationGoal: 'balance',
+            riskAppetite: 50,
+            timeHorizon: 'medium',
+            priorityWeights: {
+                wealth: 20,
+                health: 25,
+                relationships: 20,
+                career: 20,
+                fulfillment: 15
+            },
+            gamma: 0.92
         },
 
         milestones: [{

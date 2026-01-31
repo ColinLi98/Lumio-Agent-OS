@@ -1,5 +1,6 @@
 import React from 'react';
 import { ToolResultData } from '../types';
+import { DecisionBlock } from './DecisionBlock';
 import { Cloud, Calculator, Languages, Calendar, Bell, Search, AlertCircle, Check, X, PenLine, Brain, ShoppingCart, ExternalLink, Camera, Copy, MapPin, Phone, ChevronDown, Clock } from 'lucide-react';
 
 interface ToolResultCardProps {
@@ -17,6 +18,7 @@ export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary,
         relatedQueries: result.data.relatedQueries || [],
         quickActions: result.data.quickActions || [],
     });
+    const decision = result.decision;
 
     if (!result.success && result.error) {
         return (
@@ -37,34 +39,55 @@ export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary,
         );
     }
 
-    // Render based on display type with suggestions support
+    let renderedCard: React.ReactNode = null;
     switch (result.displayType) {
         case 'weather':
-            return <WeatherCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            renderedCard = <WeatherCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            break;
         case 'calculator':
-            return <CalculatorCard data={result.data} onDismiss={onDismiss} />;
+            renderedCard = <CalculatorCard data={result.data} onDismiss={onDismiss} />;
+            break;
         case 'translation':
-            return <TranslationCard data={result.data} onDismiss={onDismiss} />;
+            renderedCard = <TranslationCard data={result.data} onDismiss={onDismiss} />;
+            break;
         case 'calendar':
-            return <CalendarCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            renderedCard = <CalendarCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            break;
         case 'reminder':
-            return <ReminderCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            renderedCard = <ReminderCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            break;
         // 三大核心功能卡片
         case 'write_assist':
-            return <WriteAssistCard data={result.data} onDismiss={onDismiss} onDraftClick={onDraftClick} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            renderedCard = <WriteAssistCard data={result.data} onDismiss={onDismiss} onDraftClick={onDraftClick} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            break;
         case 'memory':
-            return <MemoryCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            renderedCard = <MemoryCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            break;
         case 'quick_actions':
-            return <QuickActionsCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            renderedCard = <QuickActionsCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            break;
         case 'ocr_result':
-            return <OCRResultCard data={result.data} onDismiss={onDismiss} />;
+            renderedCard = <OCRResultCard data={result.data} onDismiss={onDismiss} />;
+            break;
         case 'search':
-            return <SearchResultCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            renderedCard = <SearchResultCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            break;
         case 'restaurant':
-            return <RestaurantCard data={result.data} onDismiss={onDismiss} onSuggestionClick={onSuggestionClick} onViewInApp={onViewInApp} />;
+            renderedCard = <RestaurantCard data={result.data} onDismiss={onDismiss} onSuggestionClick={onSuggestionClick} onViewInApp={onViewInApp} />;
+            break;
         default:
-            return <TextCard data={result.data} summary={summary} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            renderedCard = <TextCard data={result.data} summary={summary} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
+            break;
     }
+
+    if (!decision) return renderedCard;
+
+    return (
+        <div className="space-y-2">
+            <DecisionBlock decision={decision} onSuggestionClick={onSuggestionClick} />
+            {renderedCard}
+        </div>
+    );
 };
 
 
@@ -876,20 +899,29 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
 
             {/* Horizontal Swipeable Cards */}
             <div className="cards-container" ref={scrollContainerRef}>
-                {places.map((place: any, index: number) => (
-                    <div
-                        key={index}
-                        className={`restaurant-card ${selectedIndex === index ? 'active' : ''} ${expandedId === index ? 'expanded' : ''}`}
-                        onClick={() => setSelectedIndex(index)}
-                    >
-                        {/* Card Header with Image Placeholder */}
-                        <div className="card-image">
+                {places.map((place: any, index: number) => {
+                    const coverPhoto = place.photos?.[0];
+                    const atmosphereTags = Array.isArray(place.atmosphere) ? place.atmosphere : place.atmosphere ? [place.atmosphere] : [];
+                    const highlightTags = Array.isArray(place.highlights) ? place.highlights : place.highlights ? [place.highlights] : [];
+                    const signatureList = Array.isArray(place.signature) ? place.signature : place.signature ? [place.signature] : [];
+
+                    return (
+                        <div
+                            key={index}
+                            className={`restaurant-card ${selectedIndex === index ? 'active' : ''} ${expandedId === index ? 'expanded' : ''}`}
+                            onClick={() => setSelectedIndex(index)}
+                        >
+                            {/* Card Header with Image Placeholder */}
+                            <div
+                                className="card-image"
+                                style={coverPhoto ? { backgroundImage: `url(${coverPhoto})` } : undefined}
+                            >
                             <div className="card-image-overlay"></div>
                             <div className="card-badges">
                                 {index === 0 && place.matchScore >= 70 && (
                                     <span className="badge best-match">❤️ 最佳</span>
                                 )}
-                                {place.highlights?.some((h: string) => h.includes('米其林')) && (
+                                {highlightTags.some((h: string) => h.includes('米其林')) && (
                                     <span className="badge michelin">🌟 米其林</span>
                                 )}
                             </div>
@@ -926,9 +958,9 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                             </div>
 
                             {/* Atmosphere Pills */}
-                            {place.atmosphere && (
+                            {atmosphereTags.length > 0 && (
                                 <div className="atmosphere-container">
-                                    {place.atmosphere.slice(0, 3).map((tag: string, i: number) => (
+                                    {atmosphereTags.slice(0, 3).map((tag: string, i: number) => (
                                         <span key={i} className="atmosphere-pill">{tag}</span>
                                     ))}
                                 </div>
@@ -943,10 +975,10 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                             )}
 
                             {/* Signature Dishes */}
-                            {place.signature && place.signature.length > 0 && (
+                            {signatureList.length > 0 && (
                                 <div className="signature-dishes">
                                     <span className="dishes-label">🍴 招牌</span>
-                                    <span className="dishes-list">{place.signature.slice(0, 3).join(' · ')}</span>
+                                    <span className="dishes-list">{signatureList.slice(0, 3).join(' · ')}</span>
                                 </div>
                             )}
 
@@ -984,9 +1016,52 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                                             <span>{place.waitTime}</span>
                                         </div>
                                     )}
-                                    {place.highlights && (
+                                    {place.photos && place.photos.length > 1 && (
+                                        <div className="photo-strip">
+                                            {place.photos.slice(0, 3).map((photo: string, photoIdx: number) => (
+                                                <img
+                                                    key={photoIdx}
+                                                    src={photo}
+                                                    alt={`${place.name} 照片 ${photoIdx + 1}`}
+                                                    className="photo-thumb"
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                    {place.menu && place.menu.length > 0 && (
+                                        <div className="menu-section">
+                                            <div className="section-title">🍽️ 菜单精选</div>
+                                            <div className="menu-list">
+                                                {place.menu.slice(0, 3).map((item: any, itemIdx: number) => (
+                                                    <div key={itemIdx} className="menu-item">
+                                                        <span className="menu-name">{item.name || item}</span>
+                                                        {item.price && <span className="menu-price">{item.price}</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {place.reviewHighlights && place.reviewHighlights.length > 0 && (
+                                        <div className="review-section">
+                                            <div className="section-title">💬 热门评价</div>
+                                            <div className="review-list">
+                                                {place.reviewHighlights.slice(0, 2).map((review: any, reviewIdx: number) => (
+                                                    <div key={reviewIdx} className="review-item">
+                                                        <div className="review-header">
+                                                            <span className="review-author">{review.author || '用户'}</span>
+                                                            {Number.isFinite(review.rating) && (
+                                                                <span className="review-rating">⭐ {review.rating}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="review-text">{review.text || review}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {highlightTags.length > 0 && (
                                         <div className="highlights-container">
-                                            {place.highlights.map((h: string, i: number) => (
+                                            {highlightTags.map((h: string, i: number) => (
                                                 <span key={i} className="highlight-tag">✨ {h}</span>
                                             ))}
                                         </div>
@@ -1033,7 +1108,8 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                             )}
                         </div>
                     </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Pagination Dots */}
@@ -1245,6 +1321,8 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                     display: flex;
                     align-items: flex-end;
                     padding: 10px;
+                    background-size: cover;
+                    background-position: center;
                 }
 
                 .card-image-overlay {
@@ -1472,6 +1550,77 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                     border-radius: 8px;
                 }
 
+                .photo-strip {
+                    display: flex;
+                    gap: 6px;
+                    margin-top: 10px;
+                }
+
+                .photo-thumb {
+                    width: 52px;
+                    height: 52px;
+                    border-radius: 8px;
+                    object-fit: cover;
+                    border: 1px solid rgba(255,255,255,0.2);
+                }
+
+                .menu-section {
+                    margin-top: 10px;
+                }
+
+                .menu-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                }
+
+                .menu-item {
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 8px;
+                    font-size: 10px;
+                    color: rgba(255,255,255,0.8);
+                }
+
+                .menu-price {
+                    color: rgba(255,255,255,0.6);
+                }
+
+                .review-section {
+                    margin-top: 10px;
+                }
+
+                .review-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+
+                .review-item {
+                    background: rgba(255,255,255,0.08);
+                    padding: 8px;
+                    border-radius: 8px;
+                }
+
+                .review-header {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 10px;
+                    margin-bottom: 4px;
+                    color: rgba(255,255,255,0.7);
+                }
+
+                .review-text {
+                    font-size: 10px;
+                    color: rgba(255,255,255,0.8);
+                }
+
+                .section-title {
+                    font-size: 10px;
+                    color: rgba(255,255,255,0.7);
+                    margin-bottom: 6px;
+                }
+
                 .card-actions {
                     display: flex;
                     gap: 6px;
@@ -1609,4 +1758,3 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
 };
 
 export default ToolResultCard;
-

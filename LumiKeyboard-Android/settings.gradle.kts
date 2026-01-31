@@ -15,3 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "LumiKeyboard"
 include(":app")
+include(":core-agent")
+include(":core-domain")

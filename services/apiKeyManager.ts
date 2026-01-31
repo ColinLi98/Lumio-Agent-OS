@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const STORAGE_KEY = 'lumi_gemini_api_key';
+const STORAGE_KEY = 'lumi_deepseek_api_key';
 const PERSIST_KEY = 'lumi_api_key_persist';
 
-// Default API key for testing and development
-export const DEFAULT_API_KEY = 'AIzaSyCIZmwjYjdfhh4f6DMTHwNpGCFMCEKgDEY';
+// Default API key for testing and development (DeepSeek)
+export const DEFAULT_API_KEY = '';  // No default key, user must provide
 
 export type ApiKeyStatus = 'empty' | 'validating' | 'valid' | 'invalid';
 
@@ -16,19 +16,26 @@ export interface ApiKeyState {
 }
 
 /**
- * Validates the API key by making a lightweight API call to Gemini.
+ * Validates the API key by making a lightweight API call to DeepSeek.
  */
 export async function validateApiKey(apiKey: string): Promise<{ valid: boolean; error?: string }> {
   if (!apiKey || apiKey.trim().length === 0) {
     return { valid: false, error: 'API Key cannot be empty' };
   }
 
+  // DeepSeek API keys start with 'sk-'
+  if (!apiKey.startsWith('sk-')) {
+    return { valid: false, error: 'Invalid API Key format. DeepSeek keys start with "sk-"' };
+  }
+
   try {
-    // Use the models.list endpoint for lightweight validation
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
-      { method: 'GET' }
-    );
+    // Use a simple chat completion to validate the key
+    const response = await fetch('https://api.deepseek.com/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
 
     if (response.ok) {
       return { valid: true };
@@ -132,4 +139,68 @@ export function useApiKey(): {
   }, []);
 
   return { apiKeyState, setApiKey, setPersist, saveAndValidate, clearApiKey };
+}
+
+// =============================================================================
+// SerpApi Key Management (for Flight Search)
+// =============================================================================
+
+const SERPAPI_STORAGE_KEY = 'lumi_serpapi_key';
+
+export interface SerpApiKeyState {
+  key: string;
+  isConfigured: boolean;
+}
+
+/**
+ * React Hook for managing SerpApi Key for flight search
+ */
+export function useSerpApiKey(): {
+  serpApiKey: string;
+  isConfigured: boolean;
+  setSerpApiKey: (key: string) => void;
+  clearSerpApiKey: () => void;
+} {
+  const [state, setState] = useState<SerpApiKeyState>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(SERPAPI_STORAGE_KEY) || '';
+      return { key: stored, isConfigured: stored.length > 0 };
+    }
+    return { key: '', isConfigured: false };
+  });
+
+  const setSerpApiKey = useCallback((key: string) => {
+    if (typeof window !== 'undefined') {
+      if (key) {
+        localStorage.setItem(SERPAPI_STORAGE_KEY, key);
+      } else {
+        localStorage.removeItem(SERPAPI_STORAGE_KEY);
+      }
+    }
+    setState({ key, isConfigured: key.length > 0 });
+  }, []);
+
+  const clearSerpApiKey = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(SERPAPI_STORAGE_KEY);
+    }
+    setState({ key: '', isConfigured: false });
+  }, []);
+
+  return {
+    serpApiKey: state.key,
+    isConfigured: state.isConfigured,
+    setSerpApiKey,
+    clearSerpApiKey
+  };
+}
+
+/**
+ * Get SerpApi key directly from localStorage (for non-hook contexts)
+ */
+export function getSerpApiKey(): string {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem(SERPAPI_STORAGE_KEY) || '';
+  }
+  return '';
 }
