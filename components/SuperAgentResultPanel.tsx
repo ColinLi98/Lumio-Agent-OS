@@ -809,26 +809,26 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
         // 调试日志
         console.log('[SuperAgentResultPanel] Rendering skill:', skillId, 'Data:', data);
 
-        // 价格对比 - 通过 skillId 或数据结构检测
-        const isPriceCompare =
-            skillId === 'price_compare' ||
-            skillName?.includes('比价') ||
-            (data && (data.products || data.results || data.prices) && (data.product || data.query || data.lowestPrice));
-
-        if (isPriceCompare && data) {
-            console.log('[SuperAgentResultPanel] Using PriceCompareCard for:', skillId);
-            return <PriceCompareCard key={skillId} data={data} />;
-        }
-
-        // 搜索结果 - 通过 skillId 或数据结构检测
+        // 搜索结果 - 通过 skillId 检测 (优先检测，因为 web_search 也有 results 和 query)
         const isWebSearch =
             skillId === 'web_search' ||
             skillName?.includes('搜索') ||
-            (data && data.results && data.query && !data.product);
+            (data && data.results && data.query && !data.product && !data.products && !data.lowestPrice);
 
         if (isWebSearch && data) {
             console.log('[SuperAgentResultPanel] Using SearchResultCard for:', skillId);
             return <SearchResultCard key={skillId} data={data} />;
+        }
+
+        // 价格对比 - 通过 skillId 或数据结构检测
+        const isPriceCompare =
+            skillId === 'price_compare' ||
+            skillName?.includes('比价') ||
+            (data && (data.products || data.prices) && (data.product || data.lowestPrice));
+
+        if (isPriceCompare && data) {
+            console.log('[SuperAgentResultPanel] Using PriceCompareCard for:', skillId);
+            return <PriceCompareCard key={skillId} data={data} />;
         }
 
         // 跳过空数据或只有基础信息的结果
