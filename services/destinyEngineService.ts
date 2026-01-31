@@ -18,6 +18,16 @@ import {
   calculateGamma
 } from '../prompts/destinyEngine';
 import { soulArchitect } from './soulArchitectService';
+import { tavilyService, TavilySearchResult } from './tavilyService';
+
+// 实时数据增强接口
+interface RealTimeInsight {
+  source: string;
+  title: string;
+  insight: string;
+  url?: string;
+  relevance: number;
+}
 
 // ============================================================================
 // 决策模板库
@@ -554,6 +564,158 @@ export class DestinyEngine {
       if (horizon.includes('month')) return num;
     }
     return 24; // 默认2年
+  }
+
+  // ============================================================================
+  // 实时数据增强 (Tavily Integration)
+  // ============================================================================
+
+  /**
+   * 获取决策相关的实时洞察
+   */
+  async getRealTimeInsights(question: string): Promise<RealTimeInsight[]> {
+    try {
+      const searchResult = await tavilyService.smartSearch(question);
+      
+      if (searchResult.error || searchResult.results.length === 0) {
+        return [];
+      }
+
+      // 转换为洞察格式
+      return searchResult.results.slice(0, 3).map((result, index) => ({
+        source: new URL(result.url).hostname.replace('www.', ''),
+        title: result.title,
+        insight: this.extractKeyInsight(result.content),
+        url: result.url,
+        relevance: result.score || (1 - index * 0.2)
+      }));
+    } catch (error) {
+      console.error('[DestinyEngine] 获取实时数据失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 从内容中提取关键洞察
+   */
+  private extractKeyInsight(content: string): string {
+    if (!content) return '';
+    
+    // 提取前150个字符，并在句号处截断
+    let insight = content.slice(0, 150);
+    const lastPeriod = insight.lastIndexOf('。');
+    if (lastPeriod > 50) {
+      insight = insight.slice(0, lastPeriod + 1);
+    } else if (!insight.endsWith('。') && !insight.endsWith('...')) {
+      insight += '...';
+    }
+    
+    return insight;
+  }
+
+  /**
+   * 增强版快速评估 - 包含实时数据
+   */
+  async quickEvaluateWithRealTime(question: string, options: string[]): Promise<{
+    scores: Record<string, number>;
+    recommendation: string;
+    reasoning: string;
+    realTimeInsights: RealTimeInsight[];
+    marketContext?: string;
+  }> {
+    // 并行获取基础评估和实时数据
+    const [baseEvaluation, realTimeInsights] = await Promise.all([
+      Promise.resolve(this.quickEvaluate(question, options)),
+      this.getRealTimeInsights(question)
+    ]);
+
+    // 根据实时数据调整评分
+    const adjustedScores = { ...baseEvaluation.scores };
+    
+    // 分析实时洞察中的信号
+    const insightText = realTimeInsights.map(i => i.insight).join(' ').toLowerCase();
+    
+    // 检测市场/经济信号
+    const positiveSignals = /增长|上涨|机会|利好|回暖|复苏/.test(insightText);
+    const negativeSignals = /下跌|风险|裁员|寒冬|萎缩|危机/.test(insightText);
+    
+    Object.keys(adjustedScores).forEach(option => {
+      const isHighRisk = option.includes('创业') || option.includes('辞职') || option.includes('激进');
+      const isLowRisk = option.includes('稳定') || option.includes('保守') || option.includes('观望');
+      
+      if (positiveSignals && isHighRisk) adjustedScores[option] += 8;
+      if (negativeSignals && isHighRisk) adjustedScores[option] -= 10;
+      if (negativeSignals && isLowRisk) adjustedScores[option] += 5;
+      
+      adjustedScores[option] = Math.max(0, Math.min(100, adjustedScores[option]));
+    });
+
+    const bestOption = Object.entries(adjustedScores).sort((a, b) => b[1] - a[1])[0];
+    
+    // 构建市场背景描述
+    let marketContext: string | undefined;
+    if (realTimeInsights.length > 0) {
+      if (positiveSignals && negativeSignals) {
+        marketContext = '当前市场环境复杂，机遇与风险并存';
+      } else if (positiveSignals) {
+        marketContext = '当前市场环境相对积极，可能是行动的好时机';
+      } else if (negativeSignals) {
+        marketContext = '当前市场存在一定不确定性，建议谨慎决策';
+      } else {
+        marketContext = '已获取最新市场信息供参考';
+      }
+    }
+
+    return {
+      scores: adjustedScores,
+      recommendation: bestOption[0],
+      reasoning: baseEvaluation.reasoning + (marketContext ? `\n\n📰 ${marketContext}` : ''),
+      realTimeInsights,
+      marketContext
+    };
+  }
+
+  /**
+   * 获取特定领域的实时数据
+   */
+  async getMarketData(domain: 'career' | 'finance' | 'realestate'): Promise<{
+    summary: string;
+    trends: string[];
+    sources: { title: string; url: string }[];
+  }> {
+    const queries: Record<string, string> = {
+      career: '2025 就业市场 招聘 趋势',
+      finance: '2025 投资市场 股票 基金 趋势',
+      realestate: '2025 房地产 房价 趋势'
+    };
+
+    try {
+      const result = await tavilyService.search(queries[domain], {
+        searchDepth: 'advanced',
+        maxResults: 5,
+        includeAnswer: true
+      });
+
+      const trends = result.results
+        .slice(0, 3)
+        .map(r => this.extractKeyInsight(r.content))
+        .filter(Boolean);
+
+      return {
+        summary: result.answer || '已获取最新市场数据',
+        trends,
+        sources: result.results.slice(0, 3).map(r => ({
+          title: r.title,
+          url: r.url
+        }))
+      };
+    } catch (error) {
+      return {
+        summary: '暂时无法获取实时数据',
+        trends: [],
+        sources: []
+      };
+    }
   }
 }
 

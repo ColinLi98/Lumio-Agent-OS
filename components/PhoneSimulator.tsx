@@ -813,25 +813,40 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
             // Note: handleSend is defined in AgentKeyboard component, so we just set mode here
             // The actual processing will happen when user presses enter
           }}
-          onDestinySimulate={(intentType, params) => {
+          onDestinySimulate={async (intentType, params) => {
             // 运行命运模拟
             onAgentLog(`[Destiny Engine] 启动命运模拟: ${intentType}`);
-            onAgentLog(`[Personal Navigator] 生成有温度的建议...`);
-
-            // 快速评估
-            const options = intentType === 'career'
+            onAgentLog(`[Tavily] 获取实时市场数据...`);
+            
+            // 快速评估选项
+            const options = intentType === 'career' 
               ? ['辞职创业', '保持稳定工作', '边工作边准备']
               : intentType === 'finance'
-                ? ['激进投资', '保守投资', '观望等待']
-                : ['立即行动', '继续观望', '寻求更多信息'];
-
-            const evaluation = destinyEngine.quickEvaluate(inputValue, options);
-
+              ? ['激进投资', '保守投资', '观望等待']
+              : ['立即行动', '继续观望', '寻求更多信息'];
+            
+            // 使用增强版评估（包含实时数据）
+            const evaluation = await destinyEngine.quickEvaluateWithRealTime(inputValue, options);
+            
+            if (evaluation.realTimeInsights.length > 0) {
+              onAgentLog(`[Tavily] 获取到 ${evaluation.realTimeInsights.length} 条实时洞察`);
+            }
+            
+            onAgentLog(`[Personal Navigator] 生成有温度的建议...`);
+            
             // 构建 Destiny Report 摘要
             const bestOption = Object.entries(evaluation.scores).sort((a, b) => b[1] - a[1])[0];
             const secondOption = Object.entries(evaluation.scores).sort((a, b) => b[1] - a[1])[1];
             const successProb = bestOption[1] / 100;
-
+            
+            // 构建实时数据部分
+            const realTimeSection = evaluation.realTimeInsights.length > 0
+              ? `\n\n📰 **实时市场洞察**\n` + 
+                evaluation.realTimeInsights.map(insight => 
+                  `• ${insight.insight} _(${insight.source})_`
+                ).join('\n')
+              : '';
+            
             // Layer 4: 使用 Personal Navigator 生成有温度的回复
             const navigatorResponse = personalNavigator.quickCraft({
               optimalPath: bestOption[0],
@@ -844,20 +859,28 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                 dipDuration: intentType === 'career' ? '3-6个月' : '1-3个月',
                 recoveryPoint: intentType === 'career' ? '12-18个月' : '6个月'
               },
-              caveats: ['结果取决于执行力和外部环境', '建议定期重新评估']
+              caveats: evaluation.marketContext 
+                ? [evaluation.marketContext, '建议定期重新评估']
+                : ['结果取决于执行力和外部环境', '建议定期重新评估']
             }, inputValue);
-
+            
+            // 附加实时数据到回复
+            const enhancedResponse = {
+              ...navigatorResponse,
+              formattedResponse: navigatorResponse.formattedResponse + realTimeSection
+            };
+            
             // 发送到 Lumi App 显示，而不是作为聊天消息
             if (onDestinyResult) {
               onDestinyResult({
                 query: inputValue,
                 intentType,
-                navigatorOutput: navigatorResponse,
+                navigatorOutput: enhancedResponse,
                 timestamp: Date.now()
               });
               onAgentLog(`[Destiny] 结果已发送到 Lumi App`);
             }
-
+            
             setSentinelOutput(null);
             setInputValue(''); // 清空输入
           }}

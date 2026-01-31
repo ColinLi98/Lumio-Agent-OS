@@ -26,6 +26,21 @@ import { quickAssociate } from "./associativeThinkingService";
 import { getRecommendationForQuery, inferGamma, ActionRecommendation } from "./bellmanLifeService";
 import { extractCurrentState } from "./stateExtractor";
 import { getEnhancedDigitalAvatar } from "./localStorageService";
+import { tavilyService, TavilySearchResult } from "./tavilyService";
+
+// 需要实时数据的关键词
+const REALTIME_DATA_KEYWORDS = [
+  // 新闻/时事
+  '新闻', '最新', '今天', '昨天', '刚刚', '最近', '现在', '当前',
+  // 市场/金融
+  '股票', '股价', '基金', '汇率', '房价', '利率', '市场', '行情',
+  // 天气
+  '天气', '气温', '下雨', '预报',
+  // 热点
+  '热搜', '热门', '趋势', '流行',
+  // 英文
+  'news', 'latest', 'today', 'current', 'stock', 'weather', 'trending'
+];
 
 // Life optimization keywords
 const LIFE_OPT_KEYWORDS = [
@@ -70,6 +85,7 @@ export class LumiAgent {
   private policy: PolicyConfig;
   private apiKey: string;
   private currentTask: TaskPlan | null = null;
+  private lastRealtimeData: { query: string; results: TavilySearchResult[]; timestamp: number } | null = null;
 
   constructor(soul: SoulMatrix, policy: PolicyConfig, apiKey: string = '') {
     this.soul = soul;
@@ -83,6 +99,55 @@ export class LumiAgent {
     if (apiKey !== undefined) {
       this.apiKey = apiKey;
     }
+  }
+
+  /**
+   * 检查是否需要实时数据
+   */
+  private needsRealtimeData(query: string): boolean {
+    const lowerQuery = query.toLowerCase();
+    return REALTIME_DATA_KEYWORDS.some(kw => lowerQuery.includes(kw.toLowerCase()));
+  }
+
+  /**
+   * 获取实时数据增强上下文
+   */
+  private async getRealtimeContext(query: string): Promise<string> {
+    try {
+      console.log('[LumiAgent] 正在获取实时数据...', query);
+      const result = await tavilyService.smartSearch(query);
+      
+      if (result.error || result.results.length === 0) {
+        console.log('[LumiAgent] 未获取到实时数据');
+        return '';
+      }
+
+      // 缓存结果
+      this.lastRealtimeData = {
+        query,
+        results: result.results,
+        timestamp: Date.now()
+      };
+
+      // 构建上下文
+      const context = result.results.slice(0, 3).map((r, i) => 
+        `[来源${i + 1}: ${new URL(r.url).hostname}]\n${r.title}\n${r.content?.slice(0, 200) || ''}`
+      ).join('\n\n');
+
+      console.log(`[LumiAgent] 获取到 ${result.results.length} 条实时数据`);
+      
+      return `\n\n--- 实时数据 (${new Date().toLocaleString()}) ---\n${context}\n---`;
+    } catch (error) {
+      console.error('[LumiAgent] 获取实时数据失败:', error);
+      return '';
+    }
+  }
+
+  /**
+   * 获取最近的实时数据（用于显示来源）
+   */
+  public getLastRealtimeData(): { query: string; results: TavilySearchResult[]; timestamp: number } | null {
+    return this.lastRealtimeData;
   }
 
   public async handle(
@@ -315,10 +380,17 @@ export class LumiAgent {
       }
     }
 
-    // 5. Fall back to Intent Classification
+    // 5. 获取实时数据（如果需要）
+    let realtimeContext = '';
+    if (this.needsRealtimeData(rawText)) {
+      console.log('[LumiAgent] 检测到需要实时数据的查询');
+      realtimeContext = await this.getRealtimeContext(rawText);
+    }
+
+    // 6. Fall back to Intent Classification
     const intent = await GeminiService.classifyIntent(rawText, this.apiKey);
 
-    // 6. Routing based on Intent
+    // 7. Routing based on Intent
     switch (intent.category) {
       // =====================================
       // 三大核心功能
@@ -326,8 +398,20 @@ export class LumiAgent {
       case IntentCategory.WRITE_ASSIST:
       case IntentCategory.REWRITE: {
         // 帮我写 - 生成多风格回复建议
-        const drafts = await GeminiService.generateDrafts(rawText, this.soul, this.apiKey, conversationHistory, appScenarioHint);
+        // 如果有实时数据，添加到场景提示中
+        const enhancedScenarioHint = realtimeContext 
+          ? `${appScenarioHint}\n\n[实时数据可用，请结合最新信息回复]${realtimeContext}`
+          : appScenarioHint;
+        const drafts = await GeminiService.generateDrafts(rawText, this.soul, this.apiKey, conversationHistory, enhancedScenarioHint);
         trackAiCall(); // Track successful AI call
+        
+        // 如果有实时数据，添加数据来源提示到 drafts
+        if (realtimeContext && this.lastRealtimeData) {
+          drafts.forEach(draft => {
+            draft.text += `\n\n📰 数据来源: ${this.lastRealtimeData!.results.slice(0, 2).map(r => new URL(r.url).hostname).join(', ')}`;
+          });
+        }
+        
         // 添加联想建议
         const suggestions = quickAssociate(rawText, 'DRAFTS');
         const decision = buildDecisionForAgentOutput({
@@ -407,7 +491,19 @@ export class LumiAgent {
       case IntentCategory.UNKNOWN:
       default: {
         // Fallback to chat/drafts if unknown
-        const fallbackDrafts = await GeminiService.generateDrafts(rawText, this.soul, this.apiKey, conversationHistory, appScenarioHint);
+        // 如果有实时数据，添加到场景提示中
+        const enhancedHint = realtimeContext 
+          ? `${appScenarioHint}\n\n[实时数据可用，请结合最新信息回复]${realtimeContext}`
+          : appScenarioHint;
+        const fallbackDrafts = await GeminiService.generateDrafts(rawText, this.soul, this.apiKey, conversationHistory, enhancedHint);
+        
+        // 如果有实时数据，添加数据来源提示
+        if (realtimeContext && this.lastRealtimeData) {
+          fallbackDrafts.forEach(draft => {
+            draft.text += `\n\n📰 数据来源: ${this.lastRealtimeData!.results.slice(0, 2).map(r => new URL(r.url).hostname).join(', ')}`;
+          });
+        }
+        
         const fallbackSuggestions = quickAssociate(rawText, 'DRAFTS');
         const decision = buildDecisionForAgentOutput({
           outputType: 'DRAFTS',
