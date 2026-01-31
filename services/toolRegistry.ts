@@ -6,6 +6,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
+import { getTavilyClient } from './tavilyClient';
 
 // ============================================================================
 // Types
@@ -199,53 +200,31 @@ const webSearchTool: Tool = {
         required: ['query']
     },
     execute: async (args) => {
-        const { query, topic = 'general' } = args;
-
-        if (!globalApiKey) {
-            return generateFallbackSearchData(query);
-        }
+        const { query } = args;
 
         try {
-            const ai = new GoogleGenAI({ apiKey: globalApiKey });
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview',
-                contents: `搜索关于 "${query}" 的最新信息。返回 JSON 格式：
-{
-    "results": [
-        {
-            "title": "标题",
-            "snippet": "摘要",
-            "url": "链接",
-            "source": "来源网站"
-        }
-    ],
-    "summary": "一句话总结",
-    "relatedQueries": ["相关搜索1", "相关搜索2"]
-}`,
-                config: {
-                    systemInstruction: '你是一个搜索助手。使用 Google 搜索获取最新、最相关的信息。返回结构化的搜索结果。',
-                    tools: [{ googleSearch: {} }]
-                }
-            });
+            // Use Tavily for real-time search
+            const tavily = getTavilyClient();
+            const response = await tavily.quickSearch(query, 5);
 
-            const text = response.text;
-            if (text) {
-                const parsed = parseJsonResponse(text);
-                if (parsed?.results || parsed?.summary) {
-                    return {
-                        success: true,
-                        query,
-                        results: parsed.results || [],
-                        summary: parsed.summary,
-                        relatedQueries: parsed.relatedQueries || []
-                    };
-                }
-            }
+            return {
+                success: true,
+                query,
+                answer: response.answer,
+                results: response.sources.map(s => ({
+                    title: s.title,
+                    snippet: s.snippet,
+                    url: s.url,
+                    source: new URL(s.url).hostname
+                })),
+                summary: response.answer,
+                relatedQueries: []
+            };
         } catch (error) {
-            console.error('[WebSearchTool] Error:', error);
+            console.error('[WebSearchTool] Tavily error:', error);
+            // Fallback to generated data
+            return generateFallbackSearchData(query);
         }
-
-        return generateFallbackSearchData(query);
     },
     profiling: {
         target_dimension: 'knowledge',
