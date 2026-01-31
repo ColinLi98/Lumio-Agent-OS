@@ -317,6 +317,88 @@ const knowledgeQATool: Tool = {
 };
 
 // ============================================================================
+// Broadcast Intent Tool (LIX - Intent Exchange)
+// ============================================================================
+
+import { marketService, IntentCategory } from './marketService';
+
+const broadcastIntentTool: Tool = {
+    name: 'broadcast_intent',
+    description: `将用户的需求意图广播到 Lumi 意图交易市场（LIX），获取来自商家(B2C)和其他用户(C2C)的报价/合作offer。
+
+适用场景：
+1. **购买意向** (purchase): 用户想购买商品，广播到多个平台获取最优报价
+2. **求职/招聘** (job): 用户在找工作或寻找人才
+3. **合作/技能交换** (collaboration): 用户寻求设计、开发等服务，支持技能交换
+
+使用时机：
+- 用户说"我想买..."、"帮我找..."、"谁能帮我..."
+- 用户表达预算有限、想找人合作
+- 用户寻求专业服务（设计、开发、翻译等）
+
+关键词：找人、合作、外包、设计、预算有限、技能交换、招聘`,
+    parameters: {
+        type: 'object',
+        properties: {
+            category: {
+                type: 'string',
+                description: '意图类别：purchase(购买)、job(求职招聘)、collaboration(合作)',
+                enum: ['purchase', 'job', 'collaboration']
+            },
+            item: {
+                type: 'string',
+                description: '具体需求描述，例如"Logo设计"、"iPhone 16"、"React前端开发"'
+            },
+            budget: {
+                type: 'string',
+                description: '可选：预算范围或交换条件，例如"500元以内"、"可以用Python教学交换"'
+            }
+        },
+        required: ['category', 'item']
+    },
+    execute: async (args) => {
+        const { category, item, budget } = args;
+
+        const response = await marketService.broadcast({
+            category: category as IntentCategory,
+            payload: item,
+            budget: budget
+        });
+
+        if (response.status === 'no_matches') {
+            return {
+                success: false,
+                message: '暂无匹配的报价，您的需求已广播到市场，稍后可能会有回应。',
+                broadcastReach: response.broadcastReach
+            };
+        }
+
+        // Format offers for display
+        const formattedOffers = response.offers.map((offer, index) => ({
+            rank: index + 1,
+            provider: offer.provider,
+            type: offer.providerType,
+            offer: offer.content,
+            matchScore: Math.floor(offer.score * 100) + '%'
+        }));
+
+        return {
+            success: true,
+            intentId: response.intentId,
+            matchCount: response.matchCount,
+            broadcastReach: response.broadcastReach,
+            offers: formattedOffers,
+            message: `已广播到 ${response.broadcastReach}+ 个潜在服务方，收到 ${response.matchCount} 个报价`
+        };
+    },
+    // 🔥 High-Value Profiling: Trading intent reveals true needs and spending power
+    profiling: {
+        target_dimension: 'consumption',
+        instruction: 'Analyze the trade intent. If purchase: estimate spending power and brand preferences. If collaboration: log professional needs and skill gaps.'
+    }
+};
+
+// ============================================================================
 // Tool Registry Implementation
 // ============================================================================
 
@@ -328,6 +410,7 @@ class ToolRegistry {
         this.register(priceCompareTool);
         this.register(webSearchTool);
         this.register(knowledgeQATool);
+        this.register(broadcastIntentTool);  // LIX Market Tool
     }
 
     /**
