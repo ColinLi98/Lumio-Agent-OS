@@ -85,6 +85,8 @@ export class SuperAgentService {
         let profilingResult: ProfilingResult | null = null;
 
         try {
+            console.log('[SuperAgent] API Key status:', this.apiKey ? `Configured (${this.apiKey.substring(0, 8)}...)` : 'NOT CONFIGURED');
+
             if (!this.apiKey) {
                 throw new Error('API Key not configured');
             }
@@ -94,6 +96,7 @@ export class SuperAgentService {
             const geminiTools = registry.getGeminiTools();
             const deepSeekTools = this.convertToDeepSeekTools(geminiTools);
             console.log(`[SuperAgent] 🔧 Available tools: ${registry.getToolNames().join(', ')}`);
+            console.log('[SuperAgent] 🔧 DeepSeek tools:', JSON.stringify(deepSeekTools, null, 2));
 
             // 2. Build messages
             const systemPrompt = this.buildSystemPrompt(context);
