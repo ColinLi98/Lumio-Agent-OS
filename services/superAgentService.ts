@@ -1,11 +1,11 @@
 /**
- * Super Agent Service - 超级代理 (V5.0 - DeepSeek)
+ * Super Agent Service - 超级代理 (V5.1 - Gemini)
  * 
- * General-Purpose Autonomous Agent using DeepSeek Function Calling.
+ * General-Purpose Autonomous Agent using Gemini Function Calling.
  * Implements a ReAct (Reasoning + Acting) loop for multi-turn tool execution.
  */
 
-import { getDeepSeekClient, setDeepSeekApiKey, DeepSeekMessage, DeepSeekTool, DeepSeekToolCall } from './deepseekClient';
+import { GoogleGenAI, FunctionCallingConfigMode } from '@anthropic-ai/sdk';
 import { getToolRegistry, setToolRegistryApiKey, GeminiFunctionDeclaration } from './toolRegistry';
 import { runShadowProfiling, setProfilingApiKey, ProfilingResult, onProfileUpdate } from './profilingService';
 import { getMemR3Router } from './memr3Service';
@@ -43,7 +43,24 @@ export interface ToolExecutionResult {
 }
 
 // ============================================================================
-// Super Agent Service (V5.0 - DeepSeek Function Calling)
+// Gemini Client
+// ============================================================================
+
+let geminiClient: any = null;
+let currentApiKey: string = '';
+
+function getGeminiClient(apiKey: string) {
+    if (!geminiClient || apiKey !== currentApiKey) {
+        currentApiKey = apiKey;
+        // Use dynamic import for @google/genai
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        geminiClient = new GoogleGenerativeAI(apiKey);
+    }
+    return geminiClient;
+}
+
+// ============================================================================
+// Super Agent Service (V5.1 - Gemini Function Calling)
 // ============================================================================
 
 export class SuperAgentService {
@@ -55,10 +72,7 @@ export class SuperAgentService {
     setApiKey(apiKey: string): void {
         this.apiKey = apiKey;
 
-        // Initialize DeepSeek client
-        setDeepSeekApiKey(apiKey);
-
-        // Configure all dependent services (they may still use their own keys)
+        // Configure all dependent services
         setToolRegistryApiKey(apiKey);
         setProfilingApiKey(apiKey);
 
@@ -67,11 +81,11 @@ export class SuperAgentService {
             mod.setSkillsApiKey(apiKey);
         }).catch(() => { });
 
-        console.log('[SuperAgent] V5.0 Brain initialized with DeepSeek');
+        console.log('[SuperAgent] V5.1 Brain initialized with Gemini');
     }
 
     /**
-     * Core Method: Process user query using ReAct Loop with DeepSeek
+     * Core Method: Process user query using ReAct Loop with Gemini
      */
     async processWithReAct(
         query: string,
@@ -91,72 +105,55 @@ export class SuperAgentService {
                 throw new Error('API Key not configured');
             }
 
-            // 1. Get tools from registry and convert to DeepSeek format
+            // 1. Get tools from registry
             const registry = getToolRegistry();
-            const geminiTools = registry.getGeminiTools();
-            const deepSeekTools = this.convertToDeepSeekTools(geminiTools);
+            const tools = registry.getGeminiTools();
             console.log(`[SuperAgent] 🔧 Available tools: ${registry.getToolNames().join(', ')}`);
-            console.log('[SuperAgent] 🔧 DeepSeek tools:', JSON.stringify(deepSeekTools, null, 2));
 
-            // 2. Build messages
+            // 2. Build system prompt
             const systemPrompt = this.buildSystemPrompt(context);
-            const messages: DeepSeekMessage[] = this.buildMessages(query, context, systemPrompt);
 
-            // 3. Get DeepSeek client
-            const client = getDeepSeekClient();
-
-            // 4. First API call with tools
-            console.log('[SuperAgent] 📡 Sending request to DeepSeek...');
-            let response = await client.chat({
-                model: 'deepseek-chat',
-                messages: messages,
-                tools: deepSeekTools.length > 0 ? deepSeekTools : undefined,
-                tool_choice: deepSeekTools.length > 0 ? 'auto' : undefined,
-                temperature: 0.7
+            // 3. Get Gemini client and model
+            const client = getGeminiClient(this.apiKey);
+            const model = client.getGenerativeModel({
+                model: 'gemini-2.0-flash',
+                systemInstruction: systemPrompt,
+                tools: tools.length > 0 ? [{ functionDeclarations: tools }] : undefined
             });
 
-            // 5. ReAct Loop: Handle function calls
+            // 4. Build conversation history
+            const history = this.buildGeminiHistory(context);
+
+            // 5. Start chat session
+            const chat = model.startChat({
+                history: history
+            });
+
+            // 6. Send message and get response
+            console.log('[SuperAgent] 📡 Sending request to Gemini...');
+            let response = await chat.sendMessage(query);
+            let result = response.response;
+
+            // 7. ReAct Loop: Handle function calls
             const MAX_TURNS = 5;
             let turns = 0;
-            let currentMessages = [...messages];
 
             while (turns < MAX_TURNS) {
-                // Validate response structure
-                if (!response.choices || response.choices.length === 0) {
-                    console.error('[SuperAgent] ❌ Empty choices in response');
-                    throw new Error('DeepSeek returned empty response');
-                }
+                const functionCalls = result.functionCalls();
 
-                const choice = response.choices[0];
-                const assistantMessage = choice.message;
-
-                // Validate message exists
-                if (!assistantMessage) {
-                    console.error('[SuperAgent] ❌ No message in response');
-                    throw new Error('DeepSeek returned no message');
-                }
-
-                // Check for tool calls
-                if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-                    console.log(`[SuperAgent] ✅ No tool calls, exiting loop`);
+                if (!functionCalls || functionCalls.length === 0) {
+                    console.log(`[SuperAgent] ✅ No function calls, exiting loop`);
                     break;
                 }
 
-                console.log(`[SuperAgent] 🔄 Turn ${turns + 1}: ${assistantMessage.tool_calls.length} tool call(s)`);
+                console.log(`[SuperAgent] 🔄 Turn ${turns + 1}: ${functionCalls.length} function call(s)`);
 
-                // Add assistant message to history
-                currentMessages.push(assistantMessage);
+                // Execute all function calls
+                const functionResponses = [];
 
-                // Execute all tool calls
-                for (const toolCall of assistantMessage.tool_calls) {
-                    const toolName = toolCall.function.name;
-                    let toolArgs: Record<string, any> = {};
-
-                    try {
-                        toolArgs = JSON.parse(toolCall.function.arguments);
-                    } catch (e) {
-                        console.error(`[SuperAgent] Failed to parse tool args:`, toolCall.function.arguments);
-                    }
+                for (const call of functionCalls) {
+                    const toolName = call.name;
+                    const toolArgs = call.args || {};
 
                     console.log(`[SuperAgent] 🤖 Executing: ${toolName}`, toolArgs);
                     toolsUsed.push(toolName);
@@ -173,49 +170,57 @@ export class SuperAgentService {
                         }
                         output = await tool.execute(toolArgs);
 
-                        // 🔥 Shadow Profiling (Fire-and-Forget)
-                        runShadowProfiling(query, toolName, output, tool.profiling)
-                            .then(result => {
-                                if (result) {
-                                    profilingResult = result;
-                                    console.log(`[SuperAgent] 👻 Shadow profiling:`, result.tags);
-                                }
-                            })
-                            .catch(err => console.error('[Shadow] Error:', err));
-
+                        // Run shadow profiling for this tool
+                        if (tool.profiling) {
+                            runShadowProfiling(output, tool.profiling.target_dimension, tool.profiling.instruction)
+                                .then(result => {
+                                    if (result) {
+                                        onProfileUpdate(result);
+                                    }
+                                })
+                                .catch(err => console.warn('[SuperAgent] Shadow profiling failed:', err));
+                        }
                     } catch (e) {
                         success = false;
                         error = e instanceof Error ? e.message : String(e);
-                        output = { error };
-                        console.error(`[SuperAgent] ❌ Tool error:`, error);
+                        output = { error: error };
+                        console.error(`[SuperAgent] ❌ Tool failed: ${toolName}`, e);
                     }
 
                     const execTime = Math.round(performance.now() - execStart);
-                    toolResults.push({ toolName, args: toolArgs, output, success, error, executionTimeMs: execTime });
+                    console.log(`[SuperAgent] ⏱️ ${toolName} completed in ${execTime}ms`);
 
-                    // Add tool result to messages
-                    currentMessages.push({
-                        role: 'tool',
-                        tool_call_id: toolCall.id,
-                        content: JSON.stringify(output)
+                    toolResults.push({
+                        toolName,
+                        args: toolArgs,
+                        output,
+                        success,
+                        error,
+                        executionTimeMs: execTime
+                    });
+
+                    functionResponses.push({
+                        name: toolName,
+                        response: output
                     });
                 }
 
-                // Continue the conversation with tool results
-                response = await client.chat({
-                    model: 'deepseek-chat',
-                    messages: currentMessages,
-                    tools: deepSeekTools.length > 0 ? deepSeekTools : undefined,
-                    tool_choice: 'auto',
-                    temperature: 0.7
-                });
+                // Send function results back to Gemini
+                response = await chat.sendMessage(
+                    functionResponses.map(fr => ({
+                        functionResponse: {
+                            name: fr.name,
+                            response: fr.response
+                        }
+                    }))
+                );
 
+                result = response.response;
                 turns++;
             }
 
-            // 6. Extract final answer
-            const finalChoice = response.choices[0];
-            const finalText = finalChoice.message.content || '处理完成，但未生成回复。';
+            // 8. Extract final answer
+            const finalText = result.text() || '处理完成，但未生成回复。';
 
             // Calculate confidence
             const successfulResults = toolResults.filter(r => r.success);
@@ -267,81 +272,22 @@ export class SuperAgentService {
     }
 
     /**
-     * Convert Gemini tool format to DeepSeek format
-     * DeepSeek uses standard JSON Schema (lowercase types) while Gemini uses uppercase
+     * Build Gemini conversation history
      */
-    private convertToDeepSeekTools(geminiTools: GeminiFunctionDeclaration[]): DeepSeekTool[] {
-        return geminiTools.map(tool => ({
-            type: 'function' as const,
-            function: {
-                name: tool.name,
-                description: tool.description,
-                parameters: this.convertParametersToJsonSchema(tool.parameters)
-            }
-        }));
-    }
+    private buildGeminiHistory(context: UserContext): { role: string; parts: { text: string }[] }[] {
+        const history: { role: string; parts: { text: string }[] }[] = [];
 
-    /**
-     * Convert Gemini parameter format to standard JSON Schema format
-     * Gemini uses uppercase types (STRING, NUMBER, etc.) but DeepSeek needs lowercase
-     */
-    private convertParametersToJsonSchema(params: any): any {
-        if (!params) return params;
-
-        const converted: any = { ...params };
-
-        // Convert type from Gemini format (UPPERCASE) to JSON Schema (lowercase)
-        if (converted.type) {
-            converted.type = converted.type.toLowerCase();
-        }
-
-        // Recursively convert properties
-        if (converted.properties) {
-            const newProps: any = {};
-            for (const [key, value] of Object.entries(converted.properties)) {
-                newProps[key] = this.convertParametersToJsonSchema(value);
-            }
-            converted.properties = newProps;
-        }
-
-        // Handle array items
-        if (converted.items) {
-            converted.items = this.convertParametersToJsonSchema(converted.items);
-        }
-
-        return converted;
-    }
-
-    /**
-     * Build messages array for DeepSeek
-     */
-    private buildMessages(query: string, context: UserContext, systemPrompt: string): DeepSeekMessage[] {
-        const messages: DeepSeekMessage[] = [];
-
-        // System message
-        messages.push({
-            role: 'system',
-            content: systemPrompt
-        });
-
-        // Add conversation history if available
         if (context.conversationHistory && context.conversationHistory.length > 0) {
-            const recentHistory = context.conversationHistory.slice(-10);
+            const recentHistory = context.conversationHistory.slice(-6);
             for (const msg of recentHistory) {
-                messages.push({
-                    role: msg.role === 'assistant' ? 'assistant' : 'user',
-                    content: msg.content
+                history.push({
+                    role: msg.role === 'assistant' ? 'model' : 'user',
+                    parts: [{ text: msg.content }]
                 });
             }
         }
 
-        // Add current query
-        messages.push({
-            role: 'user',
-            content: query
-        });
-
-        return messages;
+        return history;
     }
 
     /**
@@ -405,18 +351,11 @@ ${toolNames.map(name => `- ${name}`).join('\n')}
      * Simple LLM call without tools (fallback)
      */
     private async simpleLLMCall(query: string): Promise<string> {
-        const client = getDeepSeekClient();
+        const client = getGeminiClient(this.apiKey);
+        const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-        const response = await client.chat({
-            model: 'deepseek-chat',
-            messages: [
-                { role: 'system', content: '你是 Lumi，一个智能助手。请用中文回答问题。' },
-                { role: 'user', content: query }
-            ],
-            temperature: 0.7
-        });
-
-        return response.choices[0]?.message?.content || '抱歉，我无法回答这个问题。';
+        const result = await model.generateContent(query);
+        return result.response.text() || '抱歉，我无法回答这个问题。';
     }
 
     /**
@@ -453,44 +392,17 @@ ${toolNames.map(name => `- ${name}`).join('\n')}
 // Legacy Types (for backward compatibility)
 // ============================================================================
 
-export interface LegacySolution {
+interface LegacySolution {
     answer: string;
     reasoning?: string;
     skillsUsed: string[];
     results: SkillResult[];
     confidence: number;
-    followUpSuggestions?: string[];
     executionTimeMs: number;
 }
 
-// Re-export legacy types for compatibility
-export interface Understanding {
-    originalQuestion: string;
-    intent: string;
-    subQuestions: string[];
-    extractedParams: Record<string, any>;
-    requiredCapabilities: string[];
-    urgency: 'low' | 'medium' | 'high';
-    complexity: 'simple' | 'moderate' | 'complex';
-}
-
-export interface ExecutionStep {
-    skillId: string;
-    skill: any;
-    input: Record<string, any>;
-    dependsOn?: string[];
-    parallel: boolean;
-}
-
-export interface ExecutionPlan {
-    steps: ExecutionStep[];
-    synthesisStrategy: string;
-}
-
-export type Solution = LegacySolution;
-
 // ============================================================================
-// Singleton Export
+// Singleton
 // ============================================================================
 
 let superAgentInstance: SuperAgentService | null = null;
@@ -501,6 +413,3 @@ export function getSuperAgent(): SuperAgentService {
     }
     return superAgentInstance;
 }
-
-// Export for direct import
-export { onProfileUpdate } from './profilingService';

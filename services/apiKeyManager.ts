@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const STORAGE_KEY = 'lumi_deepseek_api_key';
+const STORAGE_KEY = 'lumi_gemini_api_key';
 const PERSIST_KEY = 'lumi_api_key_persist';
 
-// Default API key for testing and development (DeepSeek)
-export const DEFAULT_API_KEY = 'sk-a10ec169b72846d1bdcfb93fe87286ce';
+// Default API key for testing and development (Gemini)
+export const DEFAULT_API_KEY = 'AIzaSyCJdG37_5me5hvevvf8bFJVgPMc-BXU-7o';
 
 export type ApiKeyStatus = 'empty' | 'validating' | 'valid' | 'invalid';
 
@@ -16,25 +16,22 @@ export interface ApiKeyState {
 }
 
 /**
- * Validates the API key by making a lightweight API call to DeepSeek.
+ * Validates the API key by making a lightweight API call to Gemini.
  */
 export async function validateApiKey(apiKey: string): Promise<{ valid: boolean; error?: string }> {
   if (!apiKey || apiKey.trim().length === 0) {
     return { valid: false, error: 'API Key cannot be empty' };
   }
 
-  // DeepSeek API keys start with 'sk-'
-  if (!apiKey.startsWith('sk-')) {
-    return { valid: false, error: 'Invalid API Key format. DeepSeek keys start with "sk-"' };
+  // Gemini API keys start with 'AIza'
+  if (!apiKey.startsWith('AIza')) {
+    return { valid: false, error: 'Invalid API Key format. Gemini keys start with "AIza"' };
   }
 
   try {
-    // Use a simple chat completion to validate the key
-    const response = await fetch('https://api.deepseek.com/v1/models', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
-      }
+    // Use a simple models list to validate the key
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {
+      method: 'GET'
     });
 
     if (response.ok) {
