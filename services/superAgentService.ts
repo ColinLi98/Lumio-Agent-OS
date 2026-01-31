@@ -351,7 +351,26 @@ export class SuperAgentService {
         const registry = getToolRegistry();
         const toolNames = registry.getToolNames();
 
+        // 获取当前时间（关键：解决 LLM 训练截止日期问题）
+        const now = new Date();
+        const currentDate = now.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'long'
+        });
+        const currentTime = now.toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
         let prompt = `你是 Lumi，一个智能助手。你的目标是尽可能准确、有帮助地回答用户的问题。
+
+**⏰ 当前时间信息（非常重要！）**
+- 今天是：${currentDate}
+- 当前时间：${currentTime}
+- 请注意：你的训练数据可能有截止日期，但用户询问的"今天"、"现在"、"最新"都指的是上述日期
+- 当用户问实时信息（如价格、新闻、天气）时，必须使用 web_search 获取最新数据
 
 **重要：多轮对话上下文**
 - 你正在进行的是多轮对话，请仔细阅读之前的对话历史
@@ -365,7 +384,7 @@ ${toolNames.map(name => `- ${name}`).join('\n')}
 使用规则:
 1. 根据用户问题，决定是否需要调用工具
 2. 如果问题是关于【电商实物商品】价格，使用 price_compare
-3. 如果问题需要搜索信息、查询人物/事件/金融行情/机票，使用 web_search  
+3. 如果问题需要搜索实时信息、查询人物/事件/金融行情/机票/新闻，使用 web_search  
 4. 如果用户需要帮助回复消息或润色文字，使用 knowledge_qa
 5. 如果问题不需要工具（如闲聊、简单问答），直接回答即可
 6. 回答时使用友好、专业的语气，用中文回复
