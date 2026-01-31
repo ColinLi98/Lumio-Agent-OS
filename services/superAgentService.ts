@@ -253,6 +253,7 @@ export class SuperAgentService {
 
     /**
      * Convert Gemini tool format to DeepSeek format
+     * DeepSeek uses standard JSON Schema (lowercase types) while Gemini uses uppercase
      */
     private convertToDeepSeekTools(geminiTools: GeminiFunctionDeclaration[]): DeepSeekTool[] {
         return geminiTools.map(tool => ({
@@ -260,9 +261,40 @@ export class SuperAgentService {
             function: {
                 name: tool.name,
                 description: tool.description,
-                parameters: tool.parameters
+                parameters: this.convertParametersToJsonSchema(tool.parameters)
             }
         }));
+    }
+
+    /**
+     * Convert Gemini parameter format to standard JSON Schema format
+     * Gemini uses uppercase types (STRING, NUMBER, etc.) but DeepSeek needs lowercase
+     */
+    private convertParametersToJsonSchema(params: any): any {
+        if (!params) return params;
+
+        const converted: any = { ...params };
+
+        // Convert type from Gemini format (UPPERCASE) to JSON Schema (lowercase)
+        if (converted.type) {
+            converted.type = converted.type.toLowerCase();
+        }
+
+        // Recursively convert properties
+        if (converted.properties) {
+            const newProps: any = {};
+            for (const [key, value] of Object.entries(converted.properties)) {
+                newProps[key] = this.convertParametersToJsonSchema(value);
+            }
+            converted.properties = newProps;
+        }
+
+        // Handle array items
+        if (converted.items) {
+            converted.items = this.convertParametersToJsonSchema(converted.items);
+        }
+
+        return converted;
     }
 
     /**
