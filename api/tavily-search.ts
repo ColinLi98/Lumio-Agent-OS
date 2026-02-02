@@ -1,9 +1,6 @@
 // Vercel Serverless Function to proxy Tavily API requests
 // This bypasses CORS restrictions by making server-side calls
 
-export const config = {
-    runtime: 'edge',
-};
 
 const TAVILY_API_URL = 'https://api.tavily.com/search';
 const TAVILY_API_KEY = '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';

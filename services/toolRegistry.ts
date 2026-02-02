@@ -320,7 +320,8 @@ const knowledgeQATool: Tool = {
 // Broadcast Intent Tool (LIX - Intent Exchange)
 // ============================================================================
 
-import { marketService, IntentCategory } from './marketService';
+import { lixMarketService } from './marketService';
+import type { IntentCategory } from './lixTypes';
 
 const broadcastIntentTool: Tool = {
     name: 'broadcast_intent',
@@ -350,8 +351,8 @@ const broadcastIntentTool: Tool = {
                 description: '具体需求描述，例如"Logo设计"、"iPhone 16"、"React前端开发"'
             },
             budget: {
-                type: 'string',
-                description: '可选：预算范围或交换条件，例如"500元以内"、"可以用Python教学交换"'
+                type: 'number',
+                description: '可选：预算上限（人民币）'
             }
         },
         required: ['category', 'item']
@@ -359,36 +360,54 @@ const broadcastIntentTool: Tool = {
     execute: async (args) => {
         const { category, item, budget } = args;
 
-        const response = await marketService.broadcast({
+        const response = await lixMarketService.broadcast({
             category: category as IntentCategory,
             payload: item,
-            budget: budget
+            budget: budget ? Number(budget) : undefined
         });
 
         if (response.status === 'no_matches') {
             return {
                 success: false,
+                skillId: 'broadcast_intent',
+                skillName: 'LIX 意图交易',
                 message: '暂无匹配的报价，您的需求已广播到市场，稍后可能会有回应。',
-                broadcastReach: response.broadcastReach
+                broadcastReach: response.broadcast_reach,
+                intentId: response.intent_id
             };
         }
 
-        // Format offers for display
-        const formattedOffers = response.offers.map((offer, index) => ({
-            rank: index + 1,
-            provider: offer.provider,
-            type: offer.providerType,
-            offer: offer.content,
-            matchScore: Math.floor(offer.score * 100) + '%'
+        // Format ranked offers for UI display
+        const offers = response.ranked_offers.map(ro => ({
+            rank: ro.rank,
+            provider: ro.offer.provider.name,
+            providerId: ro.offer.provider.id,  // e.g., 'jd', 'pdd', 'taobao'
+            providerType: ro.offer.provider.type,
+            price: ro.offer.price.amount,
+            currency: ro.offer.price.currency,
+            reputation: ro.offer.provider.reputation_score,
+            verified: ro.offer.provider.verified,
+            deliveryEta: ro.offer.fulfillment?.delivery_eta,
+            score: Math.floor(ro.total_score * 100),
+            explanation: ro.explanation,
+            scoreBreakdown: ro.score_breakdown,
+            // Real provider indicators
+            isLive: response.provider_source === 'real' || response.provider_source === 'mixed',
+            scrapedAt: ro.offer.price_proof?.proof_timestamp
         }));
 
         return {
             success: true,
-            intentId: response.intentId,
-            matchCount: response.matchCount,
-            broadcastReach: response.broadcastReach,
-            offers: formattedOffers,
-            message: `已广播到 ${response.broadcastReach}+ 个潜在服务方，收到 ${response.matchCount} 个报价`
+            skillId: 'broadcast_intent',
+            skillName: 'LIX 意图交易',
+            intentId: response.intent_id,
+            traceId: response.trace.trace_id,  // End-to-end trace
+            totalOffers: response.total_offers_received,
+            broadcastReach: response.broadcast_reach,
+            latencyMs: response.latency_ms,
+            providerSource: response.provider_source,  // 'real' | 'mock' | 'mixed'
+            offers,
+            message: `已广播到 ${response.broadcast_reach}+ 个潜在服务方，收到 ${response.total_offers_received} 个报价`
         };
     },
     // 🔥 High-Value Profiling: Trading intent reveals true needs and spending power

@@ -10,7 +10,7 @@ import {
     ArrowUpRight, ArrowDownRight, TrendingUp, ChevronRight,
     RefreshCw, AlertTriangle, Target, Clock, Gauge, BarChart3,
     Layers, Activity, Compass, Crosshair, MoveRight, Info,
-    ArrowRight, Check, X, Minus
+    ArrowRight, Check, X, Minus, Zap
 } from 'lucide-react';
 
 import {
@@ -31,7 +31,7 @@ const colors = {
     // 主色调 - 克制的蓝绿色
     primary: '#0EA5E9',
     primaryMuted: 'rgba(14, 165, 233, 0.15)',
-    
+
     // 语义色
     positive: '#10B981',
     positiveMuted: 'rgba(16, 185, 129, 0.15)',
@@ -40,17 +40,17 @@ const colors = {
     warning: '#F59E0B',
     warningMuted: 'rgba(245, 158, 11, 0.15)',
     neutral: '#6B7280',
-    
+
     // 背景层次
     bg1: '#0F172A',
     bg2: '#1E293B',
     bg3: '#334155',
-    
+
     // 文字
     text1: '#F8FAFC',
     text2: '#94A3B8',
     text3: '#64748B',
-    
+
     // 边框
     border: 'rgba(148, 163, 184, 0.1)',
     borderHover: 'rgba(148, 163, 184, 0.2)',
@@ -71,7 +71,7 @@ const MetricValue: React.FC<{
         md: 'text-2xl',
         lg: 'text-4xl'
     };
-    
+
     return (
         <div className="flex items-baseline gap-1">
             <span className={`font-mono font-semibold ${sizeClasses[size]}`} style={{ color: colors.text1 }}>
@@ -97,16 +97,16 @@ const ProgressBar: React.FC<{
     height?: number;
 }> = ({ value, max = 100, color = colors.primary, showValue = false, height = 4 }) => {
     const percentage = Math.min(100, (value / max) * 100);
-    
+
     return (
         <div className="flex items-center gap-3 w-full">
-            <div 
+            <div
                 className="flex-1 rounded-full overflow-hidden"
                 style={{ backgroundColor: colors.bg3, height }}
             >
-                <div 
+                <div
                     className="h-full rounded-full transition-all duration-500"
-                    style={{ 
+                    style={{
                         width: `${percentage}%`,
                         backgroundColor: color
                     }}
@@ -132,10 +132,10 @@ const StatusIndicator: React.FC<{
         warning: colors.warning,
         neutral: colors.neutral
     };
-    
+
     return (
         <div className="flex items-center gap-2">
-            <div 
+            <div
                 className={`rounded-full ${size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2'}`}
                 style={{ backgroundColor: statusColors[status] }}
             />
@@ -162,7 +162,7 @@ const MetricCard: React.FC<{
     color?: string;
 }> = ({ label, value, suffix, trend, description, color = colors.primary }) => {
     return (
-        <div 
+        <div
             className="p-4 rounded-lg transition-colors hover:bg-slate-800/50"
             style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
         >
@@ -171,9 +171,8 @@ const MetricCard: React.FC<{
                     {label}
                 </span>
                 {trend && trend !== 'neutral' && (
-                    <div className={`flex items-center gap-0.5 text-xs ${
-                        trend === 'up' ? 'text-emerald-400' : 'text-red-400'
-                    }`}>
+                    <div className={`flex items-center gap-0.5 text-xs ${trend === 'up' ? 'text-emerald-400' : 'text-red-400'
+                        }`}>
                         {trend === 'up' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                         <span>{trend === 'up' ? '+' : '-'}12%</span>
                     </div>
@@ -204,14 +203,14 @@ const StateOverview: React.FC<{
     ];
 
     return (
-        <div 
+        <div
             className="rounded-xl overflow-hidden"
             style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
         >
             {/* Header */}
             <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${colors.border}` }}>
                 <div className="flex items-center gap-3">
-                    <div 
+                    <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
                         style={{ backgroundColor: colors.primaryMuted }}
                     >
@@ -256,15 +255,15 @@ const OptimalAction: React.FC<{
     onAnalyze: (decision: LifeDecision) => void;
 }> = ({ advice, onAnalyze }) => {
     const action = advice.nextBestAction;
-    
+
     return (
-        <div 
+        <div
             className="rounded-xl overflow-hidden"
             style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
         >
             {/* Rerouting Alert */}
             {advice.rerouting && (
-                <div 
+                <div
                     className="px-4 py-3 flex items-center gap-3"
                     style={{ backgroundColor: colors.warningMuted, borderBottom: `1px solid ${colors.border}` }}
                 >
@@ -315,9 +314,9 @@ const OptimalAction: React.FC<{
                     </div>
                     <div>
                         <div className="text-xs mb-1" style={{ color: colors.text3 }}>风险等级</div>
-                        <div className="font-mono font-semibold" style={{ 
-                            color: (action.impacts.risk || 0) > 50 ? colors.negative : 
-                                   (action.impacts.risk || 0) > 30 ? colors.warning : colors.positive 
+                        <div className="font-mono font-semibold" style={{
+                            color: (action.impacts.risk || 0) > 50 ? colors.negative :
+                                (action.impacts.risk || 0) > 30 ? colors.warning : colors.positive
                         }}>
                             {action.impacts.risk || 0}
                         </div>
@@ -330,7 +329,7 @@ const OptimalAction: React.FC<{
                         <div className="text-xs mb-2" style={{ color: colors.text3 }}>机会成本</div>
                         <div className="flex flex-wrap gap-2">
                             {action.opportunityCost.map((cost, idx) => (
-                                <span 
+                                <span
                                     key={idx}
                                     className="px-2 py-1 rounded text-xs"
                                     style={{ backgroundColor: colors.bg3, color: colors.text2 }}
@@ -345,8 +344,8 @@ const OptimalAction: React.FC<{
                 <button
                     onClick={() => onAnalyze(action)}
                     className="w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-                    style={{ 
-                        backgroundColor: colors.primaryMuted, 
+                    style={{
+                        backgroundColor: colors.primaryMuted,
                         color: colors.primary,
                         border: `1px solid ${colors.primary}30`
                     }}
@@ -370,9 +369,9 @@ const ValueProjection: React.FC<{
 }> = ({ currentValue, projectedValue, regretMinimization, etaToGoal }) => {
     const delta = projectedValue - currentValue;
     const deltaPercent = ((delta / currentValue) * 100).toFixed(1);
-    
+
     return (
-        <div 
+        <div
             className="rounded-xl p-5"
             style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
         >
@@ -411,7 +410,7 @@ const ValueProjection: React.FC<{
                             <span className="text-lg font-mono font-semibold" style={{ color: colors.text1 }}>
                                 {regretMinimization.toFixed(0)}%
                             </span>
-                            <StatusIndicator 
+                            <StatusIndicator
                                 status={regretMinimization > 80 ? 'positive' : regretMinimization > 50 ? 'warning' : 'negative'}
                                 label={regretMinimization > 80 ? '优秀' : regretMinimization > 50 ? '良好' : '需改进'}
                             />
@@ -439,7 +438,7 @@ const RiskOpportunity: React.FC<{
     return (
         <div className="grid grid-cols-2 gap-4">
             {/* Risks */}
-            <div 
+            <div
                 className="rounded-xl p-4"
                 style={{ backgroundColor: colors.negativeMuted, border: `1px solid ${colors.negative}20` }}
             >
@@ -460,7 +459,7 @@ const RiskOpportunity: React.FC<{
             </div>
 
             {/* Opportunities */}
-            <div 
+            <div
                 className="rounded-xl p-4"
                 style={{ backgroundColor: colors.positiveMuted, border: `1px solid ${colors.positive}20` }}
             >
@@ -501,7 +500,7 @@ const PathVisualization: React.FC<{
     const range = maxValue - minValue || 1;
 
     return (
-        <div 
+        <div
             className="rounded-xl p-5"
             style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
         >
@@ -530,14 +529,14 @@ const PathVisualization: React.FC<{
                             <stop offset="100%" stopColor={colors.primary} stopOpacity="0" />
                         </linearGradient>
                     </defs>
-                    
+
                     {/* Grid lines */}
                     {[0, 25, 50, 75, 100].map(y => (
-                        <line 
+                        <line
                             key={y}
-                            x1="0" 
-                            y1={`${y}%`} 
-                            x2="100%" 
+                            x1="0"
+                            y1={`${y}%`}
+                            x2="100%"
                             y2={`${y}%`}
                             stroke={colors.border}
                             strokeWidth="1"
@@ -549,10 +548,10 @@ const PathVisualization: React.FC<{
                         d={`
                             M 0 ${128}
                             ${dataPoints.map((d, i) => {
-                                const x = (i / (dataPoints.length - 1)) * 100;
-                                const y = 128 - ((d.value - minValue) / range) * 120;
-                                return `L ${x}% ${y}`;
-                            }).join(' ')}
+                            const x = (i / (dataPoints.length - 1)) * 100;
+                            const y = 128 - ((d.value - minValue) / range) * 120;
+                            return `L ${x}% ${y}`;
+                        }).join(' ')}
                             L 100% ${128}
                             Z
                         `}
@@ -574,7 +573,7 @@ const PathVisualization: React.FC<{
                 </svg>
 
                 {/* Labels */}
-                <div 
+                <div
                     className="absolute bottom-0 left-0 right-0 flex justify-between text-xs px-1"
                     style={{ color: colors.text3 }}
                 >
@@ -590,7 +589,7 @@ const PathVisualization: React.FC<{
                     <div className="text-xs mb-2" style={{ color: colors.text3 }}>路径关键节点</div>
                     <div className="flex flex-wrap gap-2">
                         {path.decisions.slice(0, 4).map((d, idx) => (
-                            <span 
+                            <span
                                 key={idx}
                                 className="px-2 py-1 rounded text-xs"
                                 style={{ backgroundColor: colors.bg3, color: colors.text2 }}
@@ -623,17 +622,17 @@ const DecisionAnalysisModal: React.FC<{
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}>
-            <div 
+            <div
                 className="w-full max-w-md max-h-[80vh] overflow-y-auto rounded-xl"
                 style={{ backgroundColor: colors.bg1, border: `1px solid ${colors.border}` }}
             >
                 {/* Header */}
-                <div 
+                <div
                     className="sticky top-0 px-5 py-4 flex items-center justify-between"
                     style={{ backgroundColor: colors.bg1, borderBottom: `1px solid ${colors.border}` }}
                 >
                     <h3 className="font-semibold" style={{ color: colors.text1 }}>决策分析</h3>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="p-1 rounded hover:bg-slate-800 transition-colors"
                     >
@@ -669,10 +668,10 @@ const DecisionAnalysisModal: React.FC<{
                             {/* Risk */}
                             <div>
                                 <div className="text-xs mb-2" style={{ color: colors.text3 }}>风险评估</div>
-                                <StatusIndicator 
+                                <StatusIndicator
                                     status={
                                         analysis.riskAssessment === '高风险' ? 'negative' :
-                                        analysis.riskAssessment === '中等风险' ? 'warning' : 'positive'
+                                            analysis.riskAssessment === '中等风险' ? 'warning' : 'positive'
                                     }
                                     label={analysis.riskAssessment}
                                     size="md"
@@ -700,9 +699,10 @@ const DecisionAnalysisModal: React.FC<{
 
 interface DestinyNavigatorProps {
     isDark?: boolean;
+    onOpenLIXMarket?: () => void;
 }
 
-export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark = true }) => {
+export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark = true, onOpenLIXMarket }) => {
     const [advice, setAdvice] = useState<NavigationAdvice | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedDecision, setSelectedDecision] = useState<LifeDecision | null>(null);
@@ -722,7 +722,7 @@ export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark 
 
     if (loading) {
         return (
-            <div 
+            <div
                 className="flex flex-col items-center justify-center h-64 gap-4"
                 style={{ color: colors.text3 }}
             >
@@ -742,14 +742,46 @@ export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark 
 
     return (
         <div className="space-y-4 pb-6">
+            {/* LIX Market Entry */}
+            {onOpenLIXMarket && (
+                <button
+                    onClick={onOpenLIXMarket}
+                    className="w-full rounded-xl p-4 text-left transition-all hover:scale-[1.01]"
+                    style={{
+                        background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)',
+                        border: '1px solid rgba(167, 139, 250, 0.3)'
+                    }}
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div
+                                className="w-10 h-10 rounded-lg flex items-center justify-center"
+                                style={{ backgroundColor: 'rgba(167, 139, 250, 0.25)' }}
+                            >
+                                <Zap size={20} style={{ color: '#a78bfa' }} />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold" style={{ color: colors.text1 }}>
+                                    LIX 意图市场
+                                </h3>
+                                <p className="text-xs" style={{ color: colors.text3 }}>
+                                    发布需求 · 获取全网最优报价
+                                </p>
+                            </div>
+                        </div>
+                        <ChevronRight size={18} style={{ color: colors.text3 }} />
+                    </div>
+                </button>
+            )}
+
             {/* Header */}
-            <div 
+            <div
                 className="rounded-xl p-5"
                 style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
             >
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div 
+                        <div
                             className="w-10 h-10 rounded-lg flex items-center justify-center"
                             style={{ backgroundColor: colors.primaryMuted }}
                         >
@@ -777,7 +809,7 @@ export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark 
             <StateOverview position={advice.currentPosition} />
 
             {/* Value Projection */}
-            <ValueProjection 
+            <ValueProjection
                 currentValue={advice.currentLifeValue}
                 projectedValue={advice.projectedLifeValue}
                 regretMinimization={advice.regretMinimization}
@@ -785,13 +817,13 @@ export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark 
             />
 
             {/* Optimal Action */}
-            <OptimalAction 
+            <OptimalAction
                 advice={advice}
                 onAnalyze={setSelectedDecision}
             />
 
             {/* Risk & Opportunity */}
-            <RiskOpportunity 
+            <RiskOpportunity
                 risks={advice.riskAhead}
                 opportunities={advice.opportunities}
             />

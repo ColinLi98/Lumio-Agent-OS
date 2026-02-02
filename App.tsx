@@ -133,31 +133,48 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Header Bar */}
-      <header className={`px-4 py-3 flex items-center justify-between border-b transition-colors duration-300 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
-        <div className="flex items-center gap-3">
-          <img src="/lumi-logo.jpg" alt="Lumi.AI" className="w-8 h-8 rounded-lg object-cover" />
-          <h1 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
-            Lumi.AI
-          </h1>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${appMode === 'keyboard'
-              ? 'bg-blue-500 text-white'
-              : 'bg-purple-500 text-white'
-            }`}>
-            {appMode === 'keyboard' ? 'Keyboard' : 'App'}
-          </span>
+      {/* Header Bar - Premium Design */}
+      <header className={`lumi-header px-6 py-4 flex items-center justify-between transition-all duration-300 ${isDark
+          ? 'bg-slate-900/80 border-b border-slate-700/50'
+          : 'lumi-header-light bg-white/90 border-b border-gray-200/80'
+        }`} style={{ backdropFilter: 'blur(12px)' }}>
+        <div className="lumi-logo flex items-center gap-3">
+          <div className="relative">
+            <img
+              src="/lumi-logo.jpg"
+              alt="Lumi.AI"
+              className="w-10 h-10 rounded-xl object-cover shadow-lg ring-2 ring-blue-500/20"
+            />
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse"></div>
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold text-gradient-blue" style={{
+              background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Lumi.AI
+            </h1>
+            <span className={`text-[10px] font-medium tracking-wider uppercase ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
+              Personal Destiny Engine
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Mode Toggle */}
-          <div className={`flex rounded-lg overflow-hidden border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+        <div className="flex items-center gap-3">
+          {/* Premium Mode Toggle */}
+          <div className={`mode-toggle flex p-1 rounded-xl ${isDark ? 'bg-slate-800/80' : 'bg-gray-100'
+            }`} style={{ backdropFilter: 'blur(8px)' }}>
             <button
               onClick={() => setAppMode('keyboard')}
-              className={`px-3 py-1.5 flex items-center gap-1.5 text-sm font-medium transition-all ${appMode === 'keyboard'
-                  ? 'bg-blue-500 text-white'
-                  : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              className={`px-4 py-2 flex items-center gap-2 text-sm font-medium rounded-lg transition-all duration-300 ${appMode === 'keyboard'
+                  ? 'text-white shadow-lg'
+                  : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'
                 }`}
+              style={appMode === 'keyboard' ? {
+                background: 'linear-gradient(135deg, #3B82F6 0%, #0EA5E9 100%)',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
+              } : {}}
               title="Keyboard Mode"
             >
               <Smartphone size={16} />
@@ -165,10 +182,14 @@ const App: React.FC = () => {
             </button>
             <button
               onClick={() => setAppMode('app')}
-              className={`px-3 py-1.5 flex items-center gap-1.5 text-sm font-medium transition-all ${appMode === 'app'
-                  ? 'bg-purple-500 text-white'
-                  : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              className={`px-4 py-2 flex items-center gap-2 text-sm font-medium rounded-lg transition-all duration-300 ${appMode === 'app'
+                  ? 'text-white shadow-lg'
+                  : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'
                 }`}
+              style={appMode === 'app' ? {
+                background: 'linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%)',
+                boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)'
+              } : {}}
               title="App Mode"
             >
               <AppWindow size={16} />
@@ -179,7 +200,9 @@ const App: React.FC = () => {
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className={`p-2 rounded-lg transition-all duration-200 ${isDark ? 'bg-gray-700 text-yellow-400 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+            className={`p-2.5 rounded-xl transition-all duration-300 hover:scale-105 ${isDark
+                ? 'bg-slate-800 text-amber-400 hover:bg-slate-700 hover:shadow-lg hover:shadow-amber-500/20'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >

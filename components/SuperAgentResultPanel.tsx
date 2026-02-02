@@ -8,8 +8,9 @@ import React from 'react';
 import {
     ShoppingCart, Search, Brain, Languages, Calculator,
     Clock, MessageCircle, ExternalLink, TrendingDown, Star,
-    CheckCircle, AlertCircle, Sparkles
+    CheckCircle, AlertCircle, Sparkles, Zap
 } from 'lucide-react';
+import OfferComparisonCard from './OfferComparisonCard';
 
 // ============================================================================
 // Types
@@ -41,6 +42,7 @@ interface SuperAgentResultPanelProps {
     result: SuperAgentResult | null;
     onClose?: () => void;
     onFollowUp?: (question: string) => void;
+    onOpenInMarket?: (intentId: string) => void;  // Deep link to LIX Market
 }
 
 // ============================================================================
@@ -75,6 +77,7 @@ const skillIcons: Record<string, any> = {
     'calculate': Calculator,
     'schedule': Clock,
     'general_qa': MessageCircle,
+    'broadcast_intent': Zap,
 };
 
 // ============================================================================
@@ -797,6 +800,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
     result,
     onClose,
     onFollowUp,
+    onOpenInMarket,
 }) => {
     if (!result) return null;
 
@@ -818,6 +822,18 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
         if (isWebSearch && data) {
             console.log('[SuperAgentResultPanel] Using SearchResultCard for:', skillId);
             return <SearchResultCard key={skillId} data={data} />;
+        }
+
+        // LIX 意图交易 - 通过 skillId 或数据结构检测
+        const isBroadcastIntent =
+            skillId === 'broadcast_intent' ||
+            skillName?.includes('LIX') ||
+            skillName?.includes('意图交易') ||
+            (data && data.intentId && data.offers && Array.isArray(data.offers));
+
+        if (isBroadcastIntent && data) {
+            console.log('[SuperAgentResultPanel] Using OfferComparisonCard for:', skillId);
+            return <OfferComparisonCard key={skillId} data={data} onOpenInMarket={onOpenInMarket} />;
         }
 
         // 价格对比 - 通过 skillId 或数据结构检测

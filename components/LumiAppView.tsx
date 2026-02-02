@@ -14,11 +14,16 @@ import { LifeCoachPanel } from './LifeCoachPanel';
 import { BellmanTestPanel } from './BellmanTestPanel';
 import { DestinyNavigatorPanel } from './DestinyNavigator';
 import { DigitalSoulEditor } from './DigitalSoulEditor';
+import { SoulMatrixPanel } from './SoulMatrixPanel';
+import { MarketHome } from './MarketHome';
+import { IntentDetail } from './IntentDetail';
+import { ObservabilityDashboard } from './ObservabilityDashboard';
 import { DestinySimulationResult } from '../App';
 import {
     Home, User, Settings, Keyboard, ChevronRight, Key,
     Compass, FlaskConical, Navigation, Activity, ArrowRight, Check,
-    Zap, TrendingUp, Clock, UserCheck, X, Target, AlertCircle, CheckCircle2
+    Zap, TrendingUp, Clock, UserCheck, X, Target, AlertCircle, CheckCircle2,
+    Store
 } from 'lucide-react';
 
 // ============================================================================
@@ -62,7 +67,7 @@ interface LumiAppViewProps {
     onCloseDestinyResult?: () => void;
 }
 
-type AppTab = 'home' | 'avatar' | 'coach' | 'destiny' | 'test' | 'settings';
+type AppTab = 'home' | 'avatar' | 'coach' | 'destiny' | 'lix_market' | 'lix_intent' | 'test' | 'settings';
 
 // ============================================================================
 // Sub Components
@@ -162,7 +167,8 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
     onCloseDestinyResult
 }) => {
     const [activeTab, setActiveTab] = useState<AppTab>('home');
-    const [avatarSubTab, setAvatarSubTab] = useState<'profile' | 'editor'>('profile');
+    const [avatarSubTab, setAvatarSubTab] = useState<'profile' | 'editor' | 'matrix'>('profile');
+    const [lixIntentId, setLixIntentId] = useState<string | null>(null);
     const { serpApiKey, isConfigured: serpConfigured, setSerpApiKey, clearSerpApiKey } = useSerpApiKey();
 
     // 仪表盘统计数据
@@ -181,8 +187,8 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
 
     const tabs: { id: AppTab; icon: React.FC<{ size?: number }>; label: string }[] = [
         { id: 'home', icon: Home, label: '首页' },
+        { id: 'lix_market', icon: Store, label: '市场' },
         { id: 'avatar', icon: User, label: '画像' },
-        { id: 'coach', icon: Compass, label: '教练' },
         { id: 'destiny', icon: Navigation, label: '导航' },
         { id: 'settings', icon: Settings, label: '设置' },
     ];
@@ -308,10 +314,10 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                 return (
                     <div className="space-y-4">
                         {/* Sub-nav */}
-                        <div className="flex gap-2 p-1 rounded-lg" style={{ backgroundColor: colors.bg2 }}>
+                        <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: colors.bg2 }}>
                             <button
                                 onClick={() => setAvatarSubTab('profile')}
-                                className="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all"
+                                className="flex-1 py-2 px-3 rounded-md text-xs font-medium transition-all"
                                 style={{
                                     backgroundColor: avatarSubTab === 'profile' ? colors.primary : 'transparent',
                                     color: avatarSubTab === 'profile' ? '#fff' : colors.text3
@@ -320,8 +326,18 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                 画像概览
                             </button>
                             <button
+                                onClick={() => setAvatarSubTab('matrix')}
+                                className="flex-1 py-2 px-3 rounded-md text-xs font-medium transition-all"
+                                style={{
+                                    backgroundColor: avatarSubTab === 'matrix' ? colors.primary : 'transparent',
+                                    color: avatarSubTab === 'matrix' ? '#fff' : colors.text3
+                                }}
+                            >
+                                分身认知
+                            </button>
+                            <button
                                 onClick={() => setAvatarSubTab('editor')}
-                                className="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all"
+                                className="flex-1 py-2 px-3 rounded-md text-xs font-medium transition-all"
                                 style={{
                                     backgroundColor: avatarSubTab === 'editor' ? colors.primary : 'transparent',
                                     color: avatarSubTab === 'editor' ? '#fff' : colors.text3
@@ -331,11 +347,9 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                             </button>
                         </div>
 
-                        {avatarSubTab === 'profile' ? (
-                            <DigitalAvatarPanel />
-                        ) : (
-                            <DigitalSoulEditor isDark={isDark} />
-                        )}
+                        {avatarSubTab === 'profile' && <DigitalAvatarPanel />}
+                        {avatarSubTab === 'matrix' && <SoulMatrixPanel showHeader={false} />}
+                        {avatarSubTab === 'editor' && <DigitalSoulEditor isDark={isDark} />}
                     </div>
                 );
 
@@ -343,7 +357,40 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                 return <LifeCoachPanel isDark={isDark} />;
 
             case 'destiny':
-                return <DestinyNavigatorPanel isDark={isDark} />;
+                return (
+                    <DestinyNavigatorPanel
+                        isDark={isDark}
+                        onOpenLIXMarket={() => setActiveTab('lix_market')}
+                    />
+                );
+
+            case 'lix_market':
+                return (
+                    <MarketHome
+                        onSelectIntent={(intentId) => {
+                            setLixIntentId(intentId);
+                            setActiveTab('lix_intent');
+                        }}
+                    />
+                );
+
+            case 'lix_intent':
+                return lixIntentId ? (
+                    <IntentDetail
+                        intentId={lixIntentId}
+                        onBack={() => {
+                            setLixIntentId(null);
+                            setActiveTab('lix_market');
+                        }}
+                    />
+                ) : (
+                    <MarketHome
+                        onSelectIntent={(intentId) => {
+                            setLixIntentId(intentId);
+                            setActiveTab('lix_intent');
+                        }}
+                    />
+                );
 
             case 'test':
                 return <BellmanTestPanel isDark={isDark} />;
@@ -351,6 +398,9 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
             case 'settings':
                 return (
                     <div className="space-y-4">
+                        {/* Observability Dashboard */}
+                        <ObservabilityDashboard isDark={isDark} />
+
                         {/* API Settings */}
                         <div
                             className="rounded-xl p-5"

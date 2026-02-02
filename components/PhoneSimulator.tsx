@@ -43,6 +43,7 @@ interface PhoneSimulatorProps {
   onDecisionUpdate?: (decision: DecisionMeta) => void;
   onSoulUpdate?: (soul: SoulMatrix) => void;
   onDestinyResult?: (result: DestinySimulationResult) => void;
+  onOpenInMarket?: (intentId: string) => void;  // Deep link to Market tab
   fullscreen?: boolean;
 }
 
@@ -66,7 +67,7 @@ const formatMessageTime = (timestamp: number): string => {
 const MESSAGES_STORAGE_KEY = 'lumi_chat_messages';
 type PendingIntent = { query: string; locked?: boolean; topic?: 'travel' | 'general' };
 
-export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, apiKey, onAgentLog, onOpenApp, onDecisionUpdate, onSoulUpdate, onDestinyResult, fullscreen }) => {
+export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, apiKey, onAgentLog, onOpenApp, onDecisionUpdate, onSoulUpdate, onDestinyResult, onOpenInMarket, fullscreen }) => {
   const [currentScenario, setCurrentScenario] = useState<AppScenario>(APP_SCENARIOS[0]);
   const [showScenarioPicker, setShowScenarioPicker] = useState(false);
   const [messages, setMessages] = useState<{ id: number, text: string, from: 'user' | 'me', timestamp: number }[]>(() => {
@@ -645,6 +646,13 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
             setIsLoading(false);
           }
         }}
+        onOpenInMarket={(intentId) => {
+          // Close overlay and navigate to Market
+          setShowAppOverlay(false);
+          if (onOpenInMarket) {
+            onOpenInMarket(intentId);
+          }
+        }}
       />
 
       {/* Status Bar with Scenario Picker */}
@@ -817,36 +825,36 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
             // 运行命运模拟
             onAgentLog(`[Destiny Engine] 启动命运模拟: ${intentType}`);
             onAgentLog(`[Tavily] 获取实时市场数据...`);
-            
+
             // 快速评估选项
-            const options = intentType === 'career' 
+            const options = intentType === 'career'
               ? ['辞职创业', '保持稳定工作', '边工作边准备']
               : intentType === 'finance'
-              ? ['激进投资', '保守投资', '观望等待']
-              : ['立即行动', '继续观望', '寻求更多信息'];
-            
+                ? ['激进投资', '保守投资', '观望等待']
+                : ['立即行动', '继续观望', '寻求更多信息'];
+
             // 使用增强版评估（包含实时数据）
             const evaluation = await destinyEngine.quickEvaluateWithRealTime(inputValue, options);
-            
+
             if (evaluation.realTimeInsights.length > 0) {
               onAgentLog(`[Tavily] 获取到 ${evaluation.realTimeInsights.length} 条实时洞察`);
             }
-            
+
             onAgentLog(`[Personal Navigator] 生成有温度的建议...`);
-            
+
             // 构建 Destiny Report 摘要
             const bestOption = Object.entries(evaluation.scores).sort((a, b) => b[1] - a[1])[0];
             const secondOption = Object.entries(evaluation.scores).sort((a, b) => b[1] - a[1])[1];
             const successProb = bestOption[1] / 100;
-            
+
             // 构建实时数据部分
             const realTimeSection = evaluation.realTimeInsights.length > 0
-              ? `\n\n📰 **实时市场洞察**\n` + 
-                evaluation.realTimeInsights.map(insight => 
-                  `• ${insight.insight} _(${insight.source})_`
-                ).join('\n')
+              ? `\n\n📰 **实时市场洞察**\n` +
+              evaluation.realTimeInsights.map(insight =>
+                `• ${insight.insight} _(${insight.source})_`
+              ).join('\n')
               : '';
-            
+
             // Layer 4: 使用 Personal Navigator 生成有温度的回复
             const navigatorResponse = personalNavigator.quickCraft({
               optimalPath: bestOption[0],
@@ -859,17 +867,17 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                 dipDuration: intentType === 'career' ? '3-6个月' : '1-3个月',
                 recoveryPoint: intentType === 'career' ? '12-18个月' : '6个月'
               },
-              caveats: evaluation.marketContext 
+              caveats: evaluation.marketContext
                 ? [evaluation.marketContext, '建议定期重新评估']
                 : ['结果取决于执行力和外部环境', '建议定期重新评估']
             }, inputValue);
-            
+
             // 附加实时数据到回复
             const enhancedResponse = {
               ...navigatorResponse,
               formattedResponse: navigatorResponse.formattedResponse + realTimeSection
             };
-            
+
             // 发送到 Lumi App 显示，而不是作为聊天消息
             if (onDestinyResult) {
               onDestinyResult({
@@ -880,7 +888,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
               });
               onAgentLog(`[Destiny] 结果已发送到 Lumi App`);
             }
-            
+
             setSentinelOutput(null);
             setInputValue(''); // 清空输入
           }}

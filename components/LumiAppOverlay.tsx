@@ -8,6 +8,7 @@ interface LumiAppOverlayProps {
     onClose: () => void;
     superAgentResult?: SuperAgentResult | null;  // 新增：Super Agent 结果
     onFollowUp?: (question: string) => void;     // 新增：继续提问回调
+    onOpenInMarket?: (intentId: string) => void; // 新增：跳转到Market
 }
 
 export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
@@ -15,7 +16,8 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
     data,
     onClose,
     superAgentResult,
-    onFollowUp
+    onFollowUp,
+    onOpenInMarket
 }) => {
     // 如果有 Super Agent 结果，优先显示
     if (visible && superAgentResult) {
@@ -42,6 +44,7 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
                         result={superAgentResult}
                         onClose={onClose}
                         onFollowUp={onFollowUp}
+                        onOpenInMarket={onOpenInMarket}
                     />
                 </div>
             </div>

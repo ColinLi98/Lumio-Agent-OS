@@ -1,220 +1,376 @@
 /**
- * Lumi LIX (Intent Exchange) Market Service
+ * L.I.X. Market Service v0.2.2
+ * The "Dark Pool" for intent broadcasting with full validation and ranking
  * 
- * The "Dark Pool" for intent broadcasting. This service simulates a market
- * where user intents are broadcast and matched with B2C/C2C offers.
- * 
- * Future versions will connect to real market participants.
+ * v0.2.2: Integrated real provider adapters (JD/PDD/Taobao)
  */
 
+import {
+    IntentRequest,
+    IntentCategory,
+    Offer,
+    MarketResponse,
+    RankedOffer,
+    TraceContext,
+    generateId,
+    generateNonce,
+    createTraceContext,
+    createChildSpan
+} from './lixTypes';
+import { validateOffer } from './offerValidator';
+import { rankOffers, canonicalizeSKU } from './auctionEngine';
+import { fanoutSearch, getAllCircuitStatuses } from './providers/providerRegistry';
+import type { MarketFanoutResult } from './providers/providerTypes';
+
 // ============================================================================
-// Types
+// Feature Flags
 // ============================================================================
 
-export type IntentCategory = 'purchase' | 'job' | 'collaboration';
+/** 
+ * Enable real provider scraping (JD/PDD/Taobao).
+ * Set to 'true' via env or leave as 'false' for mock-only mode.
+ */
+const USE_REAL_PROVIDERS =
+    typeof process !== 'undefined' && process.env?.USE_REAL_PROVIDERS === 'true' ||
+    typeof window !== 'undefined' && (window as any).__LIX_USE_REAL_PROVIDERS__ === true;
 
-export interface MarketIntent {
-    category: IntentCategory;
-    payload: string;        // e.g. "iPhone 16 pro max" or "Looking for React Dev"
-    budget?: string;        // Optional budget or swap offer
-    userId?: string;        // Anonymous user identifier
-    timestamp?: number;     // When the intent was created
+// ============================================================================
+// Mock Provider Database
+// ============================================================================
+
+interface MockProvider {
+    id: string;
+    name: string;
+    type: 'B2C' | 'C2C';
+    reputation_score: number;
+    verified: boolean;
+    categories: IntentCategory[];
+    price_modifier: number; // 0.85 = 15% discount
 }
 
-export interface MarketOffer {
-    id: string;             // Unique offer ID
-    provider: string;       // e.g. "JD.com Bot", "Headhunter AI", "User_Designer"
-    providerType: 'B2C' | 'C2C';
-    content: string;        // The offer details
-    price?: string;         // Optional price
-    score: number;          // Match score (0-1)
-    expiresAt?: number;     // When this offer expires
-    actionUrl?: string;     // Optional deep link
-}
-
-export interface MarketResponse {
-    intentId: string;
-    status: 'success' | 'pending' | 'no_matches';
-    offers: MarketOffer[];
-    matchCount: number;
-    broadcastReach: number; // How many potential providers were reached
-}
+const MOCK_PROVIDERS: MockProvider[] = [
+    { id: 'pdd_001', name: '拼多多官方', type: 'B2C', reputation_score: 4.5, verified: true, categories: ['purchase'], price_modifier: 0.85 },
+    { id: 'jd_001', name: '京东自营', type: 'B2C', reputation_score: 4.8, verified: true, categories: ['purchase'], price_modifier: 0.95 },
+    { id: 'taobao_001', name: '天猫旗舰店', type: 'B2C', reputation_score: 4.6, verified: true, categories: ['purchase'], price_modifier: 0.90 },
+    { id: 'xianyu_001', name: '闲鱼数码达人', type: 'C2C', reputation_score: 4.2, verified: false, categories: ['purchase'], price_modifier: 0.70 },
+    { id: 'boss_001', name: 'Boss直聘AI', type: 'B2C', reputation_score: 4.4, verified: true, categories: ['job'], price_modifier: 1.0 },
+    { id: 'headhunter_001', name: '猎头Linda', type: 'C2C', reputation_score: 4.7, verified: true, categories: ['job'], price_modifier: 1.0 },
+    { id: 'designer_001', name: '设计师小明', type: 'C2C', reputation_score: 4.3, verified: false, categories: ['collaboration'], price_modifier: 0.8 },
+    { id: 'studio_001', name: '创意工作室', type: 'B2C', reputation_score: 4.6, verified: true, categories: ['collaboration'], price_modifier: 1.0 },
+    { id: 'dev_001', name: '全栈开发者007', type: 'C2C', reputation_score: 4.5, verified: false, categories: ['collaboration'], price_modifier: 0.75 },
+];
 
 // ============================================================================
-// Mock Market Database (Simulated World)
+// Price Database (Mock)
 // ============================================================================
 
-const MOCK_PROVIDERS = {
-    purchase: {
-        electronics: [
-            { provider: '拼多多Bot', content: '百亿补贴专区，价格最低', providerType: 'B2C' as const, discountRate: 0.15 },
-            { provider: '京东Bot', content: '京东自营，次日达，正品保障', providerType: 'B2C' as const, discountRate: 0.05 },
-            { provider: '淘宝Bot', content: '天猫旗舰店，7天无理由退换', providerType: 'B2C' as const, discountRate: 0.10 },
-            { provider: '闲鱼用户_数码达人', content: '95新，配件齐全，可验机', providerType: 'C2C' as const, discountRate: 0.30 },
-        ],
-        general: [
-            { provider: '1688批发Bot', content: '厂家直发，量大优惠', providerType: 'B2C' as const, discountRate: 0.20 },
-            { provider: '得物Bot', content: '正品鉴定，潮流好物', providerType: 'B2C' as const, discountRate: 0.0 },
-        ]
-    },
-    job: [
-        { provider: 'Boss直聘AI', content: '匹配到 15 个相关职位', providerType: 'B2C' as const },
-        { provider: '猎头_Linda', content: '有几个高薪机会想和您聊聊', providerType: 'C2C' as const },
-        { provider: '脉脉职场Bot', content: '内推机会，直达HR', providerType: 'B2C' as const },
-    ],
-    collaboration: [
-        { provider: 'User_设计师小明', content: '可以帮您设计Logo，愿意技能交换', providerType: 'C2C' as const },
-        { provider: 'Studio_创意工作室', content: '专业设计服务，固定价格', providerType: 'B2C' as const },
-        { provider: 'User_前端开发_007', content: '我会React，可以交换Python教学', providerType: 'C2C' as const },
-        { provider: 'Freelancer_文案达人', content: '专业文案撰写，按字数计费', providerType: 'B2C' as const },
-    ]
+const BASE_PRICES: Record<string, number> = {
+    'iphone 16 pro max': 9999,
+    'iphone 16 pro': 7999,
+    'iphone 16': 5999,
+    'iphone 15': 4999,
+    'airpods pro': 1899,
+    'airpods': 999,
+    'macbook pro': 14999,
+    'macbook air': 7999,
+    'ipad pro': 6999,
+    'ipad': 2999,
+    '华为 mate 60 pro': 6999,
+    '华为 p60': 4999,
+    '小米 14': 3999,
+    'logo设计': 500,
+    '网站开发': 5000,
+    '前端开发': 3000,
+    'python': 200,
 };
 
-// Keywords for smart matching
-const ELECTRONICS_KEYWORDS = ['iphone', 'ipad', 'macbook', 'airpods', '手机', '电脑', '耳机', '平板', '笔记本', '显卡', '相机'];
-const DESIGN_KEYWORDS = ['设计', 'logo', '海报', 'ui', 'ux', '插画', '品牌', '视觉'];
-const DEV_KEYWORDS = ['开发', '编程', 'react', 'python', 'java', '前端', '后端', '小程序', 'app'];
+function getBasePrice(itemName: string): number {
+    const normalized = itemName.toLowerCase();
+    for (const [key, price] of Object.entries(BASE_PRICES)) {
+        if (normalized.includes(key)) {
+            return price;
+        }
+    }
+    return 1000; // Default
+}
 
 // ============================================================================
-// Market Service
+// Intent Hash Generation (Stable)
 // ============================================================================
 
-export const marketService = {
-    /**
-     * Broadcast an intent to the market and receive offers
-     */
-    broadcast: async (intent: MarketIntent): Promise<MarketResponse> => {
-        console.log(`📡 [LIX] Broadcasting Intent: ${JSON.stringify(intent)}`);
+function generateIntentHash(intent: Partial<IntentRequest>): string {
+    const hashPayload = JSON.stringify({
+        category: intent.category,
+        canonical_sku: intent.item?.canonical_sku,
+        budget_max: intent.constraints?.budget_max,
+        location_code: intent.constraints?.location_code,
+        validity_window_sec: intent.validity_window_sec,
+        nonce: intent.nonce
+    });
 
-        const intentId = `intent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Simple hash (in production, use crypto.subtle.digest)
+    let hash = 0;
+    for (let i = 0; i < hashPayload.length; i++) {
+        const char = hashPayload.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return `sha256:${Math.abs(hash).toString(16).padStart(16, '0')}`;
+}
 
-        // Simulate network latency (The market is computing...)
-        await new Promise(r => setTimeout(r, 1200 + Math.random() * 800));
+// ============================================================================
+// Publisher Pseudonym (Rotating Daily)
+// ============================================================================
 
-        const offers: MarketOffer[] = [];
-        const payloadLower = intent.payload.toLowerCase();
+let publisherSecret: string | null = null;
 
-        // ========================================
-        // Purchase Intent Matching
-        // ========================================
+function getPublisherPseudonym(): string {
+    if (!publisherSecret) {
+        publisherSecret = `secret_${generateId()}`;
+    }
+    const daily = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+
+    // Simple HMAC-like derivation
+    let hash = 0;
+    const input = `${publisherSecret}_daily_${daily}`;
+    for (let i = 0; i < input.length; i++) {
+        hash = ((hash << 5) - hash) + input.charCodeAt(i);
+        hash = hash & hash;
+    }
+    return `pub_${Math.abs(hash).toString(16).substring(0, 16)}`;
+}
+
+// ============================================================================
+// Offer Generation (Mock)
+// ============================================================================
+
+function generateMockOffers(intent: IntentRequest): Offer[] {
+    const offers: Offer[] = [];
+    const basePrice = getBasePrice(intent.item.name);
+    const relevantProviders = MOCK_PROVIDERS.filter(p => p.categories.includes(intent.category));
+
+    for (const provider of relevantProviders) {
+        const offerId = `offer_${generateId()}`;
+        const finalPrice = Math.floor(basePrice * provider.price_modifier);
+
+        // Check budget constraint
+        if (intent.constraints.budget_max && finalPrice > intent.constraints.budget_max * 1.1) {
+            continue; // Skip if way over budget
+        }
+
+        const now = Date.now();
+        const deliveryDays = provider.type === 'B2C' ? (provider.id.includes('jd') ? 1 : 3) : 7;
+
+        let offerContent = '';
         if (intent.category === 'purchase') {
-            const isElectronics = ELECTRONICS_KEYWORDS.some(kw => payloadLower.includes(kw));
-            const providers = isElectronics
-                ? MOCK_PROVIDERS.purchase.electronics
-                : MOCK_PROVIDERS.purchase.general;
-
-            for (const p of providers) {
-                // Calculate a realistic score based on the product
-                const baseScore = 0.75 + Math.random() * 0.23;
-
-                // Generate a mock price
-                let priceInfo = '';
-                if (payloadLower.includes('iphone')) {
-                    const basePrice = payloadLower.includes('pro max') ? 9999 :
-                        payloadLower.includes('pro') ? 7999 : 5999;
-                    const finalPrice = Math.floor(basePrice * (1 - p.discountRate));
-                    priceInfo = `￥${finalPrice}`;
-                }
-
-                offers.push({
-                    id: `offer_${Date.now()}_${offers.length}`,
-                    provider: p.provider,
-                    providerType: p.providerType,
-                    content: priceInfo ? `${priceInfo} - ${p.content}` : p.content,
-                    price: priceInfo || undefined,
-                    score: Math.min(0.99, baseScore),
-                    expiresAt: Date.now() + 1800000 // 30 min expiry
-                });
-            }
+            offerContent = `￥${finalPrice} - ${provider.name}`;
+        } else if (intent.category === 'job') {
+            offerContent = `${provider.name}: 有${Math.floor(Math.random() * 20 + 5)}个相关机会`;
+        } else {
+            const isSkillSwap = intent.constraints.budget_max && intent.constraints.budget_max < 500;
+            offerContent = isSkillSwap ?
+                `${provider.name}: 可以技能交换，互惠合作` :
+                `${provider.name}: 报价￥${finalPrice}`;
         }
 
-        // ========================================
-        // Job Intent Matching
-        // ========================================
-        else if (intent.category === 'job') {
-            for (const p of MOCK_PROVIDERS.job) {
-                offers.push({
-                    id: `offer_${Date.now()}_${offers.length}`,
-                    provider: p.provider,
-                    providerType: p.providerType,
-                    content: p.content,
-                    score: 0.8 + Math.random() * 0.18
-                });
-            }
-        }
-
-        // ========================================
-        // Collaboration Intent Matching
-        // ========================================
-        else if (intent.category === 'collaboration') {
-            // Smart matching based on keywords
-            const isDesign = DESIGN_KEYWORDS.some(kw => payloadLower.includes(kw));
-            const isDev = DEV_KEYWORDS.some(kw => payloadLower.includes(kw));
-
-            for (const p of MOCK_PROVIDERS.collaboration) {
-                const providerLower = p.provider.toLowerCase();
-                const contentLower = p.content.toLowerCase();
-
-                // Calculate relevance score
-                let relevance = 0.5;
-                if (isDesign && (providerLower.includes('设计') || contentLower.includes('设计') || contentLower.includes('logo'))) {
-                    relevance = 0.9;
-                } else if (isDev && (providerLower.includes('开发') || contentLower.includes('react') || contentLower.includes('python'))) {
-                    relevance = 0.9;
+        offers.push({
+            offer_id: offerId,
+            intent_id: intent.intent_id,
+            provider: {
+                id: provider.id,
+                name: provider.name,
+                type: provider.type,
+                reputation_score: provider.reputation_score,
+                verified: provider.verified
+            },
+            item_sku: intent.item.canonical_sku,
+            price: {
+                amount: finalPrice,
+                currency: 'CNY',
+                breakdown: {
+                    base: basePrice,
+                    discount: basePrice - finalPrice,
+                    shipping: 0
                 }
+            },
+            price_proof: {
+                claimed_price: finalPrice,
+                proof_url: `https://${provider.id.split('_')[0]}.com/product/${intent.item.name.replace(/\s/g, '-')}`,
+                proof_timestamp: new Date().toISOString(),
+                provider_signature: `sig_${generateId()}`
+            },
+            fulfillment: {
+                delivery_eta: new Date(now + deliveryDays * 24 * 60 * 60 * 1000).toISOString(),
+                method: provider.type === 'B2C' ? 'express' : 'meetup',
+                tracking_available: provider.type === 'B2C'
+            },
+            sla: {
+                response_time_hours: 24,
+                refund_window_days: provider.type === 'B2C' ? 7 : 3,
+                warranty_months: provider.type === 'B2C' ? 12 : 0
+            },
+            inventory_signal: Math.random() > 0.1 ? 'in_stock' : 'low_stock',
+            expires_at: new Date(now + 3600 * 1000).toISOString(),
+            trace: createChildSpan(intent.trace)
+        });
+    }
 
-                // Add budget matching context
-                let offerContent = p.content;
-                if (intent.budget && p.providerType === 'C2C') {
-                    offerContent += `（您提到预算有限，可以谈技能交换）`;
-                }
+    return offers;
+}
 
-                offers.push({
-                    id: `offer_${Date.now()}_${offers.length}`,
-                    provider: p.provider,
-                    providerType: p.providerType,
-                    content: offerContent,
-                    score: relevance + Math.random() * 0.08
-                });
-            }
-        }
+// ============================================================================
+// Main Market Service
+// ============================================================================
 
-        // Sort by score (best matches first)
-        offers.sort((a, b) => b.score - a.score);
+export interface BroadcastInput {
+    category: IntentCategory;
+    payload: string;
+    budget?: number;
+    specs?: Record<string, string>;
+}
 
-        console.log(`📡 [LIX] Received ${offers.length} offers`);
-
-        return {
-            intentId,
-            status: offers.length > 0 ? 'success' : 'no_matches',
-            offers: offers.slice(0, 5), // Return top 5
-            matchCount: offers.length,
-            broadcastReach: 500 + Math.floor(Math.random() * 300) // Simulated reach
-        };
-    },
-
+export const lixMarketService = {
     /**
-     * Accept an offer (for future implementation)
+     * Broadcast an intent to the market
      */
-    acceptOffer: async (offerId: string): Promise<{ success: boolean; message: string }> => {
-        console.log(`✅ [LIX] Accepting offer: ${offerId}`);
-        await new Promise(r => setTimeout(r, 500));
+    broadcast: async (input: BroadcastInput): Promise<MarketResponse> => {
+        const startTime = Date.now();
+        const trace = createTraceContext();
+
+        console.log(`📡 [LIX] Broadcasting Intent: ${JSON.stringify(input)}`);
+
+        // Build IntentRequest
+        const nonce = generateNonce();
+        const canonicalSKU = canonicalizeSKU(input.payload, input.specs || {});
+
+        const intent: IntentRequest = {
+            intent_id: `intent_${generateId()}`,
+            publisher_pseudonym: getPublisherPseudonym(),
+            category: input.category,
+            item: {
+                name: input.payload,
+                canonical_sku: canonicalSKU,
+                specs: input.specs || {},
+                quantity: 1
+            },
+            constraints: {
+                budget_max: input.budget,
+                currency: 'CNY',
+                location_granularity: 'city',
+                location_code: 'SHA'
+            },
+            user_confirmed: false,
+            intent_strength_score: 0.8,
+            confirmation_required: (input.budget || 0) > 5000,
+            anonymity_level: 'pseudonymous',
+            validity_window_sec: 3600,
+            nonce,
+            created_at: new Date().toISOString(),
+            trace
+        };
+
+        // Generate intent proof
+        intent.intent_proof = {
+            proof_type: 'device_signed',
+            intent_hash: generateIntentHash(intent),
+            signed_at: new Date().toISOString(),
+            device_attestation_id: `att_${generateId().substring(0, 16)}`,
+            signature: `sig_intent_${generateId()}`,
+            nonce,
+            timestamp: Date.now(),
+            validity_window_sec: 3600,
+            device_fingerprint: `fp_${generateId().substring(0, 12)}`
+        };
+
+        // Get offers - try real providers first, fallback to mock
+        let rawOffers: Offer[] = [];
+        let providerSource: 'real' | 'mock' | 'mixed' = 'mock';
+
+        if (USE_REAL_PROVIDERS) {
+            try {
+                console.log('📡 [LIX] Attempting real provider fanout...');
+                const fanoutResult = await fanoutSearch(intent, trace.trace_id);
+
+                if (fanoutResult.all_offers.length > 0) {
+                    rawOffers = fanoutResult.all_offers;
+                    providerSource = 'real';
+                    console.log(`📡 [LIX] Real providers returned ${rawOffers.length} offers`);
+                } else {
+                    // Fallback to mock
+                    console.log('📡 [LIX] Real providers returned 0 offers, falling back to mock');
+                    rawOffers = generateMockOffers(intent);
+                    providerSource = rawOffers.length > 0 ? 'mock' : 'mock';
+                }
+            } catch (error) {
+                console.warn('📡 [LIX] Real provider error, falling back to mock:', error);
+                rawOffers = generateMockOffers(intent);
+            }
+        } else {
+            // Mock-only mode (default)
+            await new Promise(r => setTimeout(r, 800 + Math.random() * 400));
+            rawOffers = generateMockOffers(intent);
+        }
+
+        if (rawOffers.length === 0) {
+            return {
+                intent_id: intent.intent_id,
+                status: 'no_matches',
+                ranked_offers: [],
+                total_offers_received: 0,
+                broadcast_reach: 500 + Math.floor(Math.random() * 300),
+                latency_ms: Date.now() - startTime,
+                trace,
+                provider_source: providerSource
+            };
+        }
+
+        // Validate all offers
+        const validationResults = await Promise.all(
+            rawOffers.map(offer => validateOffer(offer, intent))
+        );
+
+        // Rank offers
+        const rankingInputs = rawOffers.map((offer, i) => ({
+            offer,
+            validationResult: validationResults[i]
+        }));
+
+        const rankedOffers = rankOffers(rankingInputs, intent, 5);
+
+        console.log(`📡 [LIX] Received ${rawOffers.length} offers (${providerSource}), ${rankedOffers.length} eligible`);
+
         return {
-            success: true,
-            message: '已将您的意向发送给对方，请等待回复'
+            intent_id: intent.intent_id,
+            status: rankedOffers.length > 0 ? 'success' : 'no_matches',
+            ranked_offers: rankedOffers,
+            total_offers_received: rawOffers.length,
+            broadcast_reach: 500 + Math.floor(Math.random() * 300),
+            latency_ms: Date.now() - startTime,
+            trace
         };
     },
 
     /**
      * Get market stats (for dashboard)
      */
-    getStats: async (): Promise<{ activeIntents: number; dailyMatches: number; providers: number }> => {
-        return {
-            activeIntents: 1247 + Math.floor(Math.random() * 100),
-            dailyMatches: 8934 + Math.floor(Math.random() * 500),
-            providers: 2156
-        };
+    getStats: async () => ({
+        activeIntents: 1247 + Math.floor(Math.random() * 100),
+        dailyMatches: 8934 + Math.floor(Math.random() * 500),
+        providers: MOCK_PROVIDERS.length,
+        avgLatencyMs: 1200
+    })
+};
+
+// Export for backward compatibility
+export const marketService = {
+    broadcast: async (input: { category: IntentCategory; payload: string; budget?: string }) => {
+        const response = await lixMarketService.broadcast({
+            category: input.category,
+            payload: input.payload,
+            budget: input.budget ? parseInt(input.budget) : undefined
+        });
+        return response;
     }
 };
 
-export default marketService;
+export default lixMarketService;
