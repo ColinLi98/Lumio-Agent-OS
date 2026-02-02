@@ -73,9 +73,11 @@ export type TaskSource =
  */
 export interface TaskConstraints {
     time_limit?: string;            // e.g., "2 hours", "by Friday"
+    deadline?: number;              // Timestamp for deadline
     budget_max?: number;
     budget_min?: number;
     location_code?: string;
+    location_constraints?: string[];
     quality_threshold?: number;     // 0-1
     require_approval?: boolean;     // Need confirmation before acting
     custom?: Record<string, any>;   // Extensible
@@ -148,14 +150,21 @@ export interface PlanExplanation {
 }
 
 /**
- * Five-dimension scoring
+ * Five-dimension scoring (supports both naming conventions)
  */
 export interface DimensionScores {
-    time: number;       // 0-100
-    money: number;
-    risk: number;
-    energy: number;
-    growth: number;
+    // Primary names (used in explainerService)
+    time_efficiency?: number;       // 0-1
+    financial_impact?: number;
+    risk_level?: number;
+    personal_growth?: number;
+    relationship_impact?: number;
+    // Legacy names (for backwards compatibility)
+    time?: number;       // 0-100
+    money?: number;
+    risk?: number;
+    energy?: number;
+    growth?: number;
 }
 
 // ============================================================================
@@ -169,6 +178,7 @@ export type ActionType =
     | 'save_task'       // Save task for later
     | 'set_reminder'    // Set a reminder
     | 'open_market'     // Open LIX market
+    | 'execute_purchase' // Execute a purchase flow
     | 'start_c2c'       // Start C2C exchange
     | 'open_url'        // Open external URL
     | 'send_message'    // Send a message

@@ -2,7 +2,7 @@
  * Task Detail Component
  * Phase 2 Week 2-2: Task Detail Page
  * 
- * Displays task details, plan steps, and action logs.
+ * Displays task details, plan steps, action logs, and explanations.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -16,6 +16,8 @@ import {
     getCategoryIcon,
 } from '../services/taskTypes';
 import { getTaskService } from '../services/taskService';
+import { getActionService, ActionResult } from '../services/actionService';
+import { PlanExplanationPanel } from './PlanExplanation';
 
 // ============================================================================
 // Types
@@ -133,8 +135,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({
                 <button
                     onClick={() => setActiveTab('plan')}
                     className={`flex-1 py-3 text-sm font-medium transition ${activeTab === 'plan'
-                            ? 'text-white border-b-2 border-indigo-500'
-                            : 'text-gray-400 hover:text-white'
+                        ? 'text-white border-b-2 border-indigo-500'
+                        : 'text-gray-400 hover:text-white'
                         }`}
                 >
                     📋 执行计划
@@ -142,8 +144,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({
                 <button
                     onClick={() => setActiveTab('logs')}
                     className={`flex-1 py-3 text-sm font-medium transition ${activeTab === 'logs'
-                            ? 'text-white border-b-2 border-indigo-500'
-                            : 'text-gray-400 hover:text-white'
+                        ? 'text-white border-b-2 border-indigo-500'
+                        : 'text-gray-400 hover:text-white'
                         }`}
                 >
                     📝 操作日志
@@ -286,10 +288,10 @@ const StepCard: React.FC<StepCardProps> = ({ step, index, onToggle }) => {
     return (
         <div
             className={`p-4 rounded-lg border transition cursor-pointer ${step.status === 'done'
-                    ? 'bg-green-900/20 border-green-700/50'
-                    : step.status === 'in_progress'
-                        ? 'bg-yellow-900/20 border-yellow-700/50'
-                        : 'bg-gray-800/50 border-gray-700'
+                ? 'bg-green-900/20 border-green-700/50'
+                : step.status === 'in_progress'
+                    ? 'bg-yellow-900/20 border-yellow-700/50'
+                    : 'bg-gray-800/50 border-gray-700'
                 }`}
             onClick={onToggle}
         >
