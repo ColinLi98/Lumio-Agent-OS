@@ -18,7 +18,8 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-simple-keyboard": "^3.8.141",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "vercel": "^50.10.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",
