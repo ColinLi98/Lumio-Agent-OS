@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Database, Wifi, WifiOff, Lock, Eye, Activity, Server } from 'lucide-react';
+import { Shield, Database, Wifi, WifiOff, Lock, Eye, Activity, Server, ChevronRight, Settings } from 'lucide-react';
+import { getPrivacySettings, getAiCallStats } from '../services/privacyService';
 
 interface PrivacyPanelProps {
     apiKeyConfigured: boolean;
     onLog?: (message: string) => void;
+    /** v0.3: Callback to open full Privacy Dashboard */
+    onOpenDashboard?: () => void;
 }
 
 interface PrivacyStats {
@@ -18,7 +21,7 @@ interface PrivacyStats {
  * 展示本地存储状态、网络状态、API 调用统计
  * 让用户清楚了解数据处理情况
  */
-export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, onLog }) => {
+export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, onLog, onOpenDashboard }) => {
     const [stats, setStats] = useState<PrivacyStats>({
         localDataSize: 0,
         aiCallsCount: 0,
@@ -165,9 +168,23 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, on
                 </div>
             </div>
 
-            {/* Footer Note */}
-            <div className="mt-4 pt-3 border-t border-slate-700/50 text-xs text-slate-500 text-center">
-                🔐 Local-first · 数据主权归您所有
+            {/* Footer with Manage Button */}
+            <div className="mt-4 pt-3 border-t border-slate-700/50">
+                {onOpenDashboard && (
+                    <button
+                        onClick={onOpenDashboard}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors mb-2"
+                    >
+                        <span className="flex items-center gap-2 text-sm text-slate-300">
+                            <Settings size={14} />
+                            管理隐私设置
+                        </span>
+                        <ChevronRight size={14} className="text-slate-500" />
+                    </button>
+                )}
+                <div className="text-xs text-slate-500 text-center">
+                    🔐 Local-first · 数据主权归您所有
+                </div>
             </div>
         </div>
     );

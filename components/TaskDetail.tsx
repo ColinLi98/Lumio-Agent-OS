@@ -18,6 +18,11 @@ import {
 import { getTaskService } from '../services/taskService';
 import { getActionService, ActionResult } from '../services/actionService';
 import { PlanExplanationPanel } from './PlanExplanation';
+import {
+    getOutcomeService,
+    OutcomeStatus,
+    SatisfactionScore,
+} from '../services/outcomeService';
 
 // ============================================================================
 // Types
@@ -41,8 +46,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({
     const [task, setTask] = useState<Task | null>(null);
     const [plan, setPlan] = useState<Plan | null>(null);
     const [activeTab, setActiveTab] = useState<'plan' | 'logs'>('plan');
+    const [showOutcomeForm, setShowOutcomeForm] = useState(false);
+    const [outcomeLogged, setOutcomeLogged] = useState(false);
 
     const taskService = getTaskService();
+    const outcomeService = getOutcomeService();
 
     useEffect(() => {
         const loadTask = () => {
@@ -50,12 +58,20 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({
             setTask(t || null);
             if (t) {
                 setPlan(taskService.getPlanForTask(task_id) || null);
+                // Check if outcome already logged
+                const existingOutcome = outcomeService.getTaskOutcome(task_id);
+                setOutcomeLogged(!!existingOutcome);
             }
         };
 
         loadTask();
         return taskService.subscribe(() => loadTask());
     }, [task_id]);
+
+    const handleOutcomeLogged = () => {
+        setShowOutcomeForm(false);
+        setOutcomeLogged(true);
+    };
 
     if (!task) {
         return (
@@ -210,7 +226,33 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({
                         🛒 在市场中搜索
                     </button>
                 )}
+
+                {/* Outcome Logging (W3-1) */}
+                {(task.status === 'completed' || task.status === 'failed') && !outcomeLogged && !showOutcomeForm && (
+                    <button
+                        onClick={() => setShowOutcomeForm(true)}
+                        className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-medium"
+                    >
+                        ⭐ 记录结果反馈
+                    </button>
+                )}
+
+                {outcomeLogged && (
+                    <div className="text-center py-2 text-green-400 text-sm">
+                        ✅ 已记录反馈
+                    </div>
+                )}
             </div>
+
+            {/* Outcome Form Modal */}
+            {showOutcomeForm && task && (
+                <OutcomeLoggingForm
+                    task_id={task_id}
+                    initialStatus={task.status === 'completed' ? 'success' : 'failed'}
+                    onClose={() => setShowOutcomeForm(false)}
+                    onSubmit={handleOutcomeLogged}
+                />
+            )}
         </div>
     );
 };
@@ -349,6 +391,150 @@ const ActionLogsView: React.FC<ActionLogsViewProps> = ({ task_id }) => {
                     </div>
                 ))
             )}
+        </div>
+    );
+};
+
+// ============================================================================
+// Outcome Logging Form (W3-1)
+// ============================================================================
+
+interface OutcomeLoggingFormProps {
+    task_id: string;
+    initialStatus: OutcomeStatus;
+    onClose: () => void;
+    onSubmit: () => void;
+}
+
+const OutcomeLoggingForm: React.FC<OutcomeLoggingFormProps> = ({
+    task_id,
+    initialStatus,
+    onClose,
+    onSubmit,
+}) => {
+    const [status, setStatus] = useState<OutcomeStatus>(initialStatus);
+    const [satisfaction, setSatisfaction] = useState<SatisfactionScore>(3);
+    const [notes, setNotes] = useState('');
+    const [timeSpent, setTimeSpent] = useState<number | undefined>(undefined);
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async () => {
+        setSubmitting(true);
+        try {
+            getOutcomeService().logOutcome({
+                task_id,
+                status,
+                satisfaction,
+                notes: notes || undefined,
+                metrics: timeSpent ? { time_spent_minutes: timeSpent } : undefined,
+            });
+            onSubmit();
+        } catch (error) {
+            console.error('[OutcomeLoggingForm] Submit failed:', error);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const statusOptions: { value: OutcomeStatus; label: string; emoji: string }[] = [
+        { value: 'success', label: '完成', emoji: '✅' },
+        { value: 'partial', label: '部分完成', emoji: '🔶' },
+        { value: 'failed', label: '失败', emoji: '❌' },
+        { value: 'cancelled', label: '取消', emoji: '⏹️' },
+    ];
+
+    return (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900 rounded-2xl w-full max-w-sm border border-gray-700 shadow-2xl">
+                {/* Header */}
+                <div className="p-4 border-b border-gray-800">
+                    <h3 className="text-lg font-semibold text-white">记录任务结果</h3>
+                    <p className="text-gray-400 text-sm mt-1">你的反馈将帮助 Lumi 更好地了解你</p>
+                </div>
+
+                <div className="p-4 space-y-5">
+                    {/* Status Selection */}
+                    <div>
+                        <label className="block text-gray-400 text-sm mb-2">完成状态</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {statusOptions.map(opt => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => setStatus(opt.value)}
+                                    className={`py-2 px-3 rounded-lg text-sm font-medium transition ${status === opt.value
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                                        }`}
+                                >
+                                    {opt.emoji} {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Satisfaction Rating */}
+                    <div>
+                        <label className="block text-gray-400 text-sm mb-2">满意度</label>
+                        <div className="flex gap-2 justify-center">
+                            {([1, 2, 3, 4, 5] as SatisfactionScore[]).map(score => (
+                                <button
+                                    key={score}
+                                    onClick={() => setSatisfaction(score)}
+                                    className={`text-3xl transition transform hover:scale-110 ${satisfaction >= score ? 'opacity-100' : 'opacity-30'
+                                        }`}
+                                >
+                                    ⭐
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-center text-gray-500 text-xs mt-1">
+                            {satisfaction}/5 - {satisfaction >= 4 ? '很满意' : satisfaction >= 3 ? '一般' : '不太满意'}
+                        </p>
+                    </div>
+
+                    {/* Time Spent */}
+                    <div>
+                        <label className="block text-gray-400 text-sm mb-2">花费时间（分钟）</label>
+                        <input
+                            type="number"
+                            min={0}
+                            value={timeSpent ?? ''}
+                            onChange={(e) => setTimeSpent(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                            placeholder="可选"
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                        />
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                        <label className="block text-gray-400 text-sm mb-2">备注（可选）</label>
+                        <textarea
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="有什么想记录的..."
+                            rows={3}
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"
+                        />
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 border-t border-gray-800 flex gap-3">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium"
+                    >
+                        取消
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg font-medium"
+                    >
+                        {submitting ? '保存中...' : '保存反馈'}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };

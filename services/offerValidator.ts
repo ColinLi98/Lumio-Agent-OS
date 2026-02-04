@@ -1,6 +1,8 @@
 /**
- * Offer Validator - 8-Stage Validation Pipeline
+ * Offer Validator - 10-Stage Validation Pipeline
  * L.I.X. v0.2.1
+ * 
+ * Stage 10 (NEW): Semantic Consistency - blocks e-commerce for ticketing
  */
 
 import {
@@ -16,6 +18,8 @@ import {
 import { reputationService } from './reputationService';
 import { checkUrlSafety, countRedirectHops } from './urlSafetyService';
 import { matchSKU } from './auctionEngine';
+import { classifyVertical, isEcommerceCompatible, getExpectedKind } from './verticalClassifier';
+import { eventBus } from './eventBus';
 
 // ============================================================================
 // Provider Domain Configuration
@@ -482,6 +486,175 @@ async function validateReputation(offer: Offer): Promise<ValidationResult> {
     return { stage: 'reputation', passed: true, action: 'PASS', latency_ms: Date.now() - start };
 }
 
+/**
+ * Stage 10: Semantic Consistency Gate
+ * P0 DEFENSE: BLOCK offers from incompatible verticals
+ * 
+ * v0.3: Enhanced with RouteResult and offer.domain validation
+ * 
+ * E.g., ticketing intents should NOT receive e-commerce offers
+ */
+async function validateSemanticConsistency(
+    offer: Offer,
+    intent: IntentRequest
+): Promise<ValidationResult> {
+    const start = Date.now();
+
+    // Get intent domain - prefer vertical if set, otherwise classify
+    const intentDomain = intent.vertical || classifyVertical(intent.item?.name || '');
+
+    // =========================================================================
+    // v0.3 Check 1: Offer domain vs Intent domain mismatch
+    // =========================================================================
+    if (offer.domain && intentDomain) {
+        const offerDomain = offer.domain;
+
+        // Critical mismatch: ticketing intent receiving commerce/ecommerce offer
+        if (intentDomain === 'ticketing' && (offerDomain === 'commerce' || (offerDomain as string) === 'ecommerce')) {
+            eventBus.emit({
+                event_type: 'offer.rejected.domain_mismatch',
+                timestamp: Date.now(),
+                trace_id: offer.trace?.trace_id || `offer_${offer.offer_id}`,
+                offer_id: offer.offer_id,
+                intent_domain: intentDomain,
+                offer_domain: offerDomain,
+                reason: 'ticketing_ecommerce_mismatch'
+            } as any);
+
+            console.log(`[P0] DOMAIN MISMATCH BLOCKED: offer=${offer.offer_id} intent=${intentDomain} offer_domain=${offerDomain}`);
+
+            return {
+                stage: 'semantic_consistency',
+                passed: false,
+                action: 'BLOCK',
+                severity: 'critical',
+                penalty_weight: PENALTY_WEIGHTS.critical,
+                reason: `Domain mismatch: intent is '${intentDomain}' but offer domain is '${offerDomain}'`,
+                latency_ms: Date.now() - start
+            };
+        }
+
+        // Other domain mismatches (less critical but still blocked)
+        // Cast to string for comparison since IntentVertical uses 'ecommerce'/'generic' 
+        // while OfferDomain uses 'commerce'/'other'
+        const intentDomainStr = String(intentDomain);
+        const offerDomainStr = String(offerDomain);
+        const isGenericIntent = ['ecommerce', 'generic', 'commerce', 'other'].includes(intentDomainStr);
+        const isGenericOffer = ['ecommerce', 'generic', 'commerce', 'other'].includes(offerDomainStr);
+
+        if (offerDomainStr !== intentDomainStr && !isGenericOffer && !isGenericIntent) {
+            eventBus.emit({
+                event_type: 'offer.rejected.domain_mismatch',
+                timestamp: Date.now(),
+                trace_id: offer.trace?.trace_id || `offer_${offer.offer_id}`,
+                offer_id: offer.offer_id,
+                intent_domain: intentDomain,
+                offer_domain: offerDomain,
+                reason: 'general_domain_mismatch'
+            } as any);
+
+            console.log(`[SEMANTIC] Domain mismatch: offer=${offer.offer_id} intent=${intentDomain} offer_domain=${offerDomain}`);
+
+            return {
+                stage: 'semantic_consistency',
+                passed: false,
+                action: 'BLOCK',
+                severity: 'high',
+                penalty_weight: PENALTY_WEIGHTS.high,
+                reason: `Domain mismatch: intent is '${intentDomain}' but offer domain is '${offerDomain}'`,
+                latency_ms: Date.now() - start
+            };
+        }
+    }
+
+    // =========================================================================
+    // v0.3 Check 2: Offer type vs Intent kind mismatch
+    // =========================================================================
+    if (offer.offer_type && intent.intent_kind) {
+        if (offer.offer_type !== intent.intent_kind) {
+            console.log(`[SEMANTIC] Type mismatch: offer_type=${offer.offer_type} intent_kind=${intent.intent_kind}`);
+
+            // Penalize but don't block for type mismatch (less severe)
+            return {
+                stage: 'semantic_consistency',
+                passed: true, // Allow but penalize
+                action: 'DOWNRANK',
+                severity: 'medium',
+                penalty_weight: PENALTY_WEIGHTS.medium,
+                reason: `Type mismatch: offer type '${offer.offer_type}' vs intent kind '${intent.intent_kind}'`,
+                latency_ms: Date.now() - start
+            };
+        }
+    }
+
+    // =========================================================================
+    // Legacy Check: Provider kind compatibility (fallback)
+    // =========================================================================
+    // Skip check for e-commerce and generic verticals (compatible with all providers)
+    if (isEcommerceCompatible(intentDomain)) {
+        return { stage: 'semantic_consistency', passed: true, action: 'PASS', latency_ms: Date.now() - start };
+    }
+
+    // For ticketing/outsourcing: check if offer comes from compatible provider
+    const providerKind = getProviderKindFromOffer(offer);
+    const expectedKind = getExpectedKind(intentDomain);
+
+    // BLOCK if offer kind doesn't match expected kind for this vertical
+    if (expectedKind && providerKind !== expectedKind && providerKind !== 'unknown') {
+        // Emit rejection event for observability
+        eventBus.emit({
+            event_type: 'offer.rejected.semantic_mismatch',
+            timestamp: Date.now(),
+            trace_id: offer.trace?.trace_id || `offer_${offer.offer_id}`,
+            offer_id: offer.offer_id,
+            intent_vertical: intentDomain,
+            provider_kind: providerKind,
+            expected_kind: expectedKind
+        } as any);
+
+        console.log(`[offer.semantic_mismatch] offer=${offer.offer_id} vertical=${intentDomain} provider_kind=${providerKind}`);
+
+        return {
+            stage: 'semantic_consistency',
+            passed: false,
+            action: 'BLOCK',
+            severity: 'high',
+            reason: `Provider type '${providerKind}' incompatible with intent vertical '${intentDomain}'`,
+            latency_ms: Date.now() - start
+        };
+    }
+
+    return { stage: 'semantic_consistency', passed: true, action: 'PASS', latency_ms: Date.now() - start };
+}
+
+/**
+ * Helper: Determine provider kind from offer
+ * v0.3: Also checks offer.source_provider_group
+ */
+function getProviderKindFromOffer(offer: Offer): string {
+    // v0.3: Use source_provider_group if available
+    if (offer.source_provider_group) {
+        if (offer.source_provider_group.includes('ecom')) return 'ecommerce';
+        if (offer.source_provider_group.includes('ticket')) return 'ticketing';
+        if (offer.source_provider_group.includes('travel')) return 'travel';
+    }
+
+    // Use provider ID prefix to determine kind
+    const providerId = offer.provider?.id || '';
+
+    // Known e-commerce providers
+    if (providerId.startsWith('jd') || providerId.startsWith('pdd') || providerId.startsWith('taobao')) {
+        return 'ecommerce';
+    }
+
+    // Known ticketing providers (future)
+    if (providerId.startsWith('12306') || providerId.startsWith('ctrip') || providerId.startsWith('qunar')) {
+        return 'ticketing';
+    }
+
+    return 'unknown';
+}
+
 // ============================================================================
 // Main Validation Pipeline
 // ============================================================================
@@ -547,6 +720,13 @@ export async function validateOffer(
     const reputationResult = await validateReputation(offer);
     stages.push(reputationResult);
     if (reputationResult.action === 'BLOCK') {
+        return createPipelineResult(offer.offer_id, stages, startTime);
+    }
+
+    // Stage 10: Semantic Consistency (P0: Vertical classification defense)
+    const semanticResult = await validateSemanticConsistency(offer, intent);
+    stages.push(semanticResult);
+    if (semanticResult.action === 'BLOCK') {
         return createPipelineResult(offer.offer_id, stages, startTime);
     }
 

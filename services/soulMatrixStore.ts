@@ -14,7 +14,27 @@ import {
     generateTraitId,
     generateActionId,
 } from './soulTraitTypes';
-import { eventBus, LumiEvent } from './eventBus';
+import { eventBus } from './eventBus';
+
+// ============================================================================
+// Objective Weights (W3-3)
+// ============================================================================
+
+export interface ObjectiveWeights {
+    time: number;      // 0-100: How much to prioritize time savings
+    money: number;     // 0-100: How much to prioritize cost savings
+    risk: number;      // 0-100: Risk tolerance (higher = more willing to take risks)
+    energy: number;    // 0-100: How much to prioritize effort reduction
+    growth: number;    // 0-100: How much to prioritize learning/growth
+}
+
+const DEFAULT_WEIGHTS: ObjectiveWeights = {
+    time: 50,
+    money: 50,
+    risk: 50,
+    energy: 50,
+    growth: 50,
+};
 
 // ============================================================================
 // Storage Keys
@@ -23,6 +43,7 @@ import { eventBus, LumiEvent } from './eventBus';
 const STORAGE_KEYS = {
     TRAITS: 'lumi_soul_traits',
     ACTIONS: 'lumi_soul_actions',
+    OBJECTIVE_WEIGHTS: 'lumi_objective_weights',
 };
 
 // ============================================================================
@@ -40,9 +61,11 @@ class SoulMatrixStore {
     private actionHistory: SoulTraitAction[] = [];
     private listeners: Set<(traits: SoulTrait[]) => void> = new Set();
     private undoTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+    private objectiveWeights: ObjectiveWeights = { ...DEFAULT_WEIGHTS };
 
     constructor() {
         this.load();
+        this.loadWeights();
     }
 
     // -------------------------------------------------------------------------
@@ -91,6 +114,70 @@ class SoulMatrixStore {
         return this.actionHistory.filter(a => a.trait_id === trait_id && !a.undone);
     }
 
+    /**
+     * Get objective weights (for personalized recommendations)
+     */
+    getObjectiveWeights(): ObjectiveWeights {
+        return { ...this.objectiveWeights };
+    }
+
+    /**
+     * Set objective weights
+     */
+    setObjectiveWeights(weights: Partial<ObjectiveWeights>): void {
+        this.objectiveWeights = {
+            ...this.objectiveWeights,
+            ...weights,
+        };
+
+        // Clamp values to 0-100
+        for (const key of Object.keys(this.objectiveWeights) as (keyof ObjectiveWeights)[]) {
+            this.objectiveWeights[key] = Math.max(0, Math.min(100, this.objectiveWeights[key]));
+        }
+
+        this.saveWeights();
+        this.notify();
+
+        eventBus.emit({
+            type: 'objective_weights.updated',
+            payload: { weights: this.objectiveWeights },
+        } as any);
+    }
+
+    /**
+     * Reset objective weights to defaults
+     */
+    resetObjectiveWeights(): void {
+        this.objectiveWeights = { ...DEFAULT_WEIGHTS };
+        this.saveWeights();
+        this.notify();
+    }
+
+    /**
+     * Get weights formatted for prompt injection
+     */
+    getWeightsPrompt(): string {
+        const w = this.objectiveWeights;
+        const lines: string[] = [];
+
+        if (w.time > 60) lines.push('- 用户注重时间效率');
+        else if (w.time < 40) lines.push('- 用户愿意花时间获得更好结果');
+
+        if (w.money > 60) lines.push('- 用户注重成本节约');
+        else if (w.money < 40) lines.push('- 用户愿意为质量付费');
+
+        if (w.risk > 60) lines.push('- 用户愿意尝试新事物');
+        else if (w.risk < 40) lines.push('- 用户偏好稳妥方案');
+
+        if (w.energy > 60) lines.push('- 用户希望减少精力消耗');
+        else if (w.energy < 40) lines.push('- 用户愿意投入更多精力');
+
+        if (w.growth > 60) lines.push('- 用户重视学习和成长机会');
+        else if (w.growth < 40) lines.push('- 用户偏好熟悉的方式');
+
+        return lines.length > 0 ? lines.join('\n') : '用户偏好平衡';
+    }
+
     // -------------------------------------------------------------------------
     // Write Operations
     // -------------------------------------------------------------------------
@@ -133,7 +220,7 @@ class SoulMatrixStore {
         eventBus.emit({
             type: 'trait.created',
             payload: { trait_id: trait.trait_id, key: trait.key },
-        } as LumiEvent);
+        } as any);
 
         return trait;
     }
@@ -158,7 +245,7 @@ class SoulMatrixStore {
         eventBus.emit({
             type: 'trait.confirmed',
             payload: { trait_id, key: trait.key },
-        } as LumiEvent);
+        } as any);
 
         return true;
     }
@@ -186,7 +273,7 @@ class SoulMatrixStore {
         eventBus.emit({
             type: 'trait.edited',
             payload: { trait_id, key: trait.key, previous, new_value },
-        } as LumiEvent);
+        } as any);
 
         return true;
     }
@@ -212,7 +299,7 @@ class SoulMatrixStore {
         eventBus.emit({
             type: 'trait.rejected',
             payload: { trait_id, key: trait.key },
-        } as LumiEvent);
+        } as any);
 
         return true;
     }
@@ -237,7 +324,7 @@ class SoulMatrixStore {
         eventBus.emit({
             type: 'trait.deleted',
             payload: { trait_id, key: trait.key },
-        } as LumiEvent);
+        } as any);
 
         return true;
     }
@@ -381,6 +468,28 @@ class SoulMatrixStore {
             }
         } catch (e) {
             console.error('[SoulMatrixStore] Load failed:', e);
+        }
+    }
+
+    private saveWeights(): void {
+        try {
+            localStorage.setItem(
+                STORAGE_KEYS.OBJECTIVE_WEIGHTS,
+                JSON.stringify(this.objectiveWeights)
+            );
+        } catch (e) {
+            console.error('[SoulMatrixStore] Save weights failed:', e);
+        }
+    }
+
+    private loadWeights(): void {
+        try {
+            const json = localStorage.getItem(STORAGE_KEYS.OBJECTIVE_WEIGHTS);
+            if (json) {
+                this.objectiveWeights = { ...DEFAULT_WEIGHTS, ...JSON.parse(json) };
+            }
+        } catch (e) {
+            console.error('[SoulMatrixStore] Load weights failed:', e);
         }
     }
 

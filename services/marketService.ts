@@ -1,8 +1,8 @@
 /**
- * L.I.X. Market Service v0.2.2
+ * L.I.X. Market Service v0.3
  * The "Dark Pool" for intent broadcasting with full validation and ranking
  * 
- * v0.2.2: Integrated real provider adapters (JD/PDD/Taobao)
+ * v0.3: Integrated Intent Router for domain mismatch protection
  */
 
 import {
@@ -21,6 +21,10 @@ import { validateOffer } from './offerValidator';
 import { rankOffers, canonicalizeSKU } from './auctionEngine';
 import { fanoutSearch, getAllCircuitStatuses } from './providers/providerRegistry';
 import type { MarketFanoutResult } from './providers/providerTypes';
+import { classifyVertical } from './verticalClassifier';
+import { routeIntent, generateFallback } from './intentRouterService';
+import type { RouteResult, FallbackResponse } from './intentRouterTypes';
+
 
 // ============================================================================
 // Feature Flags
@@ -232,6 +236,7 @@ export interface BroadcastInput {
 export const lixMarketService = {
     /**
      * Broadcast an intent to the market
+     * v0.3: Integrated Intent Router for domain-based routing
      */
     broadcast: async (input: BroadcastInput): Promise<MarketResponse> => {
         const startTime = Date.now();
@@ -282,19 +287,60 @@ export const lixMarketService = {
             device_fingerprint: `fp_${generateId().substring(0, 12)}`
         };
 
+        // =====================================================================
+        // v0.3: Intent Router - Domain-based routing
+        // =====================================================================
+        const routeResult = routeIntent(intent);
+        console.log(`📡 [LIX] Intent routed: domain=${routeResult.intent_domain}, subtype=${routeResult.intent_subtype}, confidence=${routeResult.route_confidence.toFixed(2)}`);
+
+        // Set intent vertical from route result
+        intent.vertical = routeResult.intent_domain as any;
+
         // Get offers - try real providers first, fallback to mock
         let rawOffers: Offer[] = [];
         let providerSource: 'real' | 'mock' | 'mixed' = 'mock';
+        let fallbackResponse: FallbackResponse | undefined;
 
         if (USE_REAL_PROVIDERS) {
             try {
-                console.log('📡 [LIX] Attempting real provider fanout...');
-                const fanoutResult = await fanoutSearch(intent, trace.trace_id);
+                console.log('📡 [LIX] Attempting real provider fanout with route filtering...');
+
+                // v0.3: Pass route result to fanoutSearch for provider filtering
+                const fanoutResult = await fanoutSearch(intent, trace.trace_id, {
+                    provider_group_allowlist: routeResult.provider_group_allowlist,
+                    provider_group_blocklist: routeResult.provider_group_blocklist
+                });
+
+                // P0: Handle NO_PROVIDER_FOR_VERTICAL status
+                if (fanoutResult.status === 'NO_PROVIDER_FOR_VERTICAL') {
+                    console.log(`📡 [LIX] No providers for domain: ${routeResult.intent_domain}`);
+
+                    // v0.3: Generate fallback response for ticketing
+                    if (routeResult.intent_domain === 'ticketing') {
+                        fallbackResponse = generateFallback(routeResult.intent_domain, 'no_provider');
+                    }
+
+                    return {
+                        intent_id: intent.intent_id,
+                        status: 'no_providers_for_vertical',
+                        ranked_offers: [],
+                        total_offers_received: 0,
+                        broadcast_reach: 0,
+                        latency_ms: Date.now() - startTime,
+                        trace,
+                        provider_source: 'none',
+                        vertical: routeResult.intent_domain,
+                        next_action_suggestion: 'collect_slots',
+                        route_result: routeResult,
+                        fallback_response: fallbackResponse
+                    } as MarketResponse;
+                }
 
                 if (fanoutResult.all_offers.length > 0) {
                     rawOffers = fanoutResult.all_offers;
                     providerSource = 'real';
                     console.log(`📡 [LIX] Real providers returned ${rawOffers.length} offers`);
+
                 } else {
                     // Fallback to mock
                     console.log('📡 [LIX] Real providers returned 0 offers, falling back to mock');
@@ -306,7 +352,25 @@ export const lixMarketService = {
                 rawOffers = generateMockOffers(intent);
             }
         } else {
-            // Mock-only mode (default)
+            // Mock-only mode - classify vertical to determine if we should return no_providers
+            const vertical = classifyVertical(input.payload);
+            if (vertical === 'ticketing' || vertical === 'outsourcing') {
+                // No mock providers for ticketing/outsourcing verticals
+                console.log(`📡 [LIX] No mock providers for vertical: ${vertical}`);
+                return {
+                    intent_id: intent.intent_id,
+                    status: 'no_providers_for_vertical',
+                    ranked_offers: [],
+                    total_offers_received: 0,
+                    broadcast_reach: 0,
+                    latency_ms: Date.now() - startTime,
+                    trace,
+                    provider_source: 'none',
+                    vertical,
+                    next_action_suggestion: 'collect_slots'
+                } as MarketResponse;
+            }
+
             await new Promise(r => setTimeout(r, 800 + Math.random() * 400));
             rawOffers = generateMockOffers(intent);
         }

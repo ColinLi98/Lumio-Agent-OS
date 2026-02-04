@@ -14,6 +14,7 @@ import { Task, TaskStatus, ActionType } from './taskTypes';
 import { getReminderStore } from './reminderStore';
 import { eventBus } from './eventBus';
 import { generateTraceId } from './traceContext';
+import { track } from './telemetryService';
 
 // ============================================================================
 // Types
@@ -270,7 +271,13 @@ class ActionService {
             }
         }
 
+        // Telemetry: Track action started
+        track.actionStarted(actionType, fullContext.trace_id);
+
         const result = await handler(input, fullContext);
+
+        // Telemetry: Track action completed
+        track.actionCompleted(actionType, result.success, fullContext.trace_id);
 
         // Log the action
         this.actionLog.push(result);

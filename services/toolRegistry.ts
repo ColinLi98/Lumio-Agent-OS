@@ -317,6 +317,176 @@ const knowledgeQATool: Tool = {
 };
 
 // ============================================================================
+// Phase 3.4: Live Search Tool (Real-time Travel/Local Data)
+// ============================================================================
+
+// Import only client-safe modules (no server-side code like liveSearchService)
+import { classifyFreshness, createStructuredFallback, type IntentDomain, type StructuredFallback } from './freshnessClassifier';
+
+// Type definitions for API response
+interface LiveSearchAPIResponse {
+    success: boolean;
+    evidence?: {
+        provider: string;
+        fetched_at: string;
+        ttl_seconds: number;
+        query_normalized: string;
+        intent_domain: string;
+        items: Array<{ title: string; snippet: string; url: string; source_name: string }>;
+        notes: { confidence: number; warnings: string[]; cache_hit?: boolean };
+    };
+    error?: {
+        code: string;
+        message: string;
+        retryable: boolean;
+        reason_code: string;
+    };
+    fallback?: StructuredFallback;
+    route_decision?: {
+        intent_domain: string;
+        needs_live_data: boolean;
+        reason: string;
+        missing_constraints?: string[];
+    };
+}
+
+const liveSearchTool: Tool = {
+    name: 'live_search',
+    description: `获取【实时数据】，适用于需要最新信息的查询。
+
+⚠️ 必须用于以下场景（needs_live_data=true）：
+- 机票/航班查询：伦敦到大连的机票、北京飞上海多少钱
+- 火车票/高铁：北京到上海的高铁票
+- 酒店住宿：某地今晚的酒店
+- 金融行情：股票、黄金、比特币价格
+- 实时票价：最新价格、今天的价格
+
+✅ 返回内容：
+- 实时搜索结果（带时间戳和TTL）
+- 来源链接和置信度
+
+使用规则：
+- 凡是涉及"机票/车票/航班/时刻表/价格/今天/最新"必须调用此工具
+- 不可编造价格或链接，必须使用返回的实时数据
+- 如果搜索失败，返回缺失约束的提示，不要编造答案`,
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: '用户的原始查询，例如"北京到上海的机票"'
+            },
+            intent_domain: {
+                type: 'string',
+                description: '意图领域',
+                enum: ['travel.flight', 'travel.train', 'travel.hotel', 'ecommerce.product', 'local.service', 'knowledge', 'finance', 'news']
+            },
+            locale: {
+                type: 'string',
+                description: '语言区域，默认zh-CN'
+            }
+        },
+        required: ['query']
+    },
+    execute: async (args) => {
+        const { query, intent_domain, locale = 'zh-CN' } = args;
+
+        // Auto-detect domain if not provided
+        const routeDecision = classifyFreshness(query);
+        const domain = (intent_domain || routeDecision.intent_domain) as IntentDomain;
+
+        console.log(`[LiveSearchTool] Query: "${query}", Domain: ${domain}, NeedsLive: ${routeDecision.needs_live_data}`);
+
+        try {
+            // Call the API endpoint via fetch (browser-compatible)
+            const response = await fetch('/api/live-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    locale,
+                    intent_domain: domain,
+                    max_items: 5,
+                }),
+            });
+
+            const result: LiveSearchAPIResponse = await response.json();
+
+            if (result.success && result.evidence) {
+                const evidence = result.evidence;
+                // Format fetched_at for display
+                const fetchedAtDate = new Date(evidence.fetched_at);
+                const fetchedAtDisplay = fetchedAtDate.toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                return {
+                    success: true,
+                    skillId: 'live_search',
+                    skillName: '实时搜索',
+                    evidence,
+                    fetched_at: evidence.fetched_at,
+                    fetched_at_display: fetchedAtDisplay,
+                    ttl_seconds: evidence.ttl_seconds,
+                    is_live: true,
+                    confidence: evidence.notes.confidence,
+                    items: evidence.items,
+                    sources: evidence.items.map(item => ({
+                        title: item.title,
+                        url: item.url,
+                        source_name: item.source_name,
+                    })),
+                    cache_hit: evidence.notes.cache_hit || false,
+                    route_decision: result.route_decision || routeDecision,
+                };
+            } else {
+                // Return structured fallback - NEVER fabricate data
+                const fallback = result.fallback || createStructuredFallback(
+                    domain,
+                    result.error?.message || 'Search failed',
+                    routeDecision.missing_constraints
+                );
+
+                return {
+                    success: false,
+                    skillId: 'live_search',
+                    skillName: '实时搜索',
+                    error: result.error || { code: 'UNKNOWN', message: 'Search failed' },
+                    fallback,
+                    is_live: false,
+                    route_decision: result.route_decision || routeDecision,
+                    instruction: '搜索失败，请不要编造价格或链接。向用户展示缺失的约束条件，并请求补充信息。'
+                };
+            }
+        } catch (fetchError) {
+            console.error('[LiveSearchTool] Fetch error:', fetchError);
+
+            // Network/fetch error - return structured fallback
+            const fallback = createStructuredFallback(
+                domain,
+                'Network error - unable to reach search service',
+                routeDecision.missing_constraints
+            );
+
+            return {
+                success: false,
+                skillId: 'live_search',
+                skillName: '实时搜索',
+                error: {
+                    code: 'NETWORK_ERROR',
+                    message: fetchError instanceof Error ? fetchError.message : 'Network error',
+                },
+                fallback,
+                is_live: false,
+                route_decision: routeDecision,
+                instruction: '网络错误，请不要编造价格或链接。'
+            };
+        }
+    }
+};
+
+// ============================================================================
 // Broadcast Intent Tool (LIX - Intent Exchange)
 // ============================================================================
 
@@ -359,6 +529,30 @@ const broadcastIntentTool: Tool = {
     },
     execute: async (args) => {
         const { category, item, budget } = args;
+
+        // ================================================================
+        // Domain Guard: HARD GATE - Block ALL non-commerce categories
+        // This is the definitive enforcement layer
+        // ================================================================
+        const ALLOWED_COMMERCE_CATEGORIES = ['purchase', 'shopping', 'commerce', 'product'];
+        const isCommerce = ALLOWED_COMMERCE_CATEGORIES.includes(category as string);
+
+        if (!isCommerce) {
+            console.log(`[DomainGuard] BLOCKED: category=${category}`);
+            return {
+                blocked: true,
+                reason: 'DOMAIN_GUARD',
+                success: false,
+                skillId: 'broadcast_intent',
+                skillName: 'LIX 意图交易',
+                message: `此类需求（${category}）建议使用专业渠道，已为您生成计划步骤。`,
+                domain_guard_blocked: true,
+                blocked_category: category,
+                // Contract layer: explicit debug info
+                allow_market_fanout: false,
+                blocked_tools: ['broadcast_intent'],
+            };
+        }
 
         const response = await lixMarketService.broadcast({
             category: category as IntentCategory,
@@ -429,6 +623,7 @@ class ToolRegistry {
         this.register(priceCompareTool);
         this.register(webSearchTool);
         this.register(knowledgeQATool);
+        this.register(liveSearchTool);  // Phase 3.4: Live search for travel/local
         this.register(broadcastIntentTool);  // LIX Market Tool
     }
 

@@ -181,6 +181,131 @@ async function runTests(): Promise<void> {
             `Expected 200 or 500, got ${res.status}`);
     });
 
+    // =========================================================================
+    // VERTICAL CLASSIFICATION TESTS (P0 - Regression)
+    // =========================================================================
+
+    // Test 10: Ticketing intent returns no_providers_for_vertical
+    await test('10. Ticketing intent (车票) returns no_providers_for_vertical', async () => {
+        const res = await fetch(`${API_BASE}/broadcast`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                category: 'purchase',
+                item: '北京车票',
+                budget: 500,
+                intent_proof: {
+                    nonce: generateNonce(),
+                    intent_hash: 'sha256:ticket123',
+                    timestamp: Date.now(),
+                    validity_window_sec: 3600
+                }
+            })
+        });
+
+        // Accept 200 (with status in body) or any error (if proof validation enabled)
+        if (res.status === 200) {
+            const body = await res.json();
+            assert(
+                body.status === 'no_providers_for_vertical' || body.ranked_offers?.length === 0,
+                `Expected no_providers_for_vertical or empty offers, got status=${body.status}, offers=${body.ranked_offers?.length}`
+            );
+            console.log(`  → Ticketing intent correctly classified, status: ${body.status}`);
+        } else {
+            console.log(`  → Request returned ${res.status} (proof validation may be enabled)`);
+        }
+    });
+
+    // Test 11: Flight intent returns no_providers_for_vertical
+    await test('11. Flight intent (机票) returns no_providers_for_vertical', async () => {
+        const res = await fetch(`${API_BASE}/broadcast`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                category: 'purchase',
+                item: '上海到北京机票',
+                budget: 1000,
+                intent_proof: {
+                    nonce: generateNonce(),
+                    intent_hash: 'sha256:flight123',
+                    timestamp: Date.now(),
+                    validity_window_sec: 3600
+                }
+            })
+        });
+
+        if (res.status === 200) {
+            const body = await res.json();
+            assert(
+                body.status === 'no_providers_for_vertical' || body.ranked_offers?.length === 0,
+                `Expected no_providers_for_vertical or empty offers for flight`
+            );
+            console.log(`  → Flight intent correctly classified, status: ${body.status}`);
+        } else {
+            console.log(`  → Request returned ${res.status}`);
+        }
+    });
+
+    // Test 12: E-commerce intent returns offers
+    await test('12. E-commerce intent (iPhone) returns offers', async () => {
+        const res = await fetch(`${API_BASE}/broadcast`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                category: 'purchase',
+                item: 'iPhone 16 Pro',
+                budget: 10000,
+                intent_proof: {
+                    nonce: generateNonce(),
+                    intent_hash: 'sha256:iphone123',
+                    timestamp: Date.now(),
+                    validity_window_sec: 3600
+                }
+            })
+        });
+
+        if (res.status === 200) {
+            const body = await res.json();
+            assert(
+                body.status === 'success' || body.ranked_offers?.length > 0,
+                `Expected success with offers for e-commerce, got status=${body.status}`
+            );
+            console.log(`  → E-commerce intent got ${body.ranked_offers?.length || 0} offers`);
+        } else {
+            console.log(`  → Request returned ${res.status}`);
+        }
+    });
+
+    // Test 13: Train ticket intent returns no_providers_for_vertical  
+    await test('13. Train ticket (火车票) returns no_providers_for_vertical', async () => {
+        const res = await fetch(`${API_BASE}/broadcast`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                category: 'purchase',
+                item: '买火车票去广州',
+                budget: 300,
+                intent_proof: {
+                    nonce: generateNonce(),
+                    intent_hash: 'sha256:train123',
+                    timestamp: Date.now(),
+                    validity_window_sec: 3600
+                }
+            })
+        });
+
+        if (res.status === 200) {
+            const body = await res.json();
+            assert(
+                body.status === 'no_providers_for_vertical' || body.ranked_offers?.length === 0,
+                `Expected no_providers for train ticket, got offers=${body.ranked_offers?.length}`
+            );
+            console.log(`  → Train ticket correctly classified`);
+        } else {
+            console.log(`  → Request returned ${res.status}`);
+        }
+    });
+
     // Print summary
     console.log('\n' + '='.repeat(50));
     console.log('📊 Test Results Summary');

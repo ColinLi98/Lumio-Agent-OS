@@ -21,6 +21,10 @@ export interface TraceContext {
 export type IntentCategory = 'purchase' | 'job' | 'collaboration';
 export type AnonymityLevel = 'pseudonymous' | 'anonymous' | 'identified';
 
+// Vertical classification for intent routing
+export type IntentVertical = 'ticketing' | 'ecommerce' | 'outsourcing' | 'generic';
+export type IntentKind = 'ticket' | 'product' | 'service';
+
 export interface ItemSpec {
     name: string;
     canonical_sku?: string;
@@ -66,6 +70,9 @@ export interface IntentRequest {
     nonce: string;
     created_at: string;
     trace: TraceContext;
+    // Vertical classification (auto-detected or explicit)
+    vertical?: IntentVertical;
+    intent_kind?: IntentKind;
 }
 
 // ============================================================================
@@ -129,7 +136,83 @@ export interface Offer {
     expires_at: string;
     provider_signature?: string;
     trace: TraceContext;
+
+    // =========== NEW: Domain Mismatch Protection (v0.3) ===========
+    /** Type of offer (product, ticket, booking, etc.) */
+    offer_type?: OfferType;
+    /** Domain this offer belongs to */
+    domain?: OfferDomain;
+    /** Provider group that generated this offer */
+    source_provider_group?: OfferProviderGroup;
+    /** Canonical representation of the item */
+    canonical_item?: OfferCanonicalItem;
 }
+
+// Offer type classification
+export type OfferType = 'product' | 'ticket' | 'booking' | 'quote' | 'lead';
+
+// Offer domain (matches IntentDomain)
+export type OfferDomain =
+    | 'commerce'
+    | 'ticketing'
+    | 'travel'
+    | 'food'
+    | 'local_service'
+    | 'education'
+    | 'talent'
+    | 'other';
+
+// Provider group for offers
+export type OfferProviderGroup =
+    | 'ecommerce'
+    | 'ticketing'
+    | 'travel'
+    | 'local_service'
+    | 'food'
+    | 'talent';
+
+// Canonical item representations
+export interface TicketCanonical {
+    type: 'transport' | 'event';
+    from?: string;
+    to?: string;
+    date?: string;
+    time?: string;
+    carrier?: string;
+    seat_class?: string;
+    event_name?: string;
+    venue?: string;
+}
+
+export interface ProductCanonical {
+    type: 'product';
+    sku?: string;
+    brand?: string;
+    model?: string;
+    category?: string;
+}
+
+export interface BookingCanonical {
+    type: 'booking';
+    check_in?: string;
+    check_out?: string;
+    location?: string;
+    room_type?: string;
+}
+
+export interface ServiceCanonical {
+    type: 'service';
+    service_type?: string;
+    location?: string;
+    scheduled_date?: string;
+}
+
+export type OfferCanonicalItem =
+    | TicketCanonical
+    | ProductCanonical
+    | BookingCanonical
+    | ServiceCanonical;
+
 
 // ============================================================================
 // Validation Types
@@ -197,14 +280,18 @@ export interface RankedOffer {
 
 export interface MarketResponse {
     intent_id: string;
-    status: 'success' | 'pending' | 'no_matches';
+    status: 'success' | 'pending' | 'no_matches' | 'no_providers_for_vertical';
     ranked_offers: RankedOffer[];
     total_offers_received: number;
     broadcast_reach: number;
     latency_ms: number;
     trace: TraceContext;
-    /** Source of offers: 'real' (scraped), 'mock' (dev mode), or 'mixed' */
-    provider_source?: 'real' | 'mock' | 'mixed';
+    /** Source of offers: 'real' (scraped), 'mock' (dev mode), 'mixed', or 'none' (no providers) */
+    provider_source?: 'real' | 'mock' | 'mixed' | 'none';
+    /** Vertical classification (for ticketing/outsourcing empty states) */
+    vertical?: string;
+    /** Suggested next action for UI (e.g., 'collect_slots' for ticketing) */
+    next_action_suggestion?: 'collect_slots' | 'set_reminder' | 'retry';
 }
 
 // ============================================================================

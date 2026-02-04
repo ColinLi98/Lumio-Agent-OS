@@ -17,11 +17,15 @@ export type LixEventType =
     // Intent lifecycle
     | 'intent.created'
     | 'intent.broadcast'
+    | 'intent.vertical_detected'     // NEW: Vertical classification
     // Offer lifecycle
     | 'offer.received'
     | 'offer.validated'
     | 'offer.ranked'
     | 'offer.accepted'
+    | 'offer.rejected.semantic_mismatch'  // NEW: Semantic consistency failure
+    // Provider lifecycle
+    | 'provider.fanout.filtered'      // NEW: Provider filtering by vertical
     // Conversion lifecycle
     | 'conversion.callback'
     | 'conversion.timeout'

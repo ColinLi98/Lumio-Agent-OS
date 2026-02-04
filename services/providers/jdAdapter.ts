@@ -11,10 +11,11 @@ import type {
     CandidateItem,
     DetailExtractionResult,
     OfferBuildInput,
-    ProviderId
+    ProviderId,
+    InventorySignal
 } from './providerTypes';
 import { generateOfferId, extractKeywords } from './providerTypes';
-import type { Offer, InventorySignal } from '../lixTypes';
+import type { Offer } from '../lixTypes';
 
 import { getCachedSearch, setCachedSearch, getCachedDetail, setCachedDetail } from './scrapeCache';
 import { canMakeRequest } from './rateLimiter';
@@ -40,6 +41,13 @@ export const jdAdapter: ProviderAdapter = {
     id: PROVIDER_ID,
     name: config.name,
     domains_allowlist: config.domains_allowlist,
+    provider_kind: 'ecommerce',  // JD is an e-commerce provider
+    capabilities: {
+        provider_group: 'ecommerce',
+        supported_domains: ['commerce'],
+        supported_subtypes: ['product_purchase', 'price_compare'],
+        result_types: ['product']
+    },
 
     async search(input: ProviderSearchInput): Promise<CandidateItem[]> {
         const { canonical_sku, keywords, budget_max, location_code, trace_id } = input;

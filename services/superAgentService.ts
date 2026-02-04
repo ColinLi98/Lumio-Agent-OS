@@ -10,6 +10,9 @@ import { getToolRegistry, setToolRegistryApiKey, GeminiFunctionDeclaration } fro
 import { runShadowProfiling, setProfilingApiKey, ProfilingResult, onProfileUpdate } from './profilingService';
 import { getMemR3Router } from './memr3Service';
 import { SkillResult } from './skillRegistry';
+import { getPlanGenerator } from './planGenerator';
+import { ThreeStagePlan } from './planTypes';
+import { track } from './telemetryService';
 
 // ============================================================================
 // Types
@@ -31,6 +34,8 @@ export interface AgentResponse {
     executionTimeMs: number;
     turns: number;
     profilingResult?: ProfilingResult;
+    /** Three-Stage Plan (Phase 2 Week 2) */
+    plan?: ThreeStagePlan;
 }
 
 export interface ToolExecutionResult {
@@ -48,12 +53,16 @@ export interface ToolExecutionResult {
 
 let geminiClient: any = null;
 let currentApiKey: string = '';
+let GoogleGenerativeAI: any = null;
 
-function getGeminiClient(apiKey: string) {
+async function getGeminiClient(apiKey: string) {
     if (!geminiClient || apiKey !== currentApiKey) {
         currentApiKey = apiKey;
-        // Use dynamic import for @google/genai
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        // Use dynamic import for @google/genai (browser-compatible)
+        if (!GoogleGenerativeAI) {
+            const genAIModule = await import('@google/generative-ai');
+            GoogleGenerativeAI = genAIModule.GoogleGenerativeAI;
+        }
         geminiClient = new GoogleGenerativeAI(apiKey);
     }
     return geminiClient;
@@ -81,7 +90,10 @@ export class SuperAgentService {
             mod.setSkillsApiKey(apiKey);
         }).catch(() => { });
 
-        console.log('[SuperAgent] V5.1 Brain initialized with Gemini');
+        // Configure Plan Generator (Phase 2 Week 2)
+        getPlanGenerator().setApiKey(apiKey);
+
+        console.log('[SuperAgent] V5.1 Brain initialized with Gemini + Plan Generator');
     }
 
     /**
@@ -92,7 +104,11 @@ export class SuperAgentService {
         context: UserContext = {}
     ): Promise<AgentResponse> {
         const startTime = performance.now();
+        const traceId = `trace_${Date.now()}`;
         console.log(`[SuperAgent] 🧠 ReAct Loop starting for: "${query}"`);
+
+        // Telemetry: Track query received
+        track.queryReceived(query, traceId);
 
         const toolsUsed: string[] = [];
         const toolResults: ToolExecutionResult[] = [];
@@ -114,9 +130,9 @@ export class SuperAgentService {
             const systemPrompt = this.buildSystemPrompt(context);
 
             // 3. Get Gemini client and model
-            const client = getGeminiClient(this.apiKey);
+            const client = await getGeminiClient(this.apiKey);
             const model = client.getGenerativeModel({
-                model: 'gemini-3',
+                model: 'gemini-3-pro-preview',  // Phase 3.4: Gemini 3 Pro Preview
                 systemInstruction: systemPrompt,
                 tools: tools.length > 0 ? [{ functionDeclarations: tools }] : undefined
             });
@@ -351,8 +367,8 @@ ${toolNames.map(name => `- ${name}`).join('\n')}
      * Simple LLM call without tools (fallback)
      */
     private async simpleLLMCall(query: string): Promise<string> {
-        const client = getGeminiClient(this.apiKey);
-        const model = client.getGenerativeModel({ model: 'gemini-3' });
+        const client = await getGeminiClient(this.apiKey);
+        const model = client.getGenerativeModel({ model: 'gemini-3-pro-preview' });  // Phase 3.4
 
         const result = await model.generateContent(query);
         return result.response.text() || '抱歉，我无法回答这个问题。';

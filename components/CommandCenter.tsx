@@ -5,7 +5,10 @@ import { Button } from './Button';
 import { MemoryPanel } from './MemoryPanel';
 import { DigitalAvatarPanel } from './DigitalAvatarPanel';
 import { PrivacyPanel } from './PrivacyPanel';
+import { PrivacyDashboard } from './PrivacyDashboard';
 import { PreferencePanel } from './PreferencePanel';
+import { DestinyPanel } from './DestinyPanel';
+import { DestinyRecommendationCard } from './DestinyRecommendationCard';
 import { Settings, Terminal, Shield, Zap, Key, Eye, EyeOff, Check, X, Loader2, Trash2, Sparkles } from 'lucide-react';
 
 interface CommandCenterProps {
@@ -35,6 +38,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 }) => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPrivacyDashboard, setShowPrivacyDashboard] = useState(false);
+  const [showDestinyCard, setShowDestinyCard] = useState(false);
   const [modelPreference, setModelPreference] = useState(() =>
     localStorage.getItem('model_preference') || 'auto'
   );
@@ -298,8 +303,38 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
 
       {/* Privacy Panel - Status & Stats */}
       <div className="mb-4">
-        <PrivacyPanel apiKeyConfigured={apiKeyState.status === 'valid'} />
+        <PrivacyPanel
+          apiKeyConfigured={apiKeyState.status === 'valid'}
+          onOpenDashboard={() => setShowPrivacyDashboard(true)}
+        />
       </div>
+
+      {/* Privacy Dashboard Modal */}
+      <PrivacyDashboard
+        isOpen={showPrivacyDashboard}
+        onClose={() => setShowPrivacyDashboard(false)}
+      />
+
+      {/* Destiny Panel - DTOE Insights */}
+      <div className="mb-4">
+        <DestinyPanel onOpenFullCard={() => setShowDestinyCard(true)} />
+      </div>
+
+      {/* Destiny Card Modal */}
+      {showDestinyCard && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowDestinyCard(false)}>
+          <div className="max-w-md w-full max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}>
+            <DestinyRecommendationCard
+              onActionSelect={(action) => {
+                console.log('[CommandCenter] Action selected:', action);
+                setShowDestinyCard(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Preference Panel - User Settings */}
       <div className="mb-4">

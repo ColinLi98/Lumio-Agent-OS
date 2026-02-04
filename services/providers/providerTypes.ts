@@ -6,7 +6,7 @@
  * These types do NOT modify the v0.2 frozen contract.
  */
 
-import type { IntentRequest, Offer, InventorySignal, PriceInfo, FulfillmentInfo } from '../lixTypes';
+import type { IntentRequest, Offer, PriceInfo, FulfillmentInfo } from '../lixTypes';
 
 // ============================================================================
 // Provider Identifiers
@@ -49,6 +49,9 @@ export interface CandidateItem {
 // Detail Extraction
 // ============================================================================
 
+// Inventory signal type (mirrors lixTypes for adapter use)
+export type InventorySignal = 'in_stock' | 'low_stock' | 'out_of_stock' | 'limited' | 'unknown';
+
 export interface DetailExtractionResult {
     final_price: number;
     currency: 'CNY';
@@ -77,10 +80,55 @@ export interface OfferBuildInput {
 // Provider Adapter Interface
 // ============================================================================
 
+// Provider capability classification
+export type ProviderKind = 'ticketing' | 'ecommerce' | 'service';
+
+// Provider group (more detailed classification)
+export type ProviderGroupType =
+    | 'ecommerce'
+    | 'ticketing'
+    | 'travel'
+    | 'local_service'
+    | 'food'
+    | 'talent';
+
+// Supported domains
+export type SupportedDomain =
+    | 'commerce'
+    | 'ticketing'
+    | 'travel'
+    | 'food'
+    | 'local_service'
+    | 'education'
+    | 'talent'
+    | 'other';
+
+// Result types that a provider can return
+export type ResultType = 'product' | 'ticket' | 'booking' | 'quote' | 'lead';
+
+/**
+ * Provider Capabilities (v0.3)
+ * Describes what a provider can and cannot do
+ */
+export interface ProviderCapabilities {
+    /** Provider group classification */
+    provider_group: ProviderGroupType;
+    /** Domains this provider supports */
+    supported_domains: SupportedDomain[];
+    /** Specific intent subtypes supported */
+    supported_subtypes: string[];
+    /** Types of results this provider returns */
+    result_types: ResultType[];
+}
+
 export interface ProviderAdapter {
     id: ProviderId;
     name: string;
     domains_allowlist: string[];
+    /** Provider capability - determines which verticals can route to this provider */
+    provider_kind: ProviderKind;
+    /** Detailed capabilities (v0.3) */
+    capabilities: ProviderCapabilities;
 
     /**
      * Search for candidates matching the input.
@@ -98,6 +146,7 @@ export interface ProviderAdapter {
      */
     buildOffer(input: OfferBuildInput): Promise<Offer>;
 }
+
 
 // ============================================================================
 // Scraping Result Types
@@ -251,6 +300,10 @@ export interface MarketFanoutResult {
     all_offers: Offer[];
     provider_results: ProviderFanoutResult[];
     total_latency_ms: number;
+    /** Set to 'NO_PROVIDER_FOR_VERTICAL' if no providers support the intent vertical */
+    status?: 'OK' | 'NO_PROVIDER_FOR_VERTICAL';
+    /** The vertical classification for the intent (for UI handling) */
+    vertical?: string;
 }
 
 // ============================================================================

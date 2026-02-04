@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import {
     ArrowLeft, Zap, Star, Shield, Clock, CheckCircle,
     AlertTriangle, ChevronDown, ChevronUp, ExternalLink,
-    Package, Briefcase, Users, HelpCircle, Copy, XCircle, AlertOctagon
+    Package, Briefcase, Users, HelpCircle, Copy, XCircle, AlertOctagon, Ticket, Bell, Calendar
 } from 'lucide-react';
 import { lixStore, StoredIntent } from '../services/lixStore';
 import { RankedOffer } from '../services/lixTypes';
@@ -31,6 +31,90 @@ const colors = {
     text3: '#64748B',
     border: 'rgba(148, 163, 184, 0.1)',
 };
+
+// ============================================================================
+// Ticketing Detection Helper
+// ============================================================================
+
+const TICKETING_KEYWORDS = ['车票', '火车票', '机票', '高铁票', '飞机票', '门票', '入场券'];
+
+function isTicketingIntent(itemName: string): boolean {
+    return TICKETING_KEYWORDS.some(kw => itemName.includes(kw));
+}
+
+// ============================================================================
+// Ticketing Empty State Component (P0: Vertical Classification)
+// ============================================================================
+
+interface TicketingEmptyStateProps {
+    itemName: string;
+}
+
+const TicketingEmptyState: React.FC<TicketingEmptyStateProps> = ({ itemName }) => (
+    <div style={{
+        backgroundColor: colors.bg2,
+        borderRadius: 16,
+        padding: 24,
+        textAlign: 'center',
+        border: `1px solid ${colors.border}`
+    }}>
+        <div style={{
+            width: 64,
+            height: 64,
+            borderRadius: '50%',
+            backgroundColor: colors.primaryMuted,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px'
+        }}>
+            <Ticket size={32} color={colors.primary} />
+        </div>
+
+        <h3 style={{ color: colors.text1, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+            暂无票务服务商
+        </h3>
+        <p style={{ color: colors.text3, fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
+            「{itemName}」属于票务类需求，目前平台暂未接入票务服务商。
+            <br />您可以设置提醒，待服务商上线后第一时间通知您。
+        </p>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <button style={{
+                padding: '10px 20px',
+                borderRadius: 10,
+                backgroundColor: colors.primary,
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 500,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+            }}>
+                <Bell size={16} />
+                设置提醒
+            </button>
+            <button style={{
+                padding: '10px 20px',
+                borderRadius: 10,
+                backgroundColor: colors.bg3,
+                color: colors.text2,
+                fontSize: 14,
+                fontWeight: 500,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+            }}>
+                <Calendar size={16} />
+                完善信息
+            </button>
+        </div>
+    </div>
+);
 
 // ============================================================================
 // Offer Card Component
@@ -486,6 +570,12 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* Ticketing Empty State */}
+                    {intent.offers.length === 0 && isTicketingIntent(intent.item_name) && (
+                        <TicketingEmptyState itemName={intent.item_name} />
+                    )}
+
+                    {/* Regular Offers */}
                     {intent.offers.map((ro, i) => (
                         <OfferCard
                             key={ro.offer.offer_id}
