@@ -472,18 +472,78 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
 
     // 渲染行内 markdown（**粗体**、*斜体*）
     const renderInlineMarkdown = (text: string): React.ReactNode => {
-        // 处理 **粗体**
-        const parts = text.split(/(\*\*[^*]+\*\*)/g);
-        return parts.map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-                return (
-                    <strong key={i} style={{ color: colors.text1, fontWeight: 600 }}>
-                        {part.slice(2, -2)}
+        // 处理行内元素：**粗体** 和 [链接](url)
+        const elements: React.ReactNode[] = [];
+        let remaining = text;
+        let keyIndex = 0;
+
+        while (remaining.length > 0) {
+            // 查找下一个 markdown 元素
+            const boldMatch = remaining.match(/\*\*([^*]+)\*\*/);
+            const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
+
+            // 找到最早出现的匹配
+            let earliestMatch: { type: 'bold' | 'link'; index: number; match: RegExpMatchArray } | null = null;
+
+            if (boldMatch && boldMatch.index !== undefined) {
+                earliestMatch = { type: 'bold', index: boldMatch.index, match: boldMatch };
+            }
+            if (linkMatch && linkMatch.index !== undefined) {
+                if (!earliestMatch || linkMatch.index < earliestMatch.index) {
+                    earliestMatch = { type: 'link', index: linkMatch.index, match: linkMatch };
+                }
+            }
+
+            if (!earliestMatch) {
+                // 没有更多匹配，添加剩余文本
+                if (remaining) {
+                    elements.push(<span key={keyIndex++}>{remaining}</span>);
+                }
+                break;
+            }
+
+            // 添加匹配前的文本
+            if (earliestMatch.index > 0) {
+                elements.push(<span key={keyIndex++}>{remaining.slice(0, earliestMatch.index)}</span>);
+            }
+
+            // 处理匹配的元素
+            if (earliestMatch.type === 'bold') {
+                elements.push(
+                    <strong key={keyIndex++} style={{ color: colors.text1, fontWeight: 600 }}>
+                        {earliestMatch.match[1]}
                     </strong>
                 );
+                remaining = remaining.slice(earliestMatch.index + earliestMatch.match[0].length);
+            } else if (earliestMatch.type === 'link') {
+                const linkText = earliestMatch.match[1];
+                const linkUrl = earliestMatch.match[2];
+                elements.push(
+                    <a
+                        key={keyIndex++}
+                        href={linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // 在新窗口打开链接
+                            window.open(linkUrl, '_blank', 'noopener,noreferrer');
+                        }}
+                        style={{
+                            color: '#60A5FA',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                        }}
+                    >
+                        {linkText} ↗
+                    </a>
+                );
+                remaining = remaining.slice(earliestMatch.index + earliestMatch.match[0].length);
             }
-            return part;
-        });
+        }
+
+        return elements.length > 0 ? elements : text;
     };
 
     return (
@@ -1389,6 +1449,17 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
 
         // 调试日志
         console.log('[SuperAgentResultPanel] Rendering skill:', skillId, 'Data:', data);
+
+        // P0: Live Search - 实时搜索结果 (优先级最高)
+        const isLiveSearch =
+            skillId === 'live_search' ||
+            skillName?.includes('实时搜索') ||
+            (data && data.is_live && data.items);
+
+        if (isLiveSearch && data) {
+            console.log('[SuperAgentResultPanel] Using LiveSearchResultCard for:', skillId);
+            return <LiveSearchResultCard key={skillId} data={data} />;
+        }
 
         // 搜索结果 - 通过 skillId 检测 (优先检测，因为 web_search 也有 results 和 query)
         const isWebSearch =

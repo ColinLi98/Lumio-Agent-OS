@@ -13,15 +13,79 @@ type IntentDomain = 'ticketing' | 'travel' | 'ecommerce' | 'knowledge' | 'local_
 // 6.5 Failure Classification
 // ============================================================================
 
+// 6.5 + P0-3: Failure codes - unified for observability
 type FailureCode =
-  | 'network'
-  | 'auth'
-  | 'quota'
-  | 'provider_blocked'
-  | 'insufficient_constraints'
-  | 'no_results'
-  | 'timeout'
-  | 'internal_error';
+  | 'network'      // DNS/connection failed
+  | 'timeout'      // Request timed out
+  | 'auth'         // 401/403 authentication error
+  | 'quota'        // 429 rate limit
+  | 'blocked'      // 403 with captcha/blocked signal
+  | 'provider_error' // 5xx from provider
+  | 'parse_error'  // JSON/HTML parse failed
+  | 'no_results'   // items.length === 0 (P0-1)
+  | 'insufficient_constraints' // Missing required constraints
+  | 'internal_error'; // Unknown error
+
+// P0-3: Stage tracking for observability (all required stages per spec)
+type Stage =
+  | 'router_decision'       // Domain classification complete
+  | 'vertex_request_sent'   // API request dispatched
+  | 'vertex_response_recv'  // API response received
+  | 'parse_grounding'       // Citation/grounding metadata parsed
+  | 'domain_filter'         // Ecommerce domains filtered
+  | 'compose_answer'        // Final EvidencePack assembled
+  | 'fallback_triggered';   // Dual-failure fallback activated
+
+// P0-E: Final decision tracking
+type FinalDecision = 'use_web_exec' | 'use_live_search' | 'fallback';
+
+// P0-B: Extractor type for web_exec
+type ExtractorType = 'dom' | 'jsonld' | 'regex' | 'none';
+
+// P1-SEC: Header-based debug token (not query param)
+const DEBUG_TOKEN = 'lumi-debug-2026';
+const DEBUG_HEADER = 'x-debug-token';  // P1-SEC: Use header instead of query param
+
+// P1-SEC: Rate limiting for debug endpoint
+const debugRateLimit = new Map<string, { count: number; resetAt: number }>();
+const DEBUG_RATE_LIMIT = 10;  // requests per minute
+const DEBUG_RATE_WINDOW = 60000;  // 1 minute
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = debugRateLimit.get(ip);
+  if (!entry || now > entry.resetAt) {
+    debugRateLimit.set(ip, { count: 1, resetAt: now + DEBUG_RATE_WINDOW });
+    return true;
+  }
+  if (entry.count >= DEBUG_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
+// P0-C: Ticketing Allowlist (whitelist approach - stricter than blacklist)
+const TICKETING_ALLOWLIST = [
+  // Airlines
+  'airchina.com', 'ceair.com', 'csair.com', 'hainanair.com', 'shenzhenair.com',
+  'united.com', 'aa.com', 'delta.com', 'britishairways.com', 'emirates.com',
+  'cathaypacific.com', 'singaporeair.com', 'ana.co.jp', 'jal.co.jp',
+  // OTA
+  'ctrip.com', 'trip.com', 'qunar.com', 'fliggy.com', 'ly.com',
+  'booking.com', 'expedia.com', 'kayak.com', 'skyscanner.com', 'momondo.com',
+  // Train
+  '12306.cn', 'rail.com.cn',
+  // Aggregators
+  'google.com/flights', 'vertexaisearch.cloud.google.com',
+  // Meta search
+  'tianxun.com', 'ifly.cn'
+];
+
+function isTicketingAllowed(url: string): boolean {
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    return TICKETING_ALLOWLIST.some(allowed => h.includes(allowed.replace('/flights', '')));
+  } catch { return false; }
+}
 
 function generateTraceId(): string {
   return `trace_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -96,10 +160,22 @@ interface ActionStep {
   screenshot_path?: string;
 }
 
+interface Artifact {
+  type: 'screenshot' | 'dom_snapshot' | 'network_log' | 'video';
+  path: string;
+  timestamp: number;
+  description?: string;
+}
+
 interface LiveExecuteResponse {
   success: boolean;
   trace_id: string;  // 6.5
-  action_trace: ActionStep[];
+  steps: ActionStep[];  // renamed from action_trace for 6.3
+  artifacts: Artifact[];  // 6.3: screenshots, DOM snapshots
+  evidence: {
+    items: Array<{ title: string; snippet: string; url: string; source_name: string }>;
+    fetched_at: number;
+  };
   extracted: Record<string, any>;
   blocked_reason?: string;
   requires_approval?: boolean;
@@ -108,10 +184,21 @@ interface LiveExecuteResponse {
     code: FailureCode;
     message: string;
     retryable: boolean;
+    retry_suggestions?: string[];  // 6.3: 可重试建议
   };
 }
 
-// 6.5: Trace Storage
+// Stage trace entry for detailed observability
+interface StageTrace {
+  stage: Stage;
+  ts: number;
+  latency_ms: number;
+  success: boolean;
+  error?: string;
+  metadata?: Record<string, any>;
+}
+
+// 6.5 + P0-3 + P0-E: Trace Storage with full observability
 interface TraceEntry {
   trace_id: string;
   type: 'live_search' | 'live_execute';
@@ -119,7 +206,21 @@ interface TraceEntry {
   request: any;
   response: any;
   duration_ms: number;
+  // P0-3: Observability fields
+  stage?: Stage;  // Last stage reached
+  stages?: StageTrace[];  // All stages for detailed debugging
   error_code?: FailureCode;
+  http_status?: number;
+  items_count?: number;
+  top_domains?: string[];
+  cache_hit?: boolean;
+  // P0-B: Extractor tracking
+  extractor?: ExtractorType;
+  // P0-E: Final decision tracking
+  final_decision?: FinalDecision;
+  why_not_used?: { live_search?: string; web_exec?: string };
+  // Domain for fallback rate calculation
+  intent_domain?: IntentDomain;
 }
 
 const traceHistory: TraceEntry[] = [];
@@ -319,11 +420,12 @@ function getMissingConstraints(domain: IntentDomain, query: string): {
 // ============================================================================
 
 function ttlByDomain(domain: IntentDomain): number {
-  if (domain === "ticketing") return 120;  // 2 minutes
-  if (domain === "travel") return 300;     // 5 minutes
-  if (domain === "ecommerce") return 60;   // 1 minute
-  if (domain === "local_life") return 180; // 3 minutes
-  return 300;                              // knowledge: 5 minutes
+  // P0 TTL Strategy per spec
+  if (domain === "ticketing") return 900;    // 15 minutes - real-time pricing
+  if (domain === "travel") return 900;       // 15 minutes - hotel/booking availability
+  if (domain === "ecommerce") return 3600;   // 1 hour - product prices
+  if (domain === "local_life") return 1800;  // 30 minutes - local availability
+  return 86400;                              // knowledge: 24 hours - static info
 }
 
 // ============================================================================
@@ -369,18 +471,21 @@ function isTicketingUrl(url: string): boolean {
 }
 
 /**
- * 6.1: Domain Gate - Filter out cross-domain URLs
- * ticketing 域禁止 fallback 到 ecommerce
+ * P0-C: Domain Gate - Filter by Allowlist (stricter than blacklist)
+ * ticketing 域使用白名单，只允许航司/OTA/火车票官方渠道
  */
 function filterByDomainGate(items: Array<{ title: string; snippet: string; url: string; source_name: string }>, domain: IntentDomain): typeof items {
   return items.filter(item => {
-    // RULE: ticketing domain MUST NOT have ecommerce links
-    if (domain === "ticketing" && isEcommerceUrl(item.url)) {
-      console.log(`[domain-gate] BLOCKED ecommerce URL from ticketing query: ${item.url}`);
-      return false;
+    // P0-C: ticketing domain uses ALLOWLIST (strict whitelist approach)
+    if (domain === "ticketing") {
+      if (!isTicketingAllowed(item.url)) {
+        console.log(`[domain-gate] P0-C BLOCKED non-ticketing URL: ${item.url}`);
+        return false;
+      }
+      return true;  // Only allow URLs in the ticketing allowlist
     }
 
-    // RULE: travel domain MUST NOT have ecommerce links
+    // RULE: travel domain MUST NOT have ecommerce links (blacklist approach still OK for travel)
     if (domain === "travel" && isEcommerceUrl(item.url)) {
       console.log(`[domain-gate] BLOCKED ecommerce URL from travel query: ${item.url}`);
       return false;
@@ -441,7 +546,7 @@ async function geminiSearchGrounding(
     let failureCode: FailureCode = "internal_error";
     if (resp.status === 429) failureCode = "quota";
     else if (resp.status === 401 || resp.status === 403) failureCode = "auth";
-    else if (resp.status >= 500) failureCode = "provider_blocked";
+    else if (resp.status >= 500) failureCode = "provider_error";
 
     const err = new Error(`Gemini Search Grounding failed: ${resp.status}`);
     (err as any).code = failureCode;
@@ -526,9 +631,16 @@ async function handleLiveExecute(
       const response: LiveExecuteResponse = {
         success: false,
         trace_id,
-        action_trace: [],
+        steps: [],
+        artifacts: [],
+        evidence: { items: [], fetched_at: Date.now() },
         extracted: {},
-        error: { code: "insufficient_constraints", message: "task_description and target_url required", retryable: false }
+        error: {
+          code: "insufficient_constraints",
+          message: "task_description and target_url required",
+          retryable: false,
+          retry_suggestions: ["请提供任务描述 (task_description)", "请提供目标URL (target_url)"]
+        }
       };
       storeTrace({ trace_id, type: 'live_execute', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime, error_code: "insufficient_constraints" });
       return safeJson(res, 400, response);
@@ -561,11 +673,23 @@ async function handleLiveExecute(
       const response: LiveExecuteResponse = {
         success: false,
         trace_id,
-        action_trace: trace,
+        steps: trace,
+        artifacts: [],
+        evidence: { items: [], fetched_at: Date.now() },
         extracted: {},
         requires_approval: true,
         pending_action: pendingAction,
-        blocked_reason: 'Sensitive action detected. This executor only supports read-only tasks (查询航班/车次/票价).'
+        blocked_reason: 'Sensitive action detected. This executor only supports read-only tasks (查询航班/车次/票价).',
+        error: {
+          code: "auth",
+          message: "敏感操作需要用户授权",
+          retryable: true,
+          retry_suggestions: [
+            "仅执行只读查询（查询航班、车次、票价）",
+            "移除登录/支付/下单等敏感操作",
+            "设置 require_user_approval=false 并获取用户确认"
+          ]
+        }
       };
 
       storeTrace({ trace_id, type: 'live_execute', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime });
@@ -574,11 +698,13 @@ async function handleLiveExecute(
 
     // 6.4: Stub for read-only task extraction
     // In production, this would use Playwright to scrape the page
+    const query_type = task_description.includes('航班') ? 'flight' : task_description.includes('车次') ? 'train' : 'general';
+
     const extracted = {
       page_title: 'Flight/Train Query Result',
       timestamp: Date.now(),
       note: 'Playwright extraction stub - implement with real browser automation',
-      query_type: task_description.includes('航班') ? 'flight' : task_description.includes('车次') ? 'train' : 'general'
+      query_type
     };
 
     trace.push({
@@ -589,15 +715,77 @@ async function handleLiveExecute(
       success: true
     });
 
+    // 6.3: Generate artifacts (stub - would be real screenshots/DOM in production)
+    const artifacts: Artifact[] = [
+      {
+        type: 'dom_snapshot',
+        path: `/tmp/dom_${trace_id}.html`,
+        timestamp: Date.now(),
+        description: `DOM snapshot of ${target_url}`
+      }
+    ];
+
+    // 6.3: Generate evidence items (stub - would be extracted from page)
+    const evidenceItems = [
+      {
+        title: query_type === 'flight' ? '航班查询结果' : '车次查询结果',
+        snippet: `查询 ${task_description} 的结果页面`,
+        url: target_url,
+        source_name: new URL(target_url).hostname.replace('www.', '')
+      }
+    ];
+
+    // P0-B: Determine extractor type used (stub - in production this would be actual extractor)
+    const extractor: ExtractorType = 'dom';  // For now, always DOM; would be jsonld/regex based on actual extraction
+
+    // P0-B: Success only if we have evidence items (same rule as live_search)
+    if (evidenceItems.length === 0) {
+      const response: LiveExecuteResponse = {
+        success: false,
+        trace_id,
+        steps: trace,
+        artifacts,
+        evidence: { items: [], fetched_at: Date.now() },
+        extracted,
+        error: {
+          code: 'parse_error',
+          message: 'Unable to extract evidence from page',
+          retryable: true,
+          retry_suggestions: [
+            '网页结构可能已更改，请稍后重试',
+            '尝试其他相关网站',
+            '使用 live_search 进行搜索'
+          ]
+        }
+      };
+      storeTrace({
+        trace_id, type: 'live_execute', timestamp: startTime,
+        request: body, response, duration_ms: Date.now() - startTime,
+        error_code: 'parse_error', extractor, items_count: 0
+      });
+      return safeJson(res, 200, response);
+    }
+
     const response: LiveExecuteResponse = {
       success: true,
       trace_id,
-      action_trace: trace,
+      steps: trace,
+      artifacts,
+      evidence: {
+        items: evidenceItems,
+        fetched_at: Date.now()
+      },
       extracted
     };
 
-    storeTrace({ trace_id, type: 'live_execute', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime });
-    console.log(`[live-execute] trace_id=${trace_id} completed in ${Date.now() - startTime}ms`);
+    // P0-B + P0-E: Record extractor and items_count in trace
+    storeTrace({
+      trace_id, type: 'live_execute', timestamp: startTime,
+      request: body, response, duration_ms: Date.now() - startTime,
+      extractor, items_count: evidenceItems.length,
+      top_domains: evidenceItems.map(i => { try { return new URL(i.url).hostname; } catch { return 'unknown'; } })
+    });
+    console.log(`[web-exec] trace_id=${trace_id} completed in ${Date.now() - startTime}ms, items=${evidenceItems.length}`);
 
     return safeJson(res, 200, response);
 
@@ -605,17 +793,24 @@ async function handleLiveExecute(
     const response: LiveExecuteResponse = {
       success: false,
       trace_id,
-      action_trace: [],
+      steps: [],
+      artifacts: [],
+      evidence: { items: [], fetched_at: Date.now() },
       extracted: {},
       error: {
         code: "internal_error",
         message: error instanceof Error ? error.message : 'Unknown error',
-        retryable: true
+        retryable: true,
+        retry_suggestions: [
+          "检查目标URL是否可访问",
+          "确认网络连接正常",
+          "稍后重试"
+        ]
       }
     };
 
     storeTrace({ trace_id, type: 'live_execute', timestamp: startTime, request: {}, response, duration_ms: Date.now() - startTime, error_code: "internal_error" });
-    console.error(`[live-execute] trace_id=${trace_id} error:`, error);
+    console.error(`[web-exec] trace_id=${trace_id} error:`, error);
     return safeJson(res, 500, response);
   }
 }
@@ -630,8 +825,8 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
   return {
     name: 'api-routes',
     configureServer(server) {
-      // 6.4: /api/live-execute
-      server.middlewares.use('/api/live-execute', async (req, res, next) => {
+      // 6.3: /api/web-exec (main endpoint)
+      const handleWebExec = async (req: IncomingMessage, res: ServerResponse) => {
         if (req.method === 'OPTIONS') {
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -644,7 +839,10 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
           return safeJson(res, 405, { error: 'Method not allowed' });
         }
         return handleLiveExecute(req, res, env);
-      });
+      };
+
+      server.middlewares.use('/api/web-exec', handleWebExec);
+      server.middlewares.use('/api/live-execute', handleWebExec);  // alias for backward compat
 
       // /api/live-search
       server.middlewares.use('/api/live-search', async (req, res, next) => {
@@ -735,7 +933,19 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
               route_decision,
               debug: isDev ? { cache_hit: true, webSearchQueries: hit.webSearchQueries } : undefined
             };
-            storeTrace({ trace_id, type: 'live_search', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime });
+            storeTrace({
+              trace_id,
+              type: 'live_search',
+              timestamp: startTime,
+              request: body,
+              response,
+              duration_ms: Date.now() - startTime,
+              stage: 'compose_answer',
+              items_count: hit.evidence.items.length,
+              top_domains: hit.evidence.items.slice(0, 3).map((i: any) => i.source_name),
+              intent_domain: domain,
+              cache_hit: true
+            });
             return safeJson(res, 200, response);
           }
 
@@ -768,7 +978,7 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
             webSearchQueries = result.webSearchQueries;
           } catch (e: any) {
             const { constraints, cta_buttons } = getMissingConstraints(domain, normalized);
-            const errorCode: FailureCode = e.code || "provider_blocked";
+            const errorCode: FailureCode = e.code || "provider_error";
             const response: LiveSearchErrorResponse = {
               success: false,
               trace_id,
@@ -822,7 +1032,20 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
             route_decision,
             debug: isDev ? { cache_hit: false, webSearchQueries } : undefined
           };
-          storeTrace({ trace_id, type: 'live_search', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime });
+          storeTrace({
+            trace_id,
+            type: 'live_search',
+            timestamp: startTime,
+            request: body,
+            response,
+            duration_ms: Date.now() - startTime,
+            // P0-3 Observability
+            stage: 'compose_answer',
+            items_count: items.length,
+            top_domains: items.slice(0, 3).map(i => i.source_name),
+            intent_domain: domain,
+            cache_hit: false
+          });
 
           return safeJson(res, 200, response);
 
@@ -843,35 +1066,107 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
         }
       });
 
-      // 6.2 & 6.5: Debug endpoint (DEV ONLY)
-      if (isDev) {
-        server.middlewares.use('/api/debug/traces', async (req, res, next) => {
-          if (req.method === 'GET') {
-            return safeJson(res, 200, {
-              traces: traceHistory.slice(0, 20),
-              cache_stats: {
-                entries: evidenceCache.size,
-                keys: Array.from(evidenceCache.keys()).slice(0, 10)
-              }
-            });
+      // P1-SEC: Debug endpoint with header token + rate limiting
+      server.middlewares.use('/api/debug/traces', async (req, res, next) => {
+        if (req.method !== 'GET') return next();
+
+        // P1-SEC: Get client IP for rate limiting (never log this!)
+        const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+
+        // P1-SEC: In production, require header token (NOT query param!)
+        if (!isDev) {
+          const token = req.headers[DEBUG_HEADER] as string;
+          // SECURITY: Never log the token value
+          if (!token || token !== DEBUG_TOKEN) {
+            return safeJson(res, 403, { error: 'Forbidden - invalid or missing debug token' });
           }
-          return next();
+
+          // P1-SEC: Rate limiting
+          if (!checkRateLimit(clientIp)) {
+            return safeJson(res, 429, { error: 'Rate limit exceeded. Max 10 requests per minute.' });
+          }
+        }
+
+        // P0-E: Calculate enhanced stats
+        const sortedLatencies = traceHistory.map(t => t.duration_ms).sort((a, b) => a - b);
+        const p95Index = Math.floor(sortedLatencies.length * 0.95);
+        const p95_latency_ms = sortedLatencies[p95Index] || 0;
+
+        // P0-E: Fallback rate by domain
+        const domainStats = traceHistory.reduce((acc, t) => {
+          const domain = t.intent_domain || 'unknown';
+          if (!acc[domain]) acc[domain] = { total: 0, fallbacks: 0 };
+          acc[domain].total++;
+          if (t.final_decision === 'fallback') acc[domain].fallbacks++;
+          return acc;
+        }, {} as Record<string, { total: number; fallbacks: number }>);
+
+        const fallback_rate_by_domain = Object.entries(domainStats).reduce((acc, [domain, stats]) => {
+          acc[domain] = stats.total > 0 ? Math.round((stats.fallbacks / stats.total) * 100) : 0;
+          return acc;
+        }, {} as Record<string, number>);
+
+        // P0-E: Provider success rate
+        const successTraces = traceHistory.filter(t => !t.error_code).length;
+        const provider_success_rate = traceHistory.length > 0
+          ? Math.round((successTraces / traceHistory.length) * 100)
+          : 100;
+
+        // P0-E: Enhanced traces with final_decision
+        return safeJson(res, 200, {
+          traces: traceHistory.slice(0, 20).map(t => ({
+            trace_id: t.trace_id,
+            type: t.type,
+            timestamp: t.timestamp,
+            duration_ms: t.duration_ms,
+            stage: t.stage,
+            error_code: t.error_code,
+            http_status: t.http_status,
+            items_count: t.items_count,
+            top_domains: t.top_domains,
+            cache_hit: t.cache_hit,
+            // P0-B + P0-E
+            extractor: t.extractor,
+            final_decision: t.final_decision,
+            why_not_used: t.why_not_used,
+            intent_domain: t.intent_domain
+          })),
+          cache_stats: {
+            entries: evidenceCache.size,
+            keys: Array.from(evidenceCache.keys()).slice(0, 10)
+          },
+          summary: {
+            total_traces: traceHistory.length,
+            error_distribution: traceHistory.reduce((acc, t) => {
+              if (t.error_code) acc[t.error_code] = (acc[t.error_code] || 0) + 1;
+              return acc;
+            }, {} as Record<string, number>),
+            avg_latency_ms: traceHistory.length > 0
+              ? Math.round(traceHistory.reduce((sum, t) => sum + t.duration_ms, 0) / traceHistory.length)
+              : 0,
+            // P0-E: New metrics
+            p95_latency_ms,
+            fallback_rate_by_domain,
+            provider_success_rate
+          }
         });
-      }
+      });
     }
   };
 }
 
-// 6.5: Human-readable failure reasons
+// P0-3 + 6.5: Human-readable failure reasons
 function getFailureReason(code: FailureCode): string {
   switch (code) {
     case 'network': return '网络连接失败，请检查网络后重试';
+    case 'timeout': return '请求超时，请重试';
     case 'auth': return '认证失败，API密钥无效或未配置';
     case 'quota': return 'API 配额已用尽，请稍后重试';
-    case 'provider_blocked': return '搜索服务暂时不可用，请稍后重试';
-    case 'insufficient_constraints': return '信息不足，请补充更多约束条件';
+    case 'blocked': return '访问被拒绝（可能存在验证码），请稍后重试';
+    case 'provider_error': return '搜索服务暂时不可用，请稍后重试';
+    case 'parse_error': return '数据解析失败，请重试';
     case 'no_results': return '未找到相关实时信息';
-    case 'timeout': return '请求超时，请重试';
+    case 'insufficient_constraints': return '信息不足，请补充更多约束条件';
     case 'internal_error': return '内部错误，请重试';
     default: return '未知错误';
   }

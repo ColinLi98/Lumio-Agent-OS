@@ -132,7 +132,7 @@ export class SuperAgentService {
             // 3. Get Gemini client and model
             const client = await getGeminiClient(this.apiKey);
             const model = client.getGenerativeModel({
-                model: 'gemini-3-pro-preview',  // Phase 3.4: Gemini 3 Pro Preview
+                model: 'gemini-3-pro-preview',  // Gemini 3 Pro Preview (confirmed available)
                 systemInstruction: systemPrompt,
                 tools: tools.length > 0 ? [{ functionDeclarations: tools }] : undefined
             });
@@ -307,7 +307,7 @@ export class SuperAgentService {
     }
 
     /**
-     * Build system prompt with context
+     * Build system prompt with 4.1 Orchestrator Routing Policy + P0-A/D enhancements
      */
     private buildSystemPrompt(context: UserContext): string {
         const registry = getToolRegistry();
@@ -326,38 +326,97 @@ export class SuperAgentService {
             minute: '2-digit'
         });
 
-        let prompt = `你是 Lumi，一个智能助手。你的目标是尽可能准确、有帮助地回答用户的问题。
+        let prompt = `You are Lumi's SuperAgent Orchestrator.
 
-**⏰ 当前时间信息（非常重要！）**
-- 今天是：${currentDate}
-- 当前时间：${currentTime}
-- 请注意：你的训练数据可能有截止日期，但用户询问的"今天"、"现在"、"最新"都指的是上述日期
-- 当用户问实时信息（如价格、新闻、天气）时，必须使用 web_search 获取最新数据
+**⏰ Current Time Information (CRITICAL)**
+- Today is: ${currentDate}
+- Current time: ${currentTime}
+- Note: Your training data has a cutoff date, but user's "today", "now", "latest" refer to the above date
 
-**重要：多轮对话上下文**
-- 你正在进行的是多轮对话，请仔细阅读之前的对话历史
-- 如果用户的当前问题看起来是对之前问题的补充信息（如日期、数量、地点），请结合上下文理解
-- 例如：如果用户之前问"伦敦到大连的机票"，现在说"2月14日"，这是在提供日期信息，你应该继续查询机票
-- 不要孤立地回答当前问题，要理解它在对话中的含义
+**Primary Goal:**
+- Solve user problems with the best available method.
+- If the user request requires real-time facts (prices, availability, schedules, locations, current events), you MUST obtain live evidence before presenting specifics.
 
-你有以下工具可以使用:
+**P0-A Answer Aggregator (MANDATORY Priority):**
+
+When multiple tools are called, use this STRICT priority order to determine which EvidencePack to use:
+
+1) If \`web_exec.success === true\` AND \`evidence.items.length > 0\`
+   → Use web_exec EvidencePack for your answer (MUST cite sources)
+
+2) Otherwise if \`live_search.success === true\` AND \`evidence.items.length > 0\`
+   → Use live_search EvidencePack for your answer (MUST cite sources)
+
+3) Otherwise → Enter "双失败兜底" mode (P1-1):
+   - DO NOT provide any specific prices, links, or availability
+   - Show \`fallback.missing_constraints\` from the failed response
+   - Provide CTAs: "请补充日期" / "请打开第三方链接"
+
+**Routing Policy (Hard Rules):**
+
+1) **Determine intent_domain:**
+   - \`ticketing\`: 机票/火车票/高铁/航班/车次/时刻表/余票
+   - \`travel\`: 酒店/住宿/旅游/景点/度假
+   - \`ecommerce\`: 购买/下单/商品/价格比较
+   - \`knowledge\`: 其他信息查询
+
+2) **Determine needs_live_data:**
+   - true if request involves: tickets/flights/trains/hotels/price/availability/real-time status
+
+3) **If needs_live_data = true:**
+   a) First call \`live_search(query, locale, intent_domain, max_items)\`
+   b) If live_search succeeds, use EvidencePack (with TTL) to answer with citations
+   c) If live_search fails and task requires website interaction, call \`web_exec\` with step plan
+
+4) **If there is NO EvidencePack:**
+   - DO NOT provide specific prices, booking links, or availability claims
+   - DO NOT fabricate any real-time data
+   - Ask for missing constraints (出发日期, 人数, 预算, 舱位偏好)
+   - Provide general guidance only
+
+5) **UI Gating (Hard Rule):**
+   - If intent_domain is \`ticketing\` or \`travel\`, DO NOT surface ecommerce offers
+   - Hide ecommerce product recommendations for travel queries
+
+**P0-D Forced Citations (MANDATORY):**
+
+- You may ONLY cite information from \`evidence.items[]\`
+- Every specific price, availability, or link MUST have a citation in format: [来源: source_name](url)
+- If \`evidence.items.length === 0\`: FORBIDDEN to output specific prices/links/余票数
+- Citation format example: "北京到上海机票 ¥800起 [来源: ctrip.com](https://ctrip.com)"
+
+**Available Tools:**
 ${toolNames.map(name => `- ${name}`).join('\n')}
 
-使用规则:
-1. 根据用户问题，决定是否需要调用工具
-2. 如果问题是关于【电商实物商品】价格，使用 price_compare
-3. 如果问题需要搜索实时信息、查询人物/事件/金融行情/机票/新闻，使用 web_search  
-4. 如果用户需要帮助回复消息或润色文字，使用 knowledge_qa
-5. 如果问题不需要工具（如闲聊、简单问答），直接回答即可
-6. 回答时使用友好、专业的语气，用中文回复
-7. 用 Markdown 格式组织回答，使用标题、列表、粗体等`;
+**Tool Usage Rules:**
+- \`live_search\`: 用于实时信息查询 (机票/车票/酒店/新闻/金融)
+- \`web_exec\`: 用于需要浏览器执行的只读任务
+- \`price_compare\`: 仅用于电商实物商品价格比较
+- \`knowledge_qa\`: 用于帮助回复消息或润色文字
+
+**Output Format Rules:**
+- Always include route_decision (intent_domain + needs_live_data)
+- If evidence exists, MUST include citations: [来源: source_name](url)
+- Provide clear fallback CTAs when live data is unavailable:
+  - "请补充出发日期"
+  - "请确认出发地和目的地"
+  - "请说明舱位偏好（经济舱/商务舱）"
+
+**Multi-turn Context:**
+- This is a multi-turn conversation - carefully read previous history
+- If user's current message adds info to previous question (date, quantity, location), combine context
+- Example: Previous "伦敦到大连的机票" + Current "2月14日" = query with date constraint
+
+**Language & Format:**
+- Respond in Chinese (中文)
+- Use Markdown formatting (headers, lists, bold) for readability`;
 
         if (context.preferences) {
-            prompt += `\n\n用户偏好: ${JSON.stringify(context.preferences)}`;
+            prompt += `\n\n**User Preferences:** ${JSON.stringify(context.preferences)}`;
         }
 
         if (context.recentQueries && context.recentQueries.length > 0) {
-            prompt += `\n\n对话上下文（按时间顺序）:\n${context.recentQueries.map((q, i) => `${i + 1}. ${q}`).join('\n')}`;
+            prompt += `\n\n**Conversation Context (chronological):**\n${context.recentQueries.map((q, i) => `${i + 1}. ${q}`).join('\n')}`;
         }
 
         return prompt;
@@ -368,7 +427,7 @@ ${toolNames.map(name => `- ${name}`).join('\n')}
      */
     private async simpleLLMCall(query: string): Promise<string> {
         const client = await getGeminiClient(this.apiKey);
-        const model = client.getGenerativeModel({ model: 'gemini-3-pro-preview' });  // Phase 3.4
+        const model = client.getGenerativeModel({ model: 'gemini-3-pro-preview' });
 
         const result = await model.generateContent(query);
         return result.response.text() || '抱歉，我无法回答这个问题。';

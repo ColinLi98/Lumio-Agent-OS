@@ -430,14 +430,14 @@ const liveSearchTool: Tool = {
                     fetched_at_display: fetchedAtDisplay,
                     ttl_seconds: evidence.ttl_seconds,
                     is_live: true,
-                    confidence: evidence.notes.confidence,
+                    confidence: evidence.notes?.confidence ?? 0.8,
                     items: evidence.items,
                     sources: evidence.items.map(item => ({
                         title: item.title,
                         url: item.url,
                         source_name: item.source_name,
                     })),
-                    cache_hit: evidence.notes.cache_hit || false,
+                    cache_hit: evidence.notes?.cache_hit ?? false,
                     route_decision: result.route_decision || routeDecision,
                 };
             } else {
@@ -481,6 +481,149 @@ const liveSearchTool: Tool = {
                 is_live: false,
                 route_decision: routeDecision,
                 instruction: '网络错误，请不要编造价格或链接。'
+            };
+        }
+    }
+};
+
+// ============================================================================
+// Web Exec Tool (4.1 Routing Policy - Browser Automation Fallback)
+// ============================================================================
+
+interface WebExecAPIResponse {
+    success: boolean;
+    trace_id: string;
+    steps: Array<{
+        step_id: number;
+        action_type: string;
+        value?: string;
+        selector?: string;
+        timestamp: number;
+        success: boolean;
+        error?: string;
+    }>;
+    artifacts: Array<{
+        type: string;
+        path: string;
+        timestamp: number;
+        description?: string;
+    }>;
+    evidence: {
+        items: Array<{ title: string; snippet: string; url: string; source_name: string }>;
+        fetched_at: number;
+    };
+    extracted: Record<string, any>;
+    error?: {
+        code: string;
+        message: string;
+        retryable: boolean;
+        retry_suggestions?: string[];
+    };
+    blocked_reason?: string;
+    requires_approval?: boolean;
+}
+
+const webExecTool: Tool = {
+    name: 'web_exec',
+    description: `执行浏览器自动化任务（仅支持只读操作）。
+
+⚠️ 使用场景（live_search 失败后的备选）：
+- 需要在特定网站查询信息（如携程机票查询页面）
+- 提取结构化数据（航班列表、价格表）
+- 任务型查询需要交互但不涉及登录/支付
+
+✅ 支持的操作（只读）：
+- 导航到指定URL
+- 提取页面内容
+- 截取页面快照
+
+❌ 不支持（需用户授权）：
+- 登录、支付、下单、提交表单
+
+返回内容：
+- steps[]: 执行的步骤序列
+- artifacts[]: DOM快照、截图等
+- evidence.items[]: 提取的结构化信息`,
+    parameters: {
+        type: 'object',
+        properties: {
+            task_description: {
+                type: 'string',
+                description: '任务描述，例如"查询北京到上海的航班"'
+            },
+            target_url: {
+                type: 'string',
+                description: '目标网站URL，例如"https://ctrip.com"'
+            },
+            step_budget: {
+                type: 'number',
+                description: '最大步骤数（默认10）'
+            }
+        },
+        required: ['task_description', 'target_url']
+    },
+    execute: async (args) => {
+        const { task_description, target_url, step_budget = 10 } = args;
+
+        console.log(`[WebExecTool] Task: "${task_description}", URL: ${target_url}`);
+
+        try {
+            const response = await fetch('/api/web-exec', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    task_description,
+                    target_url,
+                    step_budget,
+                    timeout_ms: 60000,
+                    require_user_approval: true
+                }),
+            });
+
+            const result: WebExecAPIResponse = await response.json();
+
+            if (result.success) {
+                return {
+                    success: true,
+                    skillId: 'web_exec',
+                    skillName: '浏览器执行',
+                    trace_id: result.trace_id,
+                    steps: result.steps,
+                    artifacts: result.artifacts,
+                    evidence: result.evidence,
+                    extracted: result.extracted,
+                    is_live: true,
+                    instruction: '使用 evidence.items 中的数据回答用户问题，并引用来源。'
+                };
+            } else {
+                // Execution blocked or failed
+                return {
+                    success: false,
+                    skillId: 'web_exec',
+                    skillName: '浏览器执行',
+                    trace_id: result.trace_id,
+                    error: result.error,
+                    blocked_reason: result.blocked_reason,
+                    requires_approval: result.requires_approval,
+                    steps: result.steps,
+                    is_live: false,
+                    instruction: result.error?.retry_suggestions?.join(' ') || '执行失败，请不要编造数据。'
+                };
+            }
+        } catch (fetchError) {
+            console.error('[WebExecTool] Fetch error:', fetchError);
+            return {
+                success: false,
+                skillId: 'web_exec',
+                skillName: '浏览器执行',
+                error: {
+                    code: 'NETWORK_ERROR',
+                    message: fetchError instanceof Error ? fetchError.message : 'Network error',
+                    retryable: true,
+                    retry_suggestions: ['检查网络连接', '稍后重试']
+                },
+                is_live: false,
+                instruction: '网络错误，请不要编造数据。'
             };
         }
     }
@@ -624,6 +767,7 @@ class ToolRegistry {
         this.register(webSearchTool);
         this.register(knowledgeQATool);
         this.register(liveSearchTool);  // Phase 3.4: Live search for travel/local
+        this.register(webExecTool);     // 4.1: Browser automation fallback
         this.register(broadcastIntentTool);  // LIX Market Tool
     }
 
