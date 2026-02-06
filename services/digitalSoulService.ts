@@ -1,4 +1,4 @@
-import { SoulMatrix } from '../types';
+import type { SoulMatrix, EnhancedDigitalAvatar } from '../types';
 import { loadData, saveData, StorageKeys, getEnhancedDigitalAvatar, saveEnhancedDigitalAvatar } from './localStorageService';
 
 export type DigitalSoulStats = {
@@ -16,6 +16,8 @@ export type PassiveLearningEvent =
     | { type: 'card_dismiss' }
     | { type: 'query_refine' }
     | { type: 'confirm_send' };
+
+export type DigitalSoulBootstrapSource = 'questionnaire' | 'import' | 'skip' | 'passive';
 
 const DEFAULT_SOUL: SoulMatrix = {
     communicationStyle: 'Professional',
@@ -50,10 +52,12 @@ export function saveDigitalSoul(soul: SoulMatrix): void {
 }
 
 export function isDigitalSoulBootstrapped(): boolean {
+    if (typeof localStorage === 'undefined') return false;
     return localStorage.getItem(DIGITAL_SOUL_BOOTSTRAPPED_KEY) === 'true';
 }
 
 export function markDigitalSoulBootstrapped(): void {
+    if (typeof localStorage === 'undefined') return;
     localStorage.setItem(DIGITAL_SOUL_BOOTSTRAPPED_KEY, 'true');
 }
 
@@ -62,6 +66,7 @@ export function initializeDigitalSoul(options: {
     riskTolerance: SoulMatrix['riskTolerance'];
     privacyLevel: SoulMatrix['privacyLevel'];
     spendingPreference?: SoulMatrix['spendingPreference'];
+    bootstrapSource?: DigitalSoulBootstrapSource;
 }): SoulMatrix {
     const soul: SoulMatrix = {
         communicationStyle: options.communicationStyle,
@@ -70,17 +75,120 @@ export function initializeDigitalSoul(options: {
         spendingPreference: options.spendingPreference || 'Balanced'
     };
     saveDigitalSoul(soul);
-    
-    // 同步更新 EnhancedDigitalAvatar 的 priceVsQuality
-    const avatar = getEnhancedDigitalAvatar();
-    avatar.valuesProfile = {
-        ...avatar.valuesProfile,
-        priceVsQuality: soul.spendingPreference === 'PriceFirst' ? -50 : 
-                        soul.spendingPreference === 'QualityFirst' ? 50 : 0
-    };
-    saveEnhancedDigitalAvatar(avatar);
-    
+    syncDigitalSoulToEnhancedAvatar(soul, options.bootstrapSource ?? 'questionnaire');
     return soul;
+}
+
+function mapRiskToleranceToScore(riskTolerance: SoulMatrix['riskTolerance']): number {
+    if (riskTolerance === 'Low') return 30;
+    if (riskTolerance === 'High') return 75;
+    return 55;
+}
+
+function mapPrivacyLevelToConcern(privacyLevel: SoulMatrix['privacyLevel']): number {
+    if (privacyLevel === 'Strict') return 85;
+    if (privacyLevel === 'Open') return 40;
+    return 65;
+}
+
+function mapCommunicationToFormality(style: SoulMatrix['communicationStyle']): EnhancedDigitalAvatar['communicationStyle']['formality'] {
+    if (style === 'Professional') return 'formal';
+    if (style === 'Casual') return 'casual';
+    return 'adaptive';
+}
+
+function mapSourceToLifeDataSource(source: DigitalSoulBootstrapSource): EnhancedDigitalAvatar['lifeState']['dataSource'] {
+    if (source === 'questionnaire') return 'questionnaire';
+    if (source === 'import') return 'inferred';
+    if (source === 'passive') return 'mixed';
+    return 'manual';
+}
+
+function ensureBootstrapMilestone(avatar: EnhancedDigitalAvatar, source: DigitalSoulBootstrapSource): void {
+    const milestoneId = 'digital_soul_bootstrap_v3';
+    if (avatar.milestones.some((m) => m.id === milestoneId)) return;
+
+    const sourceLabel = source === 'import'
+        ? '文本导入'
+        : source === 'questionnaire'
+            ? '问卷场景'
+            : source === 'passive'
+                ? '被动学习'
+                : '最小基线';
+
+    avatar.milestones.push({
+        id: milestoneId,
+        type: 'achievement',
+        title: '🧬 数字分身已初始化',
+        description: `冷启动完成（来源：${sourceLabel}）`,
+        timestamp: Date.now(),
+    });
+}
+
+export function syncDigitalSoulToEnhancedAvatar(
+    soul: SoulMatrix,
+    source: DigitalSoulBootstrapSource = 'questionnaire'
+): void {
+    const avatar = getEnhancedDigitalAvatar();
+    const riskScore = mapRiskToleranceToScore(soul.riskTolerance);
+    const priceVsQuality = spendingPreferenceToPriceVsQuality(soul.spendingPreference);
+
+    avatar.personality.riskTolerance = Math.round(avatar.personality.riskTolerance * 0.4 + riskScore * 0.6);
+    avatar.communicationStyle.formality = mapCommunicationToFormality(soul.communicationStyle);
+    avatar.communicationStyle.directness = soul.communicationStyle === 'Concise'
+        ? 78
+        : soul.communicationStyle === 'Professional'
+            ? 68
+            : soul.communicationStyle === 'Casual'
+                ? 45
+                : 58;
+    avatar.communicationStyle.humorUsage = soul.communicationStyle === 'Friendly'
+        ? clamp(avatar.communicationStyle.humorUsage + 12, 0, 100)
+        : clamp(avatar.communicationStyle.humorUsage - 4, 0, 100);
+
+    avatar.valuesProfile.priceVsQuality = priceVsQuality;
+    avatar.valuesProfile.privacyConcern = mapPrivacyLevelToConcern(soul.privacyLevel);
+    avatar.valuesProfile.stability = soul.riskTolerance === 'Low'
+        ? clamp(avatar.valuesProfile.stability + 8, 0, 100)
+        : soul.riskTolerance === 'High'
+            ? clamp(avatar.valuesProfile.stability - 4, 0, 100)
+            : avatar.valuesProfile.stability;
+    avatar.valuesProfile.growth = soul.riskTolerance === 'High'
+        ? clamp(avatar.valuesProfile.growth + 6, 0, 100)
+        : avatar.valuesProfile.growth;
+
+    avatar.destinyPreferences.riskAppetite = riskScore;
+    avatar.destinyPreferences.gamma = soul.riskTolerance === 'Low'
+        ? 0.95
+        : soul.riskTolerance === 'High'
+            ? 0.9
+            : 0.92;
+
+    const completenessFloor =
+        source === 'import' ? 40 :
+            source === 'questionnaire' ? 34 :
+                source === 'passive' ? 22 : 15;
+
+    avatar.lifeState.dataSource = mapSourceToLifeDataSource(source);
+    avatar.lifeState.lastUpdated = Date.now();
+    avatar.lifeState.completeness = Math.max(avatar.lifeState.completeness || 0, completenessFloor);
+    avatar.profileCompleteness = Math.max(avatar.profileCompleteness || 0, completenessFloor);
+
+    ensureBootstrapMilestone(avatar, source);
+    saveEnhancedDigitalAvatar(avatar);
+}
+
+export function ensureDigitalSoulColdStartBaseline(
+    source: DigitalSoulBootstrapSource = 'skip'
+): SoulMatrix {
+    const current = getDigitalSoul();
+    return initializeDigitalSoul({
+        communicationStyle: current.communicationStyle,
+        riskTolerance: current.riskTolerance,
+        privacyLevel: current.privacyLevel,
+        spendingPreference: current.spendingPreference,
+        bootstrapSource: source,
+    });
 }
 
 /**
@@ -163,21 +271,9 @@ function riskToleranceFromScore(score: number): SoulMatrix['riskTolerance'] {
 }
 
 function syncEnhancedAvatar(soul: SoulMatrix, stats: DigitalSoulStats): void {
+    syncDigitalSoulToEnhancedAvatar(soul, 'passive');
     const avatar = getEnhancedDigitalAvatar();
     avatar.personality.riskTolerance = Math.round(stats.riskScore * 100);
-
-    if (soul.communicationStyle === 'Professional') {
-        avatar.communicationStyle.formality = 'formal';
-    } else if (soul.communicationStyle === 'Casual') {
-        avatar.communicationStyle.formality = 'casual';
-    } else {
-        avatar.communicationStyle.formality = 'adaptive';
-    }
-
-    avatar.communicationStyle.humorUsage = soul.communicationStyle === 'Friendly'
-        ? clamp(avatar.communicationStyle.humorUsage + 5, 0, 100)
-        : clamp(avatar.communicationStyle.humorUsage - 2, 0, 100);
-
     saveEnhancedDigitalAvatar(avatar);
 }
 

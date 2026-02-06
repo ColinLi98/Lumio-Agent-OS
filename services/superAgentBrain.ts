@@ -380,6 +380,16 @@ export function extractDepartureDate(userRequest: string): string | null {
     return null;
 }
 
+export function extractDepartureTimePreference(
+    userRequest: string
+): 'morning' | 'afternoon' | 'evening' | 'night' | null {
+    if (/(早上|上午|早班|morning)/i.test(userRequest)) return 'morning';
+    if (/(下午|afternoon)/i.test(userRequest)) return 'afternoon';
+    if (/(晚上|傍晚|evening)/i.test(userRequest)) return 'evening';
+    if (/(深夜|夜间|night)/i.test(userRequest)) return 'night';
+    return null;
+}
+
 export function extractRoute(userRequest: string): { origin?: string; destination?: string } {
     const directMatch = userRequest.match(/从\s*([^\s到]+)\s*到\s*([^\s]+)|([^\s]+)\s*到\s*([^\s]+)/);
     if (directMatch) {
@@ -472,6 +482,7 @@ function normalizeTravelDecomposition(
         return { ...decomposition, subTasks: tasks };
     }
     const departureDate = extractDepartureDate(userRequest);
+    const departureTimePreference = extractDepartureTimePreference(userRequest);
     const travelTasks = [...tasks];
     let nextId = tasks.length + 1;
 
@@ -560,7 +571,14 @@ function normalizeTravelDecomposition(
         const destination = route.destination || task.params?.destination;
         const origin = route.origin || task.params?.origin;
         if (task.agentType === 'flight_booking') {
-            task.params = { ...task.params, origin, destination, departureDate: task.params?.departureDate || departureDate };
+            task.params = {
+                ...task.params,
+                origin,
+                destination,
+                departureDate: task.params?.departureDate || departureDate,
+                departureTimePreference: task.params?.departureTimePreference || departureTimePreference,
+                timePriorityMode: task.params?.timePriorityMode || (departureTimePreference ? 'prefer' : undefined)
+            };
         } else if (['hotel_booking', 'weather', 'attraction', 'restaurant', 'itinerary', 'transportation'].includes(task.agentType)) {
             task.params = { ...task.params, destination, origin };
         }
@@ -590,6 +608,7 @@ function patternBasedDecomposition(userRequest: string): TaskDecomposition {
     // Detect origin and destination
     const route = extractRoute(userRequest);
     const departureDate = extractDepartureDate(userRequest);
+    const departureTimePreference = extractDepartureTimePreference(userRequest);
     const destination = route.destination || 'destination';
     const origin = route.origin || 'origin';
 
@@ -616,7 +635,14 @@ function patternBasedDecomposition(userRequest: string): TaskDecomposition {
             agentType: 'flight_booking',
             priority: 1,
             dependsOn: [],
-            params: { origin, destination, budget, departureDate },
+            params: {
+                origin,
+                destination,
+                budget,
+                departureDate,
+                departureTimePreference,
+                timePriorityMode: departureTimePreference ? 'prefer' : undefined
+            },
             status: 'pending'
         });
 

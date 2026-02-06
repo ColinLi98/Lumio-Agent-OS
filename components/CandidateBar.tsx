@@ -1378,9 +1378,13 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
   const priceComparisonLinks = data.priceComparisonLinks;
   const comparisonSummary = data.comparisonSummary;
   const bestOption = data.bestOption || flights[0];
+  const realtimeStatus = data.realtimeStatus;
   const [showExternal, setShowExternal] = React.useState(false);
   const preferenceWeights = comparisonSummary?.preferenceWeights;
   const chronotype = comparisonSummary?.chronotype;
+  const fetchedAtLabel = realtimeStatus?.fetched_at
+    ? new Date(realtimeStatus.fetched_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    : null;
 
   // Handle opening booking URL
   const handleBookingClick = (url: string, e: React.MouseEvent) => {
@@ -1403,6 +1407,21 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
           </div>
           <div className="mt-2 text-sm text-blue-900">
             推荐: {bestOption.airline} · {bestOption.price ? `$${bestOption.price}` : '价格待确认'}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1.5 text-[10px]">
+            <span className={`px-2 py-0.5 rounded-full ${realtimeStatus?.verified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+              {realtimeStatus?.verified ? '实时已验证' : '实时未验证'}
+            </span>
+            {fetchedAtLabel && (
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                抓取时间 {fetchedAtLabel}
+              </span>
+            )}
+            {typeof realtimeStatus?.ttl_seconds === 'number' && realtimeStatus.ttl_seconds > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                TTL {realtimeStatus.ttl_seconds}s
+              </span>
+            )}
           </div>
           {data.searchError && (
             <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">

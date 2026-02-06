@@ -216,7 +216,20 @@ export function useSerpApiKey(): {
  */
 export function getSerpApiKey(): string {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem(SERPAPI_STORAGE_KEY) || '';
+    const stored = localStorage.getItem(SERPAPI_STORAGE_KEY) || '';
+    if (stored) return stored;
   }
+
+  // Env fallback for local dev / CI / server-side execution
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SERPAPI_KEY) {
+    return (import.meta as any).env.VITE_SERPAPI_KEY;
+  }
+  if (typeof process !== 'undefined' && process.env?.SERPAPI_KEY) {
+    return process.env.SERPAPI_KEY;
+  }
+  if (typeof process !== 'undefined' && process.env?.VITE_SERPAPI_KEY) {
+    return process.env.VITE_SERPAPI_KEY;
+  }
+
   return '';
 }

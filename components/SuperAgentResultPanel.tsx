@@ -177,6 +177,7 @@ interface LiveSearchResultCardProps {
         ttl_seconds?: number;
         items?: Array<{ title: string; snippet: string; url: string; source_name: string }>;
         sources?: Array<{ title: string; url: string; source_name: string }>;
+        action_links?: Array<{ title: string; url: string; provider: string; supports_time_filter: boolean }>;
         fallback?: {
             failure_reason: string;
             missing_constraints: string[];
@@ -189,13 +190,66 @@ interface LiveSearchResultCardProps {
     onConstraintClick?: (constraint: string) => void;
 }
 
-const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data, onRefresh, onConstraintClick }) => {
-    const { success, is_live, fetched_at, items, sources, fallback, error, route_decision } = data;
+export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data, onRefresh, onConstraintClick }) => {
+    const { success, is_live, fetched_at, items, sources, action_links, fallback, error, route_decision } = data;
+    const actionLinks = Array.isArray(action_links)
+        ? action_links.filter((link) => typeof link.url === 'string' && link.url.startsWith('http'))
+        : [];
 
     // Calculate if stale (> TTL)
     const isStale = fetched_at && data.ttl_seconds
         ? (Date.now() - new Date(fetched_at).getTime()) > data.ttl_seconds * 1000
         : false;
+
+    const renderActionLinks = () => {
+        if (actionLinks.length === 0) return null;
+        return (
+            <div style={{ marginBottom: 12 }}>
+                <div style={{ color: '#E2E8F0', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+                    快速直达
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {actionLinks.slice(0, 3).map((link, idx) => (
+                        <a
+                            key={`${link.url}_${idx}`}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 10,
+                                textDecoration: 'none',
+                                background: 'rgba(15, 23, 42, 0.55)',
+                                border: '1px solid rgba(14, 165, 233, 0.28)',
+                                borderRadius: 10,
+                                padding: '10px 12px',
+                            }}
+                        >
+                            <div style={{ minWidth: 0 }}>
+                                <div style={{
+                                    color: '#60A5FA',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                }}>
+                                    {link.title}
+                                </div>
+                                <div style={{ color: '#94A3B8', fontSize: 11 }}>
+                                    {link.provider}
+                                    {!link.supports_time_filter && ' · 需在站内手动选择早班筛选'}
+                                </div>
+                            </div>
+                            <ExternalLink size={14} color="#60A5FA" />
+                        </a>
+                    ))}
+                </div>
+            </div>
+        );
+    };
 
     // Failure case: show structured fallback
     if (!success && fallback) {
@@ -241,6 +295,8 @@ const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data, onRef
                     </div>
                 )}
 
+                {renderActionLinks()}
+
                 <button
                     onClick={onRefresh}
                     style={{
@@ -285,6 +341,8 @@ const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data, onRef
                 </div>
                 <FreshnessBadge isLive={is_live || false} fetchedAt={fetched_at} isStale={isStale} />
             </div>
+
+            {renderActionLinks()}
 
             {/* Sources list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -354,6 +412,17 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
 
         // 2. 修复 [text] 后面紧跟 (url) 但中间有空格的情况
         processed = processed.replace(/\[([^\]]+)\]\s+\(([^)]+)\)/g, '[$1]($2)');
+
+        // 3. 修复 markdown 链接中 URL 被换行/空白打断的情况
+        // 例如: [标题](https://a.com/x
+        //       ?k=v)
+        processed = processed.replace(
+            /\[([^\]]+)\]\((https?:\/\/[\s\S]*?)\)/g,
+            (_match, label: string, rawUrl: string) => {
+                const normalizedUrl = String(rawUrl).replace(/[\n\r\t ]+/g, '');
+                return `[${label}](${normalizedUrl})`;
+            }
+        );
 
         return processed;
     };
@@ -498,10 +567,11 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
             }
 
             // 检测 markdown 链接行 [text](url) - 渲染为链接卡片
-            const markdownLinkMatch = trimmedLine.match(/^\s*[✈🔗📎]?\s*\[([^\]]+)\]\(([^)]+)\)/);
+            const markdownLinkMatch = trimmedLine.match(/^\s*(?:[-*•]\s+)?(?:[✈🔗📎]\s*)?\[([^\]]+)\]\((https?:\/\/[^)]+)\)\s*$/);
             if (markdownLinkMatch) {
                 flushParagraph();
-                elements.push(renderLinkCard(markdownLinkMatch[2], markdownLinkMatch[1], elementKey++));
+                const normalizedUrl = markdownLinkMatch[2].replace(/[\n\r\t ]+/g, '');
+                elements.push(renderLinkCard(normalizedUrl, markdownLinkMatch[1], elementKey++));
                 return;
             }
 
@@ -605,7 +675,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
 
     // 渲染行内 markdown（**粗体**、*斜体*）
     const renderInlineMarkdown = (text: string): React.ReactNode => {
-        // 处理行内元素：**粗体** 和 [链接](url)
+        // 处理行内元素：**粗体**、[链接](url) 和裸 URL
         const elements: React.ReactNode[] = [];
         let remaining = text;
         let keyIndex = 0;
@@ -613,10 +683,11 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
         while (remaining.length > 0) {
             // 查找下一个 markdown 元素
             const boldMatch = remaining.match(/\*\*([^*]+)\*\*/);
-            const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
+            const linkMatch = remaining.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/);
+            const plainUrlMatch = remaining.match(/https?:\/\/[^\s)\]]+/);
 
             // 找到最早出现的匹配
-            let earliestMatch: { type: 'bold' | 'link'; index: number; match: RegExpMatchArray } | null = null;
+            let earliestMatch: { type: 'bold' | 'link' | 'url'; index: number; match: RegExpMatchArray } | null = null;
 
             if (boldMatch && boldMatch.index !== undefined) {
                 earliestMatch = { type: 'bold', index: boldMatch.index, match: boldMatch };
@@ -624,6 +695,11 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
             if (linkMatch && linkMatch.index !== undefined) {
                 if (!earliestMatch || linkMatch.index < earliestMatch.index) {
                     earliestMatch = { type: 'link', index: linkMatch.index, match: linkMatch };
+                }
+            }
+            if (plainUrlMatch && plainUrlMatch.index !== undefined) {
+                if (!earliestMatch || plainUrlMatch.index < earliestMatch.index) {
+                    earliestMatch = { type: 'url', index: plainUrlMatch.index, match: plainUrlMatch };
                 }
             }
 
@@ -650,7 +726,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                 remaining = remaining.slice(earliestMatch.index + earliestMatch.match[0].length);
             } else if (earliestMatch.type === 'link') {
                 const linkText = earliestMatch.match[1];
-                const linkUrl = earliestMatch.match[2];
+                const linkUrl = earliestMatch.match[2].replace(/[\n\r\t ]+/g, '');
                 elements.push(
                     <a
                         key={keyIndex++}
@@ -670,6 +746,36 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                         }}
                     >
                         {linkText} ↗
+                    </a>
+                );
+                remaining = remaining.slice(earliestMatch.index + earliestMatch.match[0].length);
+            } else if (earliestMatch.type === 'url') {
+                const rawUrl = earliestMatch.match[0];
+                const url = rawUrl.replace(/[\n\r\t ]+/g, '');
+                let linkLabel = url;
+                try {
+                    linkLabel = new URL(url).hostname.replace('www.', '');
+                } catch {
+                    // keep original url
+                }
+                elements.push(
+                    <a
+                        key={keyIndex++}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                        }}
+                        style={{
+                            color: '#60A5FA',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                        }}
+                    >
+                        {linkLabel} ↗
                     </a>
                 );
                 remaining = remaining.slice(earliestMatch.index + earliestMatch.match[0].length);

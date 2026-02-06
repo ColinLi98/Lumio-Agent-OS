@@ -322,10 +322,12 @@ const knowledgeQATool: Tool = {
 
 // Import only client-safe modules (no server-side code like liveSearchService)
 import { classifyFreshness, createStructuredFallback, type IntentDomain, type StructuredFallback } from './freshnessClassifier';
+import { buildFlightActionLinks, parseFlightConstraints } from './flightConstraintParser';
 
 // Type definitions for API response
 interface LiveSearchAPIResponse {
     success: boolean;
+    action_links?: Array<{ title: string; url: string; provider: string; supports_time_filter: boolean }>;
     evidence?: {
         provider: string;
         fetched_at: string;
@@ -348,6 +350,28 @@ interface LiveSearchAPIResponse {
         reason: string;
         missing_constraints?: string[];
     };
+}
+
+function hasStructuredFlightEvidence(
+    items: Array<{ title: string; snippet: string; url: string; source_name: string }> | undefined
+): boolean {
+    if (!Array.isArray(items) || items.length === 0) return false;
+    let structuredSignals = 0;
+
+    for (const item of items) {
+        const text = `${item.title || ''} ${item.snippet || ''}`;
+        if (/(航班|机票|flight|airline|起飞|抵达|直飞|转机)/i.test(text)) {
+            structuredSignals += 1;
+        }
+        if (/\b([01]?\d|2[0-3]):[0-5]\d\b/.test(text)) {
+            structuredSignals += 1;
+        }
+        if (/([¥￥$]\s?\d{2,5})|(\d{2,5}\s?(元|cny|rmb))/i.test(text)) {
+            structuredSignals += 1;
+        }
+    }
+
+    return structuredSignals >= 2;
 }
 
 const liveSearchTool: Tool = {
@@ -394,6 +418,8 @@ const liveSearchTool: Tool = {
         // Auto-detect domain if not provided
         const routeDecision = classifyFreshness(query);
         const domain = (intent_domain || routeDecision.intent_domain) as IntentDomain;
+        const parsedConstraints = parseFlightConstraints(query);
+        const generatedActionLinks = buildFlightActionLinks(parsedConstraints);
 
         console.log(`[LiveSearchTool] Query: "${query}", Domain: ${domain}, NeedsLive: ${routeDecision.needs_live_data}`);
 
@@ -414,6 +440,10 @@ const liveSearchTool: Tool = {
 
             if (result.success && result.evidence) {
                 const evidence = result.evidence;
+                const isWeakFlightEvidence = domain === 'travel.flight' && !hasStructuredFlightEvidence(evidence.items);
+                const actionLinks = result.action_links?.length
+                    ? result.action_links
+                    : generatedActionLinks;
                 // Format fetched_at for display
                 const fetchedAtDate = new Date(evidence.fetched_at);
                 const fetchedAtDisplay = fetchedAtDate.toLocaleTimeString('zh-CN', {
@@ -437,6 +467,10 @@ const liveSearchTool: Tool = {
                         url: item.url,
                         source_name: item.source_name,
                     })),
+                    action_links: isWeakFlightEvidence ? actionLinks.map((link) => ({
+                        ...link,
+                        supports_time_filter: false,
+                    })) : undefined,
                     cache_hit: evidence.notes?.cache_hit ?? false,
                     route_decision: result.route_decision || routeDecision,
                 };
@@ -454,6 +488,10 @@ const liveSearchTool: Tool = {
                     skillName: '实时搜索',
                     error: result.error || { code: 'UNKNOWN', message: 'Search failed' },
                     fallback,
+                    action_links: (result.action_links?.length ? result.action_links : generatedActionLinks).map((link) => ({
+                        ...link,
+                        supports_time_filter: false,
+                    })),
                     is_live: false,
                     route_decision: result.route_decision || routeDecision,
                     instruction: '搜索失败，请不要编造价格或链接。向用户展示缺失的约束条件，并请求补充信息。'
@@ -478,6 +516,10 @@ const liveSearchTool: Tool = {
                     message: fetchError instanceof Error ? fetchError.message : 'Network error',
                 },
                 fallback,
+                action_links: generatedActionLinks.map((link) => ({
+                    ...link,
+                    supports_time_filter: false,
+                })),
                 is_live: false,
                 route_decision: routeDecision,
                 instruction: '网络错误，请不要编造价格或链接。'

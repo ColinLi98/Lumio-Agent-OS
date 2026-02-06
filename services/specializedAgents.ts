@@ -2,7 +2,8 @@
  * Specialized Agents - 专业Agent实现
  * 
  * 各专业Agent负责特定领域的任务执行
- * 支持真实API集成 (SerpApi, Amadeus) 和模拟数据fallback
+ * 支持真实API集成 (SerpApi, Amadeus)
+ * 默认策略：实时证据优先，不输出估算票价
  */
 
 import {
@@ -78,6 +79,16 @@ function parseHour(time?: string): number | null {
     if (!match) return null;
     const hour = parseInt(match[1], 10);
     return Number.isFinite(hour) ? hour : null;
+}
+
+function normalizeDepartureTimePreference(value: any): FlightSearchParams['departureTimePreference'] | undefined {
+    if (typeof value !== 'string') return undefined;
+    const lower = value.toLowerCase();
+    if (lower === 'morning' || /早上|上午|早班/.test(value)) return 'morning';
+    if (lower === 'afternoon' || /下午/.test(value)) return 'afternoon';
+    if (lower === 'evening' || /晚上|傍晚/.test(value)) return 'evening';
+    if (lower === 'night' || /夜间|深夜/.test(value)) return 'night';
+    return undefined;
 }
 
 function shiftTime(time?: string, offsetMinutes: number = 0): string | null {
@@ -439,6 +450,12 @@ const flightBookingAgent: SpecializedAgentImpl = {
         const preferences = getTravelPreferences();
         const preferredClass = preferences.priceVsQuality > 30 ? 'business' : 'economy';
         const flightClass = task.params.class || preferredClass;
+        const departureTimePreference = normalizeDepartureTimePreference(
+            task.params.departureTimePreference || task.params.departureTime
+        );
+        const timePriorityMode: FlightSearchParams['timePriorityMode'] = task.params.timePriorityMode === 'strict'
+            ? 'strict'
+            : 'prefer';
 
         // Calculate departure date (use provided date or default to 7 days from now)
         const now = new Date();
@@ -459,7 +476,9 @@ const flightBookingAgent: SpecializedAgentImpl = {
             destination,
             departureDate: departureDateStr,
             travelClass: flightClass as 'economy' | 'business' | 'first',
-            currency: 'USD'
+            currency: /[\u4e00-\u9fa5]/.test(`${origin}${destination}`) ? 'CNY' : 'USD',
+            departureTimePreference,
+            timePriorityMode,
         };
 
         console.log('[FlightBookingAgent] Search params:', searchParams);
@@ -469,16 +488,49 @@ const flightBookingAgent: SpecializedAgentImpl = {
         const serpApiKey = getSerpApiKey();
 
         try {
-            // Call real flight search API
-            const searchResult = await searchFlights(searchParams, serpApiKey);
+            // Call real flight search API (fail-closed realtime policy)
+            const searchResult = await searchFlights(searchParams, serpApiKey, {
+                requireLiveData: true,
+                allowEstimatedFallback: false,
+            });
 
             console.log('[FlightBookingAgent] Search result:', {
                 success: searchResult.success,
                 flightsCount: searchResult.flights.length,
-                hasApiKey: !!serpApiKey
+                hasApiKey: !!serpApiKey,
+                realtimeVerified: Boolean(searchResult.realtime?.verified),
             });
 
-            const usingSerpApi = Boolean(serpApiKey) && searchResult.success && searchResult.flights.length > 0 && !searchResult.error;
+            const usingRealtimeVerified = Boolean(searchResult.realtime?.verified);
+            if (!searchResult.success || !usingRealtimeVerified || searchResult.flights.length === 0) {
+                const priceComparisonLinks: Record<string, { name: string; url: string; icon: string }> = {};
+                searchResult.comparisonLinks.forEach(link => {
+                    const key = link.name.toLowerCase().replace(/\s+/g, '');
+                    priceComparisonLinks[key] = link;
+                });
+
+                return {
+                    success: false,
+                    data: {
+                        origin,
+                        destination,
+                        departureDate: departureDateStr,
+                        error: searchResult.error || '未获取到可验证的实时航班证据',
+                        realtimeRequired: true,
+                        realtimeStatus: searchResult.realtime || {
+                            verified: false,
+                            provider: 'none',
+                            coverage_scope: 'none',
+                        },
+                        priceComparisonLinks,
+                        nextAction: '请稍后重试实时搜索，或通过多平台入口手动筛选并比价。'
+                    },
+                    suggestions: [],
+                    personalizedNote: `⚠️ 当前未获取到 ${origin} → ${destination} 的可验证实时票价，已返回多平台入口用于人工复核`,
+                    appliedFilters: task.appliedPreferences,
+                    source: 'NoRealtimeEvidence'
+                };
+            }
 
             // Transform results to agent format
             const flights = searchResult.flights.map((f, idx) => ({
@@ -526,6 +578,13 @@ const flightBookingAgent: SpecializedAgentImpl = {
                 : 0;
             const directCount = scoredFlights.filter(f => f.stops === 0).length;
 
+            const realtimeProvider = searchResult.realtime?.provider || 'none';
+            const dataSourceLabel = realtimeProvider === 'multi_aggregated'
+                ? 'Realtime Multi-source (SerpApi + LiveSearch)'
+                : realtimeProvider === 'live_search_grounding'
+                    ? 'Live Search Grounding (实时)'
+                    : 'SerpApi (Google Flights, 实时)';
+
             return {
                 success: true,
                 data: {
@@ -535,6 +594,7 @@ const flightBookingAgent: SpecializedAgentImpl = {
                     searchDate: now.toISOString(),
                     flights: scoredFlights,
                     bestOption,
+                    globalOptimal: bestOption,
                     estimatedCost: scoredFlights[0]?.price || 0,
                     lowestPrice,
                     priceComparisonLinks,
@@ -542,23 +602,25 @@ const flightBookingAgent: SpecializedAgentImpl = {
                         averagePrice: avgPrice,
                         directCount,
                         totalOptions: scoredFlights.length,
+                        platformsCovered: Object.keys(priceComparisonLinks).length,
+                        realtimeVerified: true,
+                        coverageScope: searchResult.realtime?.coverage_scope || 'single_provider',
                         preferenceWeights: scoredResult.weights,
                         chronotype: preferences.chronotype
                     },
+                    globalOptimalReason: bestOption
+                        ? (searchResult.realtime?.coverage_scope === 'multi_provider'
+                            ? `基于多平台实时数据综合评分最高（匹配度 ${bestOption.matchScore || 0}%）`
+                            : `当前为单一实时源的最优候选（匹配度 ${bestOption.matchScore || 0}%），建议结合多平台入口复核全局最优`)
+                        : '暂无可排序航班，建议使用外部平台继续比价',
                     searchError: searchResult.error,
-                    // Indicate if we used real API or mock data
-                    dataSource: usingSerpApi
-                        ? 'SerpApi (Google Flights)'
-                        : serpApiKey
-                            ? 'SerpApi request failed, using estimated prices'
-                            : 'Estimated prices (add SerpApi key for real-time data)'
+                    dataSource: dataSourceLabel,
+                    realtimeStatus: searchResult.realtime
                 },
                 suggestions: scoredFlights,
-                personalizedNote: usingSerpApi
-                    ? `✅ 实时搜索 ${origin} → ${destination} (${departureDateStr})，已按偏好排序`
-                    : `🔍 基于公开数据估算 ${origin} → ${destination} (${departureDateStr})，已按偏好排序`,
+                personalizedNote: `✅ 实时搜索 ${origin} → ${destination} (${departureDateStr})，已按偏好排序`,
                 appliedFilters: task.appliedPreferences,
-                source: usingSerpApi ? 'SerpApi' : 'Mock + Real Links'
+                source: dataSourceLabel
             };
         } catch (error) {
             console.error('[FlightBookingAgent] API error:', error);

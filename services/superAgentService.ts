@@ -13,6 +13,8 @@ import { SkillResult } from './skillRegistry';
 import { getPlanGenerator } from './planGenerator';
 import { ThreeStagePlan } from './planTypes';
 import { track } from './telemetryService';
+import { classifyFreshness, createStructuredFallback, type StructuredFallback, type IntentDomain } from './freshnessClassifier';
+import { buildFlightActionLinks, parseFlightConstraints, type FlightConstraints } from './flightConstraintParser';
 
 // ============================================================================
 // Types
@@ -105,6 +107,7 @@ export class SuperAgentService {
     ): Promise<AgentResponse> {
         const startTime = performance.now();
         const traceId = `trace_${Date.now()}`;
+        const flightConstraints = parseFlightConstraints(query);
         console.log(`[SuperAgent] 🧠 ReAct Loop starting for: "${query}"`);
 
         // Telemetry: Track query received
@@ -236,7 +239,15 @@ export class SuperAgentService {
             }
 
             // 8. Extract final answer
+            this.applyFlightTimePreferenceToToolResults(toolResults, flightConstraints);
             const finalText = result.text() || '处理完成，但未生成回复。';
+            const guardedAnswer = this.enforceEvidenceFirstAnswer(query, finalText, toolResults);
+            const timeAwareAnswer = this.enforceFlightTimePreference(
+                query,
+                guardedAnswer,
+                toolResults,
+                flightConstraints
+            );
 
             // Calculate confidence
             const successfulResults = toolResults.filter(r => r.success);
@@ -248,7 +259,7 @@ export class SuperAgentService {
             console.log(`[SuperAgent] ✅ Completed in ${executionTimeMs}ms, ${turns} turns, ${toolsUsed.length} tools`);
 
             return {
-                answer: finalText,
+                answer: timeAwareAnswer,
                 toolsUsed: Array.from(new Set(toolsUsed)),
                 toolResults,
                 confidence,
@@ -285,6 +296,274 @@ export class SuperAgentService {
                 turns: 0
             };
         }
+    }
+
+    private extractEvidenceItems(output: any): Array<{ title?: string; snippet?: string; url?: string; source_name?: string }> {
+        if (!output || typeof output !== 'object') return [];
+        if (Array.isArray(output.evidence?.items)) return output.evidence.items;
+        if (Array.isArray(output.items)) return output.items;
+        if (Array.isArray(output.sources)) return output.sources;
+        return [];
+    }
+
+    private hasStructuredTravelEvidence(
+        domain: IntentDomain,
+        items: Array<{ title?: string; snippet?: string; url?: string; source_name?: string }>
+    ): boolean {
+        if (!Array.isArray(items) || items.length === 0) return false;
+
+        const domainSet = new Set<string>();
+        let structuredCount = 0;
+
+        for (const item of items) {
+            const text = `${item?.title || ''} ${item?.snippet || ''}`;
+            if (/(航班|机票|flight|airline|起飞|抵达|直飞|转机|票价|¥|￥|\$|\d{2,5}\s*(元|rmb|cny))/i.test(text)) {
+                structuredCount += 1;
+            }
+            if (item?.url) {
+                try {
+                    domainSet.add(new URL(item.url).hostname.replace(/^www\./, ''));
+                } catch {
+                    // ignore invalid URLs
+                }
+            }
+        }
+
+        if (domain === 'travel.flight' || domain === 'travel.train') {
+            return structuredCount >= 1 && items.length >= 2 && domainSet.size >= 1;
+        }
+
+        if (domain === 'travel.hotel') {
+            return structuredCount >= 1 && items.length >= 2;
+        }
+
+        return items.length >= 1;
+    }
+
+    private hasUsableEvidence(domain: IntentDomain, output: any): boolean {
+        const items = this.extractEvidenceItems(output);
+        if (domain.startsWith('travel.')) {
+            return this.hasStructuredTravelEvidence(domain, items);
+        }
+        return items.length > 0;
+    }
+
+    private enforceEvidenceFirstAnswer(
+        query: string,
+        modelAnswer: string,
+        toolResults: ToolExecutionResult[]
+    ): string {
+        const route = classifyFreshness(query);
+        if (!route.needs_live_data) return modelAnswer;
+
+        const relevant = toolResults.filter((r) => r.toolName === 'live_search' || r.toolName === 'web_exec');
+        if (relevant.length === 0) {
+            return modelAnswer;
+        }
+
+        const hasAnyUsable = relevant.some((r) => r.success && this.hasUsableEvidence(route.intent_domain, r.output));
+        if (hasAnyUsable) {
+            return modelAnswer;
+        }
+
+        const latestLiveFailure = [...relevant]
+            .reverse()
+            .find((r) => r.toolName === 'live_search');
+
+        const fallback: StructuredFallback = latestLiveFailure?.output?.fallback
+            || createStructuredFallback(
+                route.intent_domain,
+                '已触发 Evidence-first 保护：暂未拿到可验证的实时结果',
+                route.missing_constraints
+            );
+
+        const missing = (fallback.missing_constraints?.length ? fallback.missing_constraints : route.missing_constraints) || [];
+        const missingText = missing.length > 0
+            ? missing.map((m) => `- ${m}`).join('\n')
+            : '- 出发日期\n- 舱位偏好（经济/商务）\n- 乘客人数';
+
+        const example = route.intent_domain === 'travel.flight'
+            ? '明天早上，上海虹桥到北京首都，经济舱，1人'
+            : route.intent_domain === 'travel.train'
+                ? '明天上午，上海到北京，二等座，1人'
+                : '请补充日期、人数与预算';
+
+        return [
+            '当前请求属于实时查询，我不会在无可验证证据时编造价格或班次。',
+            '',
+            '为了继续准确查询，请补充以下约束：',
+            missingText,
+            '',
+            `可直接回复：\`${example}\``,
+            '',
+            '补充后我会立即重新检索并给出可验证来源。'
+        ].join('\n');
+    }
+
+    private parseHour(timeValue: any): number | null {
+        if (typeof timeValue !== 'string') return null;
+        const trimmed = timeValue.trim();
+        if (!trimmed) return null;
+
+        const ampmMatch = trimmed.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (ampmMatch) {
+            let hour = parseInt(ampmMatch[1], 10);
+            const marker = ampmMatch[3].toUpperCase();
+            if (marker === 'PM' && hour < 12) hour += 12;
+            if (marker === 'AM' && hour === 12) hour = 0;
+            return hour;
+        }
+
+        const normalMatch = trimmed.match(/(\d{1,2}):(\d{2})/);
+        if (normalMatch) {
+            return parseInt(normalMatch[1], 10);
+        }
+
+        const cnMatch = trimmed.match(/(\d{1,2})点/);
+        if (cnMatch) {
+            return parseInt(cnMatch[1], 10);
+        }
+        return null;
+    }
+
+    private getFlightDepartureHour(flight: any): number | null {
+        if (!flight || typeof flight !== 'object') return null;
+        const departure = (flight as any).departure;
+        if (typeof departure === 'string') return this.parseHour(departure);
+        if (departure && typeof departure === 'object') {
+            return this.parseHour((departure as any).time);
+        }
+        return null;
+    }
+
+    private isInPreferredWindow(hour: number | null, preference: FlightConstraints['departureTimePreference']): boolean {
+        if (hour === null || !preference) return false;
+        if (preference === 'morning') return hour >= 6 && hour < 12;
+        if (preference === 'afternoon') return hour >= 12 && hour < 18;
+        if (preference === 'evening') return hour >= 18 && hour < 24;
+        if (preference === 'night') return hour >= 0 && hour < 6;
+        return false;
+    }
+
+    private sortFlightsByPreference(
+        flights: any[],
+        preference: FlightConstraints['departureTimePreference'],
+        mode: FlightConstraints['timePriorityMode']
+    ): any[] {
+        if (!Array.isArray(flights) || flights.length === 0 || !preference) return flights;
+
+        const scored = flights.map((flight) => ({
+            flight,
+            hour: this.getFlightDepartureHour(flight),
+            inPreferredWindow: this.isInPreferredWindow(this.getFlightDepartureHour(flight), preference),
+            price: Number.isFinite((flight as any).price) ? (flight as any).price : Number.POSITIVE_INFINITY,
+        }));
+
+        if (mode === 'strict') {
+            return scored.filter((item) => item.inPreferredWindow).map((item) => item.flight);
+        }
+
+        return scored
+            .sort((a, b) => {
+                if (a.inPreferredWindow !== b.inPreferredWindow) {
+                    return a.inPreferredWindow ? -1 : 1;
+                }
+                return a.price - b.price;
+            })
+            .map((item) => item.flight);
+    }
+
+    private applyFlightTimePreferenceToToolResults(
+        toolResults: ToolExecutionResult[],
+        constraints: FlightConstraints
+    ): void {
+        if (!constraints.departureTimePreference) return;
+        const mode = constraints.timePriorityMode || 'prefer';
+
+        for (const result of toolResults) {
+            const output = result.output;
+            if (!output || typeof output !== 'object') continue;
+
+            if (Array.isArray(output.flights)) {
+                output.flights = this.sortFlightsByPreference(output.flights, constraints.departureTimePreference, mode);
+                if (output.flights.length > 0 && output.bestOption) {
+                    output.bestOption = output.flights[0];
+                }
+            }
+
+            if (output.data && typeof output.data === 'object' && Array.isArray(output.data.flights)) {
+                output.data.flights = this.sortFlightsByPreference(output.data.flights, constraints.departureTimePreference, mode);
+                if (output.data.flights.length > 0 && output.data.bestOption) {
+                    output.data.bestOption = output.data.flights[0];
+                }
+            }
+        }
+    }
+
+    private hasStructuredFlights(toolResults: ToolExecutionResult[]): boolean {
+        const getFlights = (output: any): any[] => {
+            if (!output || typeof output !== 'object') return [];
+            if (Array.isArray(output.flights)) return output.flights;
+            if (output.data && Array.isArray(output.data.flights)) return output.data.flights;
+            return [];
+        };
+
+        return toolResults.some((result) => {
+            const flights = getFlights(result.output);
+            if (flights.length === 0) return false;
+            return flights.some((flight) => {
+                const hour = this.getFlightDepartureHour(flight);
+                const hasPrice = Number.isFinite((flight as any)?.price);
+                return hour !== null || hasPrice;
+            });
+        });
+    }
+
+    private extractActionLinks(toolResults: ToolExecutionResult[]): Array<{ title: string; url: string }> {
+        const links: Array<{ title: string; url: string }> = [];
+        for (const result of toolResults) {
+            const output = result.output;
+            if (!output || typeof output !== 'object' || !Array.isArray(output.action_links)) continue;
+            for (const link of output.action_links) {
+                if (!link || typeof link.url !== 'string' || !link.url.startsWith('http')) continue;
+                links.push({
+                    title: typeof link.title === 'string' && link.title.length > 0 ? link.title : '查看航班',
+                    url: link.url,
+                });
+            }
+        }
+        return links;
+    }
+
+    private enforceFlightTimePreference(
+        query: string,
+        modelAnswer: string,
+        toolResults: ToolExecutionResult[],
+        constraints: FlightConstraints
+    ): string {
+        const route = classifyFreshness(query);
+        const isLikelyFlightQuery = route.intent_domain === 'travel.flight'
+            || Boolean(constraints.origin && constraints.destination && constraints.departureDate);
+        if (!isLikelyFlightQuery) return modelAnswer;
+        if (constraints.departureTimePreference !== 'morning') return modelAnswer;
+        if ((constraints.timePriorityMode || 'prefer') !== 'prefer') return modelAnswer;
+        if (this.hasStructuredFlights(toolResults)) return modelAnswer;
+
+        const actionLinks = this.extractActionLinks(toolResults);
+        const generatedLinks = actionLinks.length > 0 ? actionLinks : buildFlightActionLinks(constraints);
+        const linkLines = generatedLinks.length > 0
+            ? generatedLinks.slice(0, 3).map((link) => `- [${link.title}](${link.url})`).join('\n')
+            : '- 暂无可点击链接，请补充出发地、目的地和日期后重试。';
+
+        return [
+            '已识别到你的时间偏好：早上时段（06:00-11:59）。',
+            '',
+            '当前可验证证据尚未返回结构化航班列表，我无法在回答中直接给出精确班次排序。',
+            '外站页面通常默认按低价优先排序，所以可能先显示晚班机。',
+            '',
+            '建议操作：可在下方多平台入口中任选其一，再在页面顶部将「起飞时间」切到「早-午 / 上午」筛选。',
+            linkLines,
+        ].join('\n');
     }
 
     /**
