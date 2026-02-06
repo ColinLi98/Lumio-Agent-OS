@@ -2,6 +2,14 @@ import path from 'path';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import type { ServerResponse, IncomingMessage } from 'http';
+import lixBroadcastHandler from './api/lix-broadcast';
+import lixAcceptHandler from './api/lix-accept';
+import lixProcessPendingHandler from './api/lix-process-pending';
+import lixMetricsHandler from './api/lix-metrics';
+import lixConversionCallbackHandler from './api/lix-conversion-callback';
+import lixDisputeHandler from './api/lix-dispute';
+import lixIntentHandler from './api/lix-intent';
+import lixOffersHandler from './api/lix-offers';
 
 // ============================================================================
 // 6.1 Intent Domain Types (5 domains)
@@ -265,6 +273,78 @@ async function readJsonBody(req: IncomingMessage): Promise<any> {
   const raw = Buffer.concat(chunks).toString("utf-8");
   if (!raw) return {};
   return JSON.parse(raw);
+}
+
+type WebApiHandler = (request: Request) => Promise<Response> | Response;
+
+interface LixDevRoute {
+  path: string | RegExp;
+  handler: WebApiHandler;
+}
+
+const LIX_DEV_ROUTES: LixDevRoute[] = [
+  { path: '/api/lix/broadcast', handler: lixBroadcastHandler },
+  { path: '/api/lix/offer/accept', handler: lixAcceptHandler },
+  { path: '/api/lix/process-pending', handler: lixProcessPendingHandler },
+  { path: '/api/lix/metrics', handler: lixMetricsHandler },
+  { path: /^\/api\/lix\/conversion\/callback\/[^/]+$/, handler: lixConversionCallbackHandler },
+  { path: '/api/lix/conversion/dispute', handler: lixDisputeHandler },
+  { path: '/api/lix/intent', handler: lixIntentHandler },
+  { path: '/api/lix/offers', handler: lixOffersHandler },
+];
+
+function matchLixDevRoute(pathname: string): LixDevRoute | undefined {
+  return LIX_DEV_ROUTES.find((route) =>
+    typeof route.path === 'string'
+      ? route.path === pathname
+      : route.path.test(pathname)
+  );
+}
+
+async function readRawBody(req: IncomingMessage): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as any));
+  }
+  return Buffer.concat(chunks);
+}
+
+async function bridgeWebApiHandler(
+  req: IncomingMessage,
+  res: ServerResponse,
+  handler: WebApiHandler,
+  url: URL
+): Promise<void> {
+  const method = req.method ?? 'GET';
+  const headers = new Headers();
+
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (Array.isArray(value)) {
+      for (const headerValue of value) headers.append(key, headerValue);
+    } else if (typeof value === 'string') {
+      headers.set(key, value);
+    }
+  }
+
+  const init: RequestInit = { method, headers };
+  if (method !== 'GET' && method !== 'HEAD') {
+    const rawBody = await readRawBody(req);
+    if (rawBody.length > 0) {
+      // RequestInit.body expects BodyInit; Buffer is a Uint8Array at runtime.
+      init.body = new Uint8Array(rawBody);
+    }
+  }
+
+  const webRequest = new Request(url.toString(), init);
+  const webResponse = await handler(webRequest);
+
+  res.statusCode = webResponse.status;
+  webResponse.headers.forEach((value, key) => {
+    res.setHeader(key, value);
+  });
+
+  const body = Buffer.from(await webResponse.arrayBuffer());
+  res.end(body);
 }
 
 function normalizeQuery(q: string): string {
@@ -825,6 +905,30 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
   return {
     name: 'api-routes',
     configureServer(server) {
+      // Local LIX compatibility routes: expose /api/lix/* while keeping api/lix-*.ts modules.
+      server.middlewares.use(async (req, res, next) => {
+        const host = req.headers.host || '127.0.0.1:5173';
+        const requestUrl = new URL(req.url || '/', `http://${host}`);
+        const route = matchLixDevRoute(requestUrl.pathname);
+
+        if (!route) {
+          return next();
+        }
+
+        try {
+          await bridgeWebApiHandler(req, res, route.handler, requestUrl);
+        } catch (error) {
+          console.error(`[lix-dev-route] ${requestUrl.pathname} failed`, error);
+          if (!res.headersSent) {
+            safeJson(res, 500, {
+              success: false,
+              error: 'LIX dev route bridge failed',
+              path: requestUrl.pathname,
+            });
+          }
+        }
+      });
+
       // 6.3: /api/web-exec (main endpoint)
       const handleWebExec = async (req: IncomingMessage, res: ServerResponse) => {
         if (req.method === 'OPTIONS') {

@@ -11,6 +11,11 @@
 
 import { sanitizeForExternalSearch, redactPII } from './piiRedactor';
 import { classifyFreshness } from './freshnessClassifier';
+import type {
+    EvidencePack as DtoeEvidencePack,
+    EvidenceItem as DtoeEvidenceItem,
+    EvidenceProvider as DtoeEvidenceProvider,
+} from './dtoe/coreSchemas';
 
 // ============================================================================
 // Types
@@ -23,22 +28,22 @@ export interface LiveSearchRequest {
     max_items?: number;
 }
 
-export interface EvidenceItem {
-    title: string;
-    snippet: string;
-    url: string;
-    source_name: string;
-}
+/**
+ * v0.1 aligned provider types
+ */
+export type EvidenceProvider = DtoeEvidenceProvider;
 
-export interface EvidencePack {
-    provider: 'openai_web_search';
-    fetched_at: string;  // ISO timestamp
-    ttl_seconds: number;
+export type EvidenceItem = DtoeEvidenceItem;
+
+/**
+ * EvidencePack - aligned with v0.1 schema
+ * NOTE: Both fetched_at (ISO string) and fetched_at_ms (number) are provided for compatibility
+ */
+export interface EvidencePack extends DtoeEvidencePack {
+    fetched_at: string;       // ISO timestamp (legacy)
     query_normalized: string;
     intent_domain: string;
-    items: EvidenceItem[];
     notes: {
-        confidence: number;
         warnings: string[];
         cache_hit?: boolean;
     };
@@ -353,17 +358,19 @@ export async function liveSearch(request: LiveSearchRequest): Promise<LiveSearch
 
         // 5. Build EvidencePack
         const ttl = getTTL(intent_domain);
-        const fetchedAt = new Date().toISOString();
+        const fetchedAt = new Date();
+        const confidence = Math.min(0.9, 0.5 + items.length * 0.1);
 
         const evidence: EvidencePack = {
             provider: 'openai_web_search',
-            fetched_at: fetchedAt,
+            fetched_at: fetchedAt.toISOString(),
+            fetched_at_ms: fetchedAt.getTime(),
             ttl_seconds: ttl,
             query_normalized: normalizeQuery(sanitizedQuery),
             intent_domain,
             items,
+            confidence,
             notes: {
-                confidence: Math.min(0.9, 0.5 + items.length * 0.1),
                 warnings,
                 cache_hit: false,
             },
@@ -401,7 +408,9 @@ export async function liveSearch(request: LiveSearchRequest): Promise<LiveSearch
  * Check if evidence is still fresh
  */
 export function isEvidenceFresh(evidence: EvidencePack): boolean {
-    const fetchedAt = new Date(evidence.fetched_at).getTime();
+    const fetchedAt = Number.isFinite(evidence.fetched_at_ms)
+        ? evidence.fetched_at_ms
+        : new Date(evidence.fetched_at).getTime();
     const age = Date.now() - fetchedAt;
     return age < evidence.ttl_seconds * 1000;
 }
@@ -410,7 +419,7 @@ export function isEvidenceFresh(evidence: EvidencePack): boolean {
  * Get formatted update time for UI display
  */
 export function formatFetchedAt(evidence: EvidencePack): string {
-    const date = new Date(evidence.fetched_at);
+    const date = new Date(Number.isFinite(evidence.fetched_at_ms) ? evidence.fetched_at_ms : evidence.fetched_at);
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 

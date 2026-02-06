@@ -3,8 +3,23 @@ import { useState, useEffect, useCallback } from 'react';
 const STORAGE_KEY = 'lumi_gemini_api_key';
 const PERSIST_KEY = 'lumi_api_key_persist';
 
-// Default API key for testing and development (Gemini)
-export const DEFAULT_API_KEY = 'AIzaSyCJdG37_5me5hvevvf8bFJVgPMc-BXU-7o';
+/**
+ * Get API key from environment variable.
+ * SECURITY: API keys MUST NOT be hardcoded. They must be provided via:
+ * - Environment variable: NEXT_PUBLIC_GEMINI_API_KEY or VITE_GEMINI_API_KEY
+ * - User input (stored in localStorage if user opts in)
+ */
+export function getApiKeyFromEnv(): string | undefined {
+  // Check Next.js environment variable
+  if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_GEMINI_API_KEY) {
+    return process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  }
+  // Check Vite environment variable
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) {
+    return (import.meta as any).env.VITE_GEMINI_API_KEY;
+  }
+  return undefined;
+}
 
 export type ApiKeyStatus = 'empty' | 'validating' | 'valid' | 'invalid';
 
@@ -57,19 +72,23 @@ export function useApiKey(): {
   clearApiKey: () => void;
 } {
   const [apiKeyState, setApiKeyState] = useState<ApiKeyState>(() => {
+    // Priority: 1. Environment variable, 2. LocalStorage (if persisted)
+    const envKey = getApiKeyFromEnv();
+    if (envKey) {
+      return { key: envKey, status: 'valid', persist: false };
+    }
+
     // Initialize from LocalStorage if persistence was enabled
     if (typeof window !== 'undefined') {
       const persistEnabled = localStorage.getItem(PERSIST_KEY) === 'true';
       const storedKey = persistEnabled ? localStorage.getItem(STORAGE_KEY) || '' : '';
-      // Use stored key if available, otherwise use default key for development
-      const activeKey = storedKey || DEFAULT_API_KEY;
       return {
-        key: activeKey,
-        status: activeKey ? 'valid' : 'empty', // Assume valid if restored (will re-validate on use)
+        key: storedKey,
+        status: storedKey ? 'valid' : 'empty',
         persist: persistEnabled,
       };
     }
-    return { key: DEFAULT_API_KEY, status: 'valid', persist: false };
+    return { key: '', status: 'empty', persist: false };
   });
 
   // Update LocalStorage when persist setting changes

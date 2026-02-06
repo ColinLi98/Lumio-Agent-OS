@@ -20,7 +20,7 @@ import { applyPassiveLearningEvent, calculateEditRatio } from '../services/digit
 import { OCRResult, QuickAction as OCRQuickAction } from '../services/ocrService';
 import { keyboardSentinel, SentinelOutput } from '../services/keyboardSentinelService';
 import { soulArchitect } from '../services/soulArchitectService';
-import { destinyEngine } from '../services/destinyEngineService';
+import { getDestinyEngine } from '../services/dtoe/destinyEngine';
 import { personalNavigator } from '../services/personalNavigatorService';
 import { getPassiveLearningService } from '../services/passiveLearningService';
 import { PassiveLearningConsentModal } from './PassiveLearningConsentModal';
@@ -62,6 +62,13 @@ const formatMessageTime = (timestamp: number): string => {
   }
   const date = new Date(timestamp);
   return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+};
+
+const mapFailureProbToRiskLevel = (failureProb: number): 'low' | 'medium' | 'high' | 'extreme' => {
+  if (failureProb < 0.15) return 'low';
+  if (failureProb < 0.3) return 'medium';
+  if (failureProb < 0.5) return 'high';
+  return 'extreme';
 };
 
 const MESSAGES_STORAGE_KEY = 'lumi_chat_messages';
@@ -821,76 +828,83 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
             // Note: handleSend is defined in AgentKeyboard component, so we just set mode here
             // The actual processing will happen when user presses enter
           }}
-          onDestinySimulate={async (intentType, params) => {
-            // 运行命运模拟
-            onAgentLog(`[Destiny Engine] 启动命运模拟: ${intentType}`);
-            onAgentLog(`[Tavily] 获取实时市场数据...`);
+          onDestinySimulate={async (intentType, _params) => {
+            onAgentLog(`[DTOE] 启动策略推演: ${intentType}`);
 
-            // 快速评估选项
-            const options = intentType === 'career'
-              ? ['辞职创业', '保持稳定工作', '边工作边准备']
-              : intentType === 'finance'
-                ? ['激进投资', '保守投资', '观望等待']
-                : ['立即行动', '继续观望', '寻求更多信息'];
-
-            // 使用增强版评估（包含实时数据）
-            const evaluation = await destinyEngine.quickEvaluateWithRealTime(inputValue, options);
-
-            if (evaluation.realTimeInsights.length > 0) {
-              onAgentLog(`[Tavily] 获取到 ${evaluation.realTimeInsights.length} 条实时洞察`);
-            }
-
-            onAgentLog(`[Personal Navigator] 生成有温度的建议...`);
-
-            // 构建 Destiny Report 摘要
-            const bestOption = Object.entries(evaluation.scores).sort((a, b) => b[1] - a[1])[0];
-            const secondOption = Object.entries(evaluation.scores).sort((a, b) => b[1] - a[1])[1];
-            const successProb = bestOption[1] / 100;
-
-            // 构建实时数据部分
-            const realTimeSection = evaluation.realTimeInsights.length > 0
-              ? `\n\n📰 **实时市场洞察**\n` +
-              evaluation.realTimeInsights.map(insight =>
-                `• ${insight.insight} _(${insight.source})_`
-              ).join('\n')
-              : '';
-
-            // Layer 4: 使用 Personal Navigator 生成有温度的回复
-            const navigatorResponse = personalNavigator.quickCraft({
-              optimalPath: bestOption[0],
-              alternativePath: secondOption?.[0],
-              successProbability: successProb,
-              riskLevel: successProb > 0.6 ? 'low' : successProb > 0.4 ? 'medium' : 'high',
-              expectedValue: bestOption[1] - 50,
-              jCurve: {
-                dipDepth: intentType === 'career' ? -50 : -30,
-                dipDuration: intentType === 'career' ? '3-6个月' : '1-3个月',
-                recoveryPoint: intentType === 'career' ? '12-18个月' : '6个月'
-              },
-              caveats: evaluation.marketContext
-                ? [evaluation.marketContext, '建议定期重新评估']
-                : ['结果取决于执行力和外部环境', '建议定期重新评估']
-            }, inputValue);
-
-            // 附加实时数据到回复
-            const enhancedResponse = {
-              ...navigatorResponse,
-              formattedResponse: navigatorResponse.formattedResponse + realTimeSection
-            };
-
-            // 发送到 Lumi App 显示，而不是作为聊天消息
-            if (onDestinyResult) {
-              onDestinyResult({
-                query: inputValue,
-                intentType,
-                navigatorOutput: enhancedResponse,
-                timestamp: Date.now()
+            try {
+              const dtoeEngine = getDestinyEngine();
+              const recommendation = await dtoeEngine.getRecommendation({
+                entity_id: `phone_${currentScenario.id}_${intentType}`,
+                needs_live_data: false,
+                time_budget_ms: 1500,
               });
-              onAgentLog(`[Destiny] 结果已发送到 Lumi App`);
-            }
 
-            setSentinelOutput(null);
-            setInputValue(''); // 清空输入
+              if (!recommendation.strategy_card || !recommendation.explanation_card) {
+                onAgentLog('[DTOE] 未生成有效策略卡，已跳过展示');
+                setSentinelOutput(null);
+                return;
+              }
+
+              const strategy = recommendation.strategy_card;
+              const explanation = recommendation.explanation_card;
+              const failureProb = strategy.outcomes_distribution?.failure_prob ?? 0.5;
+              const successProb = Math.max(0, Math.min(1, 1 - failureProb));
+              const utilityMetric = strategy.outcomes_distribution?.metrics?.find(m => m.name === 'utility_score');
+              const primaryReason = explanation.top_reasons?.[0]?.text ?? '基于当前状态的最优策略';
+              const alternativePath =
+                explanation.why_not_explanations?.[0]?.alternative_action ||
+                explanation.alternatives?.[0]?.action_summary ||
+                '暂未发现明显优于当前策略的替代方案';
+
+              onAgentLog(
+                `[DTOE] 推荐=${strategy.next_best_action.summary}, 失败率=${(failureProb * 100).toFixed(0)}%, ` +
+                `缓存=${recommendation.diagnostics.cache_hit ? '命中' : '未命中'}`
+              );
+              onAgentLog('[Personal Navigator] 生成有温度的建议...');
+
+              const navigatorResponse = personalNavigator.quickCraft({
+                optimalPath: strategy.next_best_action.summary,
+                alternativePath,
+                successProbability: successProb,
+                riskLevel: mapFailureProbToRiskLevel(failureProb),
+                expectedValue: utilityMetric?.p50 ?? 0,
+                jCurve: {
+                  dipDepth: intentType === 'career' ? -45 : -28,
+                  dipDuration: intentType === 'career' ? '3-6个月' : '1-3个月',
+                  recoveryPoint: intentType === 'career' ? '12-18个月' : '6个月'
+                },
+                caveats: [
+                  ...explanation.risk_notes.slice(0, 2),
+                  ...recommendation.diagnostics.errors.slice(0, 1),
+                ].filter(Boolean),
+              }, inputValue);
+
+              const policySection =
+                `\n\n🧭 **DTOE 策略卡摘要**\n` +
+                `• Next Best Action: ${strategy.next_best_action.summary}\n` +
+                `• 风险 (failure_prob): ${(failureProb * 100).toFixed(1)}%\n` +
+                `• Why: ${primaryReason}`;
+
+              const enhancedResponse = {
+                ...navigatorResponse,
+                formattedResponse: navigatorResponse.formattedResponse + policySection,
+              };
+
+              if (onDestinyResult) {
+                onDestinyResult({
+                  query: inputValue,
+                  intentType,
+                  navigatorOutput: enhancedResponse,
+                  timestamp: Date.now()
+                });
+                onAgentLog('[Destiny] DTOE 结果已发送到 Lumi App');
+              }
+            } catch (error) {
+              onAgentLog(`[DTOE] 推演失败: ${error instanceof Error ? error.message : String(error)}`);
+            } finally {
+              setSentinelOutput(null);
+              setInputValue('');
+            }
           }}
         />
 

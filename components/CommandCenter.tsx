@@ -101,14 +101,14 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
           <div className="space-y-3">
             {/* API Key Input */}
             <div>
-              <label className="block text-xs uppercase text-gray-500 mb-1">DeepSeek API Key</label>
+              <label className="block text-xs uppercase text-gray-500 mb-1">Gemini API Key</label>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
                   <input
                     type={showApiKey ? 'text' : 'password'}
                     value={apiKeyState.key}
                     onChange={(e) => onApiKeyChange(e.target.value)}
-                    placeholder="Enter your DeepSeek API Key..."
+                    placeholder="Enter your Gemini API Key..."
                     className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 pr-10 text-sm text-white focus:border-yellow-500 outline-none font-mono"
                   />
                   <button

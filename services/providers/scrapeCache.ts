@@ -34,7 +34,7 @@ interface CacheEntry<T> {
 const memoryCache = new Map<string, CacheEntry<unknown>>();
 
 // Periodic cleanup
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of memoryCache.entries()) {
         if (entry.expires_at < now) {
@@ -42,6 +42,10 @@ setInterval(() => {
         }
     }
 }, 30000); // Clean up every 30s
+
+if (typeof (cleanupTimer as NodeJS.Timeout).unref === 'function') {
+    (cleanupTimer as NodeJS.Timeout).unref();
+}
 
 // ============================================================================
 // Redis Operations (with memory fallback)

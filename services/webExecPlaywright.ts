@@ -350,9 +350,11 @@ export async function webExecWithPlaywright(
         }
 
         // Stage 5: Compose answer
+        const nowMs = Date.now();
         const evidence: EvidencePack = {
             items: evidenceItems,
-            fetched_at: Date.now(),
+            fetched_at_ms: nowMs,
+            fetched_at: nowMs,
             ttl_seconds: TTL_BY_DOMAIN[intent_domain],
             provider: 'playwright_exec',
             confidence: Math.min(1, 0.3 + 0.2 * evidenceItems.length),

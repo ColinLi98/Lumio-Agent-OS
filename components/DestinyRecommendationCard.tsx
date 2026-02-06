@@ -1,98 +1,157 @@
 /**
  * DestinyRecommendationCard
- * Phase 3 DTOE: Digital Twin Optimization Engine
+ * Phase 3 v0.2 DTOE: Digital Twin Optimization Engine
  * 
- * Displays Bellman MPC recommendation with risk metrics and alternatives.
+ * Full-featured card displaying Bellman MPC recommendation with:
+ * - p50/p90/CVaR metrics
+ * - failure_prob risk indicator
+ * - Evidence references with freshness status
+ * - Alternative actions
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-    getRecommendation,
-    getStateSummary,
-    initializeDestinyEngine,
-    type DestinyRecommendation,
+    AlertCircle,
+    CheckCircle,
+    Clock,
+    RefreshCw,
+    TrendingUp,
+    TrendingDown,
+    ExternalLink,
+} from 'lucide-react';
+import {
+    getDestinyEngine,
+    type RecommendationOutput,
     type StateSummary,
-} from '../services/destinyEngine';
-import type { ObjectiveWeights } from '../services/twinTypes';
+} from '../services/dtoe/destinyEngine';
+import { isEvidenceFresh } from '../services/dtoe/schemaValidators';
+import type { EvidencePack, MetricDistribution } from '../services/dtoe/coreSchemas';
+import type { ExplanationCard, AlternativeSummary } from '../services/dtoe/decisionExplainer';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 interface DestinyRecommendationCardProps {
-    weights?: ObjectiveWeights;
+    entityId?: string;
+    evidencePack?: EvidencePack | null;
     onActionSelect?: (actionType: string) => void;
+    onRefreshEvidence?: () => void;
     compact?: boolean;
 }
 
 // ============================================================================
-// Component
+// Risk Level Helper
+// ============================================================================
+
+function getRiskLevel(failureProb: number): { label: string; color: string; bgColor: string } {
+    if (failureProb < 0.1) {
+        return { label: '低风险', color: '#22c55e', bgColor: 'rgba(34, 197, 94, 0.15)' };
+    } else if (failureProb < 0.25) {
+        return { label: '中等风险', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)' };
+    } else {
+        return { label: '高风险', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)' };
+    }
+}
+
+// ============================================================================
+// Main Component
 // ============================================================================
 
 export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps> = ({
-    weights,
+    entityId = 'default_user',
+    evidencePack,
     onActionSelect,
+    onRefreshEvidence,
     compact = false,
 }) => {
-    const [recommendation, setRecommendation] = useState<DestinyRecommendation | null>(null);
+    const [recommendation, setRecommendation] = useState<RecommendationOutput | null>(null);
     const [stateSummary, setStateSummary] = useState<StateSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isFresh, setIsFresh] = useState(true);
 
-    useEffect(() => {
-        loadRecommendation();
-    }, [weights]);
-
-    const loadRecommendation = async () => {
+    const loadRecommendation = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
 
-            initializeDestinyEngine();
-            const rec = await getRecommendation(weights);
-            const state = getStateSummary();
+            const engine = getDestinyEngine();
 
-            setRecommendation(rec);
-            setStateSummary(state);
+            const result = await engine.getRecommendation({
+                entity_id: entityId,
+                evidence_pack: evidencePack ?? null,
+                needs_live_data: evidencePack !== undefined,
+            });
+
+            setRecommendation(result);
+            const summary = engine.getStateSummary(entityId);
+            setStateSummary(summary);
+
+            // Check evidence freshness
+            if (evidencePack) {
+                setIsFresh(isEvidenceFresh(evidencePack));
+            }
+
+            if (!result.success) {
+                setError(result.diagnostics.errors[0] ?? '无法生成建议');
+            }
         } catch (e) {
             console.error('[DestinyCard] Error:', e);
             setError('计算建议时出错');
         } finally {
             setLoading(false);
         }
-    };
+    }, [entityId, evidencePack]);
 
+    useEffect(() => {
+        loadRecommendation();
+    }, [loadRecommendation]);
+
+    // Loading State
     if (loading) {
         return (
             <div style={styles.container}>
                 <div style={styles.loadingContainer}>
-                    <div style={styles.spinner} />
+                    <RefreshCw size={24} className="animate-spin" style={{ color: '#3b82f6' }} />
                     <span style={styles.loadingText}>分析最优策略...</span>
                 </div>
             </div>
         );
     }
 
-    if (error || !recommendation) {
+    // Error State
+    if (error || !recommendation?.success) {
         return (
             <div style={styles.container}>
-                <div style={styles.errorText}>{error || '无法获取建议'}</div>
+                <div style={styles.errorContainer}>
+                    <AlertCircle size={24} style={{ color: '#ef4444' }} />
+                    <div style={styles.errorText}>{error || '无法获取建议'}</div>
+                    <button onClick={loadRecommendation} style={styles.retryButton}>
+                        重试
+                    </button>
+                </div>
             </div>
         );
     }
 
-    const { card, narrative, result } = recommendation;
+    const { strategy_card, explanation_card } = recommendation;
+    const bestAction = strategy_card?.next_best_action;
+    const outcomes = strategy_card?.outcomes_distribution;
+    const failureProb = outcomes?.failure_prob ?? 0;
+    const riskLevel = getRiskLevel(failureProb);
 
+    // Compact Version
     if (compact) {
         return (
             <div style={styles.compactContainer}>
                 <div style={styles.compactHeader}>
                     <span style={styles.compactIcon}>🎯</span>
-                    <span style={styles.compactTitle}>{card.title}</span>
+                    <span style={styles.compactTitle}>{bestAction?.summary}</span>
                 </div>
                 <div style={styles.compactMetric}>
-                    <span>预期收益 {card.metrics.expectedGain}</span>
-                    <span style={{ color: card.riskColor }}>• {card.metrics.riskLevel}</span>
+                    <span style={{ color: riskLevel.color }}>{riskLevel.label}</span>
+                    <span>• 失败率 {(failureProb * 100).toFixed(0)}%</span>
                 </div>
             </div>
         );
@@ -108,120 +167,147 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
                 </div>
                 <div style={{
                     ...styles.confidenceBadge,
-                    background: result.confidence > 0.7 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(251, 191, 36, 0.2)',
-                    color: result.confidence > 0.7 ? '#22c55e' : '#fbbf24',
+                    background: recommendation.diagnostics.explanation_valid
+                        ? 'rgba(34, 197, 94, 0.2)'
+                        : 'rgba(251, 191, 36, 0.2)',
+                    color: recommendation.diagnostics.explanation_valid ? '#22c55e' : '#fbbf24',
                 }}>
-                    置信度 {card.metrics.confidence}
+                    {recommendation.diagnostics.explanation_valid ? '高置信' : '需验证'}
                 </div>
             </div>
+
+            {/* Stale Evidence Warning */}
+            {!isFresh && (
+                <div style={styles.staleWarning}>
+                    <Clock size={14} />
+                    <span>证据数据已过期</span>
+                    {onRefreshEvidence && (
+                        <button onClick={onRefreshEvidence} style={styles.refreshLink}>
+                            刷新
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Main Recommendation */}
             <div style={styles.mainCard}>
-                <div style={styles.mainTitle}>{card.title}</div>
-                <div style={styles.subtitle}>{card.subtitle}</div>
+                <div style={styles.mainTitle}>{bestAction?.summary}</div>
+                <div style={styles.subtitle}>
+                    {explanation_card?.headline ?? '基于当前状态的最优建议'}
+                </div>
 
                 {/* Metrics Row */}
                 <div style={styles.metricsRow}>
-                    <div style={styles.metric}>
-                        <div style={styles.metricValue}>{card.metrics.expectedGain}</div>
-                        <div style={styles.metricLabel}>预期收益</div>
-                    </div>
-                    <div style={styles.metric}>
-                        <div style={{ ...styles.metricValue, color: card.riskColor }}>
-                            {card.metrics.riskLevel}
+                    {outcomes?.metrics?.map((m: MetricDistribution) => (
+                        <MetricBox key={m.name} metric={m} />
+                    ))}
+                    <div style={{ ...styles.metric, background: riskLevel.bgColor }}>
+                        <div style={{ ...styles.metricValue, color: riskLevel.color }}>
+                            {(failureProb * 100).toFixed(0)}%
                         </div>
-                        <div style={styles.metricLabel}>风险等级</div>
-                    </div>
-                    <div style={styles.metric}>
-                        <div style={styles.metricValue}>{card.metrics.confidence}</div>
-                        <div style={styles.metricLabel}>置信度</div>
+                        <div style={styles.metricLabel}>失败率</div>
                     </div>
                 </div>
             </div>
 
-            {/* Key Points */}
-            {card.points.length > 0 && (
-                <div style={styles.pointsSection}>
-                    {card.points.map((point, idx) => (
-                        <div key={idx} style={styles.point}>
-                            <span style={styles.pointBullet}>•</span>
-                            <span>{point}</span>
+            {/* Top Reasons */}
+            {explanation_card && explanation_card.top_reasons.length > 0 && (
+                <div style={styles.reasonsSection}>
+                    <div style={styles.sectionTitle}>推荐理由</div>
+                    {explanation_card.top_reasons.slice(0, 4).map((reason, idx) => (
+                        <div key={idx} style={styles.reason}>
+                            <span style={{
+                                ...styles.reasonBullet,
+                                color: reason.source === 'evidence' ? '#3b82f6' :
+                                    reason.source === 'constraint' ? '#f59e0b' :
+                                        reason.source === 'risk' ? '#ef4444' : '#22c55e',
+                            }}>
+                                {reason.source === 'evidence' ? '📄' :
+                                    reason.source === 'constraint' ? '⚙️' :
+                                        reason.source === 'risk' ? '⚠️' : '✓'}
+                            </span>
+                            <span>{reason.text}</span>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* State Overview */}
-            {stateSummary && (
-                <div style={styles.stateSection}>
-                    <div style={styles.sectionTitle}>当前状态</div>
-                    <div style={styles.stateGrid}>
-                        <StateBar label="财富" value={stateSummary.wealth} color="#22c55e" />
-                        <StateBar label="健康" value={stateSummary.health} color="#3b82f6" />
-                        <StateBar label="精力" value={stateSummary.energy} color="#f59e0b" />
-                        <StateBar label="压力" value={stateSummary.stress} color="#ef4444" inverted />
+            {/* Risk Notes */}
+            {explanation_card && explanation_card.risk_notes.length > 0 && (
+                <div style={styles.riskSection}>
+                    {explanation_card.risk_notes.map((note, idx) => (
+                        <div key={idx} style={styles.riskNote}>
+                            {note}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Evidence References */}
+            {evidencePack && evidencePack.items.length > 0 && (
+                <div style={styles.evidenceSection}>
+                    <div style={styles.sectionTitle}>
+                        证据来源
+                        {!isFresh && <span style={styles.staleBadge}>已过期</span>}
                     </div>
+                    {evidencePack.items.slice(0, 3).map((item, idx) => (
+                        <div key={idx} style={styles.evidenceItem}>
+                            <ExternalLink size={12} style={{ color: '#64748b' }} />
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" style={styles.evidenceLink}>
+                                {item.title}
+                            </a>
+                            <span style={styles.evidenceSource}>{item.source_name}</span>
+                        </div>
+                    ))}
                 </div>
             )}
 
             {/* Alternatives */}
-            {card.alternatives.length > 0 && (
+            {explanation_card && explanation_card.alternatives.length > 0 && (
                 <div style={styles.alternativesSection}>
                     <div style={styles.sectionTitle}>备选方案</div>
-                    {card.alternatives.map((alt, idx) => (
+                    {explanation_card.alternatives.slice(0, 3).map((alt: AlternativeSummary, idx: number) => (
                         <div
                             key={idx}
                             style={styles.alternative}
-                            onClick={() => onActionSelect?.(alt.label)}
+                            onClick={() => onActionSelect?.(alt.action_summary)}
                         >
-                            <span style={styles.altLabel}>{alt.label}</span>
-                            <span style={styles.altReason}>{alt.reason}</span>
+                            <span style={styles.altLabel}>{alt.action_summary}</span>
+                            <span style={styles.altReason}>{alt.reason_not_chosen}</span>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* Narrative */}
-            <div style={styles.narrativeSection}>
-                <div style={styles.narrative}>{narrative}</div>
-            </div>
-
             {/* Action Button */}
             <button
                 style={styles.actionButton}
-                onClick={() => onActionSelect?.(result.best_action.type)}
+                onClick={() => onActionSelect?.(bestAction?.action_type ?? 'do')}
             >
-                采纳建议
+                {bestAction?.requires_confirmation ? '确认并执行' : '采纳建议'}
             </button>
         </div>
     );
 };
 
 // ============================================================================
-// State Bar Component
+// Metric Box Component
 // ============================================================================
 
-const StateBar: React.FC<{
-    label: string;
-    value: number;
-    color: string;
-    inverted?: boolean;
-}> = ({ label, value, color, inverted }) => {
-    const displayValue = inverted ? 1 - value : value;
+const MetricBox: React.FC<{ metric: MetricDistribution }> = ({ metric }) => {
+    const nameMap: Record<string, string> = {
+        utility_score: '综合效用',
+        wealth: '财富增益',
+        time: '时间成本',
+    };
 
     return (
-        <div style={styles.stateBar}>
-            <div style={styles.stateLabel}>{label}</div>
-            <div style={styles.stateTrack}>
-                <div
-                    style={{
-                        ...styles.stateFill,
-                        width: `${displayValue * 100}%`,
-                        background: color,
-                    }}
-                />
+        <div style={styles.metric}>
+            <div style={styles.metricValue}>{metric.p50.toFixed(2)}</div>
+            <div style={styles.metricLabel}>{nameMap[metric.name] ?? metric.name}</div>
+            <div style={styles.metricRange}>
+                p90: {metric.p90.toFixed(2)} | CVaR: {metric.cvar_90?.toFixed(2) ?? '-'}
             </div>
-            <div style={styles.stateValue}>{Math.round(displayValue * 100)}%</div>
         </div>
     );
 };
@@ -272,19 +358,11 @@ const styles: Record<string, React.CSSProperties> = {
 
     loadingContainer: {
         display: 'flex',
+        flexDirection: 'column' as const,
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
         padding: 40,
-    },
-
-    spinner: {
-        width: 24,
-        height: 24,
-        border: '3px solid rgba(148, 163, 184, 0.3)',
-        borderTopColor: '#3b82f6',
-        borderRadius: '50%',
-        animation: 'spin 1s linear infinite',
     },
 
     loadingText: {
@@ -292,10 +370,27 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: 14,
     },
 
+    errorContainer: {
+        display: 'flex',
+        flexDirection: 'column' as const,
+        alignItems: 'center',
+        gap: 12,
+        padding: 30,
+    },
+
     errorText: {
         color: '#ef4444',
         textAlign: 'center' as const,
-        padding: 20,
+    },
+
+    retryButton: {
+        padding: '8px 16px',
+        background: 'rgba(239, 68, 68, 0.2)',
+        border: '1px solid rgba(239, 68, 68, 0.3)',
+        borderRadius: 8,
+        color: '#ef4444',
+        fontSize: 13,
+        cursor: 'pointer',
     },
 
     header: {
@@ -328,6 +423,28 @@ const styles: Record<string, React.CSSProperties> = {
         fontWeight: 500,
     },
 
+    staleWarning: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 12px',
+        marginBottom: 12,
+        background: 'rgba(251, 191, 36, 0.1)',
+        border: '1px solid rgba(251, 191, 36, 0.2)',
+        borderRadius: 8,
+        color: '#fbbf24',
+        fontSize: 12,
+    },
+
+    refreshLink: {
+        marginLeft: 'auto',
+        color: '#3b82f6',
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        textDecoration: 'underline',
+    },
+
     mainCard: {
         background: 'rgba(59, 130, 246, 0.1)',
         borderRadius: 12,
@@ -352,12 +469,15 @@ const styles: Record<string, React.CSSProperties> = {
 
     metricsRow: {
         display: 'flex',
-        gap: 16,
+        gap: 12,
     },
 
     metric: {
         flex: 1,
         textAlign: 'center' as const,
+        padding: '8px',
+        background: 'rgba(148, 163, 184, 0.08)',
+        borderRadius: 8,
     },
 
     metricValue: {
@@ -372,72 +492,90 @@ const styles: Record<string, React.CSSProperties> = {
         marginTop: 2,
     },
 
-    pointsSection: {
-        marginBottom: 16,
+    metricRange: {
+        color: '#475569',
+        fontSize: 9,
+        marginTop: 4,
     },
 
-    point: {
-        display: 'flex',
-        gap: 8,
-        color: '#cbd5e1',
-        fontSize: 13,
-        marginBottom: 6,
-    },
-
-    pointBullet: {
-        color: '#3b82f6',
-    },
-
-    stateSection: {
-        marginBottom: 16,
+    reasonsSection: {
+        marginBottom: 12,
     },
 
     sectionTitle: {
         color: '#64748b',
         fontSize: 12,
         fontWeight: 500,
-        marginBottom: 10,
+        marginBottom: 8,
         textTransform: 'uppercase' as const,
         letterSpacing: 0.5,
-    },
-
-    stateGrid: {
-        display: 'flex',
-        flexDirection: 'column' as const,
-        gap: 8,
-    },
-
-    stateBar: {
         display: 'flex',
         alignItems: 'center',
         gap: 8,
     },
 
-    stateLabel: {
-        color: '#94a3b8',
+    reason: {
+        display: 'flex',
+        gap: 8,
+        color: '#cbd5e1',
+        fontSize: 13,
+        marginBottom: 6,
+        alignItems: 'flex-start',
+    },
+
+    reasonBullet: {
         fontSize: 12,
-        width: 40,
     },
 
-    stateTrack: {
+    riskSection: {
+        marginBottom: 12,
+    },
+
+    riskNote: {
+        padding: '6px 10px',
+        marginBottom: 4,
+        background: 'rgba(239, 68, 68, 0.1)',
+        borderRadius: 6,
+        color: '#f87171',
+        fontSize: 12,
+    },
+
+    evidenceSection: {
+        marginBottom: 12,
+        padding: 12,
+        background: 'rgba(148, 163, 184, 0.05)',
+        borderRadius: 8,
+    },
+
+    staleBadge: {
+        marginLeft: 8,
+        padding: '2px 6px',
+        background: 'rgba(251, 191, 36, 0.2)',
+        color: '#fbbf24',
+        borderRadius: 4,
+        fontSize: 10,
+    },
+
+    evidenceItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 6,
+        fontSize: 12,
+    },
+
+    evidenceLink: {
+        color: '#93c5fd',
+        textDecoration: 'none',
         flex: 1,
-        height: 6,
-        background: 'rgba(148, 163, 184, 0.2)',
-        borderRadius: 3,
         overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap' as const,
     },
 
-    stateFill: {
-        height: '100%',
-        borderRadius: 3,
-        transition: 'width 0.5s ease',
-    },
-
-    stateValue: {
+    evidenceSource: {
         color: '#64748b',
-        fontSize: 11,
-        width: 36,
-        textAlign: 'right' as const,
+        fontSize: 10,
     },
 
     alternativesSection: {
@@ -465,19 +603,6 @@ const styles: Record<string, React.CSSProperties> = {
     altReason: {
         color: '#64748b',
         fontSize: 11,
-    },
-
-    narrativeSection: {
-        marginBottom: 16,
-        paddingTop: 12,
-        borderTop: '1px solid rgba(148, 163, 184, 0.1)',
-    },
-
-    narrative: {
-        color: '#94a3b8',
-        fontSize: 13,
-        lineHeight: 1.6,
-        fontStyle: 'italic' as const,
     },
 
     actionButton: {

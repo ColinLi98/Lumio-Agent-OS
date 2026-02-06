@@ -3,7 +3,21 @@
  * Phase 3 DTOE: Digital Twin Optimization Engine
  * 
  * Core type definitions for the belief state representation.
+ * NOTE: v0.1 types are in dtoe/coreSchemas.ts - this file provides legacy compatibility
  */
+
+// Re-export v0.1 core schemas for unified access
+export type {
+    EntityType,
+    Entity,
+    EvidencePack as EvidencePackV01,
+    EvidenceItem as EvidenceItemV01,
+    EvidenceProvider,
+    StrategyCard,
+    GoalStack,
+    Observation,
+    ObservationType,
+} from './dtoe/coreSchemas';
 
 // ============================================================================
 // Subject Types
@@ -11,8 +25,9 @@
 
 /**
  * Type of subject being modeled
+ * NOTE: 'project' added in v0.1 to match EntityType
  */
-export type SubjectType = 'person' | 'company' | 'org' | 'nation';
+export type SubjectType = 'person' | 'company' | 'org' | 'nation' | 'project';
 
 /**
  * Reference to a modeled subject
@@ -29,18 +44,23 @@ export interface SubjectRef {
 
 /**
  * State dimensions (normalized 0..1 where possible)
+ * NOTE: Wellbeing metrics added in v0.1 per OECD framework
  */
 export type StateKey =
-    | 'wealth'        // money / runway
-    | 'health'        // physical + mental health
-    | 'skill'         // accumulated capabilities
-    | 'energy'        // current energy level
-    | 'social'        // relationship capital
-    | 'career'        // career progression
-    | 'reputation'    // public standing
-    | 'time_buffer'   // spare time availability
-    | 'stress'        // current stress level (inverse of wellbeing)
-    | 'optionality';  // flexibility / degrees of freedom
+    | 'wealth'             // money / runway
+    | 'health'             // physical + mental health
+    | 'skill'              // accumulated capabilities
+    | 'energy'             // current energy level
+    | 'social'             // relationship capital
+    | 'career'             // career progression
+    | 'reputation'         // public standing
+    | 'time_buffer'        // spare time availability
+    | 'stress'             // current stress level (inverse of wellbeing)
+    | 'optionality'        // flexibility / degrees of freedom
+    // v0.1 wellbeing metrics (OECD life evaluation framework)
+    | 'life_satisfaction'  // overall life satisfaction (0-1 normalized)
+    | 'affect_balance'     // positive - negative affect ratio
+    | 'meaning_score';     // eudaimonic meaning/purpose
 
 /**
  * State vector at a point in time
@@ -54,6 +74,7 @@ export interface TwinState {
 
 /**
  * Default state values (neutral starting point)
+ * NOTE: Includes v0.1 wellbeing metrics
  */
 export const DEFAULT_STATE: Record<StateKey, number> = {
     wealth: 0.5,
@@ -66,6 +87,10 @@ export const DEFAULT_STATE: Record<StateKey, number> = {
     time_buffer: 0.4,
     stress: 0.4,
     optionality: 0.5,
+    // v0.1 wellbeing metrics
+    life_satisfaction: 0.6,
+    affect_balance: 0.55,
+    meaning_score: 0.5,
 };
 
 // ============================================================================

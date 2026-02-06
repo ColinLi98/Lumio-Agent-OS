@@ -1,64 +1,115 @@
 /**
  * DestinyPanel
- * Phase 3 DTOE: Digital Twin Optimization Engine
+ * Phase 3 v0.2 DTOE: Digital Twin Optimization Engine
  * 
- * Collapsible panel for CommandCenter that shows DTOE insights.
+ * Collapsible ambient panel showing DTOE insights with live status badge.
  */
 
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Target, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronDown, ChevronUp, Target, RefreshCw, AlertCircle, Clock } from 'lucide-react';
 import {
-    getRecommendation,
-    getStateSummary,
-    initializeDestinyEngine,
-    type DestinyRecommendation,
+    getDestinyEngine,
+    type RecommendationOutput,
     type StateSummary,
-} from '../services/destinyEngine';
-import type { ObjectiveWeights } from '../services/twinTypes';
+} from '../services/dtoe/destinyEngine';
+import { isEvidenceFresh } from '../services/dtoe/schemaValidators';
+import type { EvidencePack } from '../services/dtoe/coreSchemas';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 interface DestinyPanelProps {
+    entityId?: string;
     onOpenFullCard?: () => void;
+    evidencePack?: EvidencePack | null;
 }
 
 // ============================================================================
-// Component
+// Live Status Badge
 // ============================================================================
 
-export const DestinyPanel: React.FC<DestinyPanelProps> = ({ onOpenFullCard }) => {
+const LiveStatusBadge: React.FC<{
+    isFresh: boolean;
+    loading: boolean;
+}> = ({ isFresh, loading }) => {
+    if (loading) {
+        return (
+            <span className="flex items-center gap-1 text-xs text-slate-400">
+                <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
+                计算中
+            </span>
+        );
+    }
+
+    return (
+        <span className={`flex items-center gap-1 text-xs ${isFresh ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <span className={`w-2 h-2 rounded-full ${isFresh ? 'bg-emerald-400' : 'bg-amber-400'} ${isFresh ? 'animate-pulse' : ''}`} />
+            {isFresh ? '实时' : '数据过期'}
+        </span>
+    );
+};
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+export const DestinyPanel: React.FC<DestinyPanelProps> = ({
+    entityId = 'default_user',
+    onOpenFullCard,
+    evidencePack,
+}) => {
     const [expanded, setExpanded] = useState(false);
-    const [recommendation, setRecommendation] = useState<DestinyRecommendation | null>(null);
+    const [recommendation, setRecommendation] = useState<RecommendationOutput | null>(null);
     const [stateSummary, setStateSummary] = useState<StateSummary | null>(null);
     const [loading, setLoading] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [isFresh, setIsFresh] = useState(true);
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
             setLoading(true);
-            initializeDestinyEngine();
-            const rec = await getRecommendation();
-            const state = getStateSummary();
-            setRecommendation(rec);
-            setStateSummary(state);
+            const engine = getDestinyEngine();
+
+            const result = await engine.getRecommendation({
+                entity_id: entityId,
+                evidence_pack: evidencePack ?? null,
+                needs_live_data: evidencePack !== undefined,
+            });
+
+            setRecommendation(result);
+            const summary = engine.getStateSummary(entityId);
+            setStateSummary(summary);
             setLastUpdated(new Date());
+
+            // Check evidence freshness
+            if (evidencePack) {
+                setIsFresh(isEvidenceFresh(evidencePack));
+            } else {
+                setIsFresh(true);
+            }
         } catch (e) {
             console.error('[DestinyPanel] Error:', e);
         } finally {
             setLoading(false);
         }
-    };
+    }, [entityId, evidencePack]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     const handleRefresh = (e: React.MouseEvent) => {
         e.stopPropagation();
         loadData();
     };
+
+    // Extract relevant info from recommendation
+    const bestAction = recommendation?.strategy_card?.next_best_action;
+    const failureProb = recommendation?.strategy_card?.outcomes_distribution?.failure_prob ?? 0;
+    const topReasons = recommendation?.explanation_card?.top_reasons ?? [];
+    const topWhyNot = recommendation?.explanation_card?.why_not_explanations?.[0];
+    const topSensitivity = recommendation?.explanation_card?.sensitivity?.[0];
 
     return (
         <div className="bg-slate-800/60 rounded-xl border border-slate-700/50 overflow-hidden">
@@ -72,11 +123,12 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({ onOpenFullCard }) =>
                     <span className="text-sm font-medium text-slate-200">命运引擎</span>
                     {stateSummary && (
                         <span className="text-xs text-slate-500">
-                            综合 {Math.round(stateSummary.overall * 100)}%
+                            ESS: {stateSummary.belief_ess.toFixed(0)}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
+                    <LiveStatusBadge isFresh={isFresh} loading={loading} />
                     <button
                         onClick={handleRefresh}
                         className="p-1 hover:bg-slate-600/50 rounded transition-colors"
@@ -102,54 +154,90 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({ onOpenFullCard }) =>
                         <div className="py-4 text-center text-slate-500 text-sm">
                             分析中...
                         </div>
-                    ) : recommendation ? (
+                    ) : recommendation?.success ? (
                         <>
+                            {/* Stale Evidence Warning */}
+                            {!isFresh && (
+                                <div className="flex items-center gap-2 py-2 px-3 my-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                                    <Clock size={14} className="text-amber-400" />
+                                    <span className="text-xs text-amber-300">
+                                        证据已过期，建议刷新获取最新数据
+                                    </span>
+                                </div>
+                            )}
+
                             {/* Quick Stats */}
                             {stateSummary && (
-                                <div className="grid grid-cols-4 gap-2 py-3">
-                                    <StatCircle
-                                        label="财富"
-                                        value={stateSummary.wealth}
+                                <div className="grid grid-cols-3 gap-2 py-3">
+                                    <StatItem
+                                        label="置信度"
+                                        value={`${Math.round(recommendation.diagnostics.explanation_valid ? 85 : 60)}%`}
                                         color="#22c55e"
                                     />
-                                    <StatCircle
-                                        label="健康"
-                                        value={stateSummary.health}
+                                    <StatItem
+                                        label="风险"
+                                        value={`${(failureProb * 100).toFixed(0)}%`}
+                                        color={failureProb > 0.2 ? "#ef4444" : "#22c55e"}
+                                    />
+                                    <StatItem
+                                        label="证据"
+                                        value={`${evidencePack?.items?.length ?? 0}条`}
                                         color="#3b82f6"
-                                    />
-                                    <StatCircle
-                                        label="精力"
-                                        value={stateSummary.energy}
-                                        color="#f59e0b"
-                                    />
-                                    <StatCircle
-                                        label="压力"
-                                        value={1 - stateSummary.stress}
-                                        color="#a855f7"
                                     />
                                 </div>
                             )}
 
                             {/* Recommendation Summary */}
-                            <div className="bg-slate-700/30 rounded-lg p-3 mb-3">
-                                <div className="text-sm font-medium text-slate-200 mb-1">
-                                    {recommendation.card.title}
+                            {bestAction && (
+                                <div className="bg-slate-700/30 rounded-lg p-3 mb-3">
+                                    <div className="text-sm font-medium text-slate-200 mb-1">
+                                        推荐: {bestAction.summary}
+                                    </div>
+                                    <div className="text-xs text-slate-400 line-clamp-2">
+                                        {topReasons[0]?.text ?? '基于当前状态的最优建议'}
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-2 text-xs">
+                                        <span className={`px-2 py-0.5 rounded ${bestAction.action_type === 'do'
+                                                ? 'bg-blue-500/20 text-blue-300'
+                                                : bestAction.action_type === 'wait'
+                                                    ? 'bg-amber-500/20 text-amber-300'
+                                                    : 'bg-purple-500/20 text-purple-300'
+                                            }`}>
+                                            {bestAction.action_type === 'do' ? '执行' :
+                                                bestAction.action_type === 'wait' ? '等待' :
+                                                    bestAction.action_type === 'ask' ? '询问' : '确认'}
+                                        </span>
+                                        {bestAction.requires_confirmation && (
+                                            <span className="text-amber-400">需确认</span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="text-xs text-slate-400 line-clamp-2">
-                                    {recommendation.card.subtitle}
+                            )}
+
+                            {/* Why-Not / Sensitivity (only render when data exists) */}
+                            {(topWhyNot || topSensitivity) && (
+                                <div className="bg-slate-700/20 rounded-lg p-3 mb-3 border border-slate-600/30">
+                                    {topWhyNot && (
+                                        <>
+                                            <div className="text-xs text-slate-400 mb-1">备选方案</div>
+                                            <div className="text-sm text-slate-200">
+                                                {topWhyNot.alternative_action}
+                                            </div>
+                                            <div className="text-xs text-slate-400 mt-1">
+                                                {topWhyNot.hypothetical_change}
+                                            </div>
+                                        </>
+                                    )}
+                                    {topSensitivity && (
+                                        <div className={`${topWhyNot ? 'mt-2 pt-2 border-t border-slate-600/30' : ''}`}>
+                                            <div className="text-xs text-slate-400">切换阈值</div>
+                                            <div className="text-sm text-slate-200">
+                                                {topSensitivity.parameter}: {topSensitivity.threshold_to_switch.toFixed(2)}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex items-center gap-3 mt-2 text-xs">
-                                    <span className="text-green-400">
-                                        {recommendation.card.metrics.expectedGain}
-                                    </span>
-                                    <span style={{ color: recommendation.card.riskColor }}>
-                                        {recommendation.card.metrics.riskLevel}
-                                    </span>
-                                    <span className="text-slate-500">
-                                        置信 {recommendation.card.metrics.confidence}
-                                    </span>
-                                </div>
-                            </div>
+                            )}
 
                             {/* View Full Button */}
                             <button
@@ -168,8 +256,11 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({ onOpenFullCard }) =>
                             )}
                         </>
                     ) : (
-                        <div className="py-4 text-center text-slate-500 text-sm">
-                            暂无数据
+                        <div className="py-4 text-center">
+                            <AlertCircle size={20} className="mx-auto text-amber-400 mb-2" />
+                            <div className="text-slate-400 text-sm">
+                                {recommendation?.diagnostics?.errors?.[0] ?? '暂无数据'}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -179,49 +270,18 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({ onOpenFullCard }) =>
 };
 
 // ============================================================================
-// Stat Circle Component
+// Stat Item Component
 // ============================================================================
 
-const StatCircle: React.FC<{
+const StatItem: React.FC<{
     label: string;
-    value: number;
+    value: string;
     color: string;
 }> = ({ label, value, color }) => {
-    const percentage = Math.round(value * 100);
-    const circumference = 2 * Math.PI * 18;
-    const dashOffset = circumference * (1 - value);
-
     return (
         <div className="flex flex-col items-center">
-            <div className="relative w-10 h-10">
-                <svg className="w-10 h-10 transform -rotate-90">
-                    <circle
-                        cx="20"
-                        cy="20"
-                        r="18"
-                        fill="none"
-                        stroke="rgba(148, 163, 184, 0.2)"
-                        strokeWidth="3"
-                    />
-                    <circle
-                        cx="20"
-                        cy="20"
-                        r="18"
-                        fill="none"
-                        stroke={color}
-                        strokeWidth="3"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={dashOffset}
-                        strokeLinecap="round"
-                    />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[10px] font-medium text-slate-300">
-                        {percentage}
-                    </span>
-                </div>
-            </div>
-            <span className="text-[10px] text-slate-500 mt-1">{label}</span>
+            <span className="text-lg font-semibold" style={{ color }}>{value}</span>
+            <span className="text-[10px] text-slate-500">{label}</span>
         </div>
     );
 };

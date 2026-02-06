@@ -8,6 +8,11 @@
  * - Ecommerce domain hard gate for ticketing queries
  */
 
+import type {
+    EvidenceItem as DtoeEvidenceItem,
+    EvidencePack as DtoeEvidencePack,
+} from './dtoe/coreSchemas';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -42,19 +47,11 @@ export interface LiveSearchRequest {
     max_items?: number;
 }
 
-export interface EvidenceItem {
-    title: string;
-    snippet: string;
-    url: string;
-    source_name: string;
-}
+export type EvidenceItem = DtoeEvidenceItem;
 
-export interface EvidencePack {
-    items: EvidenceItem[];
-    fetched_at: number;
-    ttl_seconds: number;
-    provider: 'vertex_grounding' | 'playwright_exec';
-    confidence: number;
+export interface EvidencePack extends DtoeEvidencePack {
+    // Legacy alias kept for compatibility with existing tool/UI paths.
+    fetched_at?: number;
     notes?: {
         cache_hit?: boolean;
         grounding_queries?: string[];
@@ -523,9 +520,11 @@ export async function liveSearchWithVertexGrounding(
         }
 
         // Stage 5: Compose answer
+        const nowMs = Date.now();
         const evidence: EvidencePack = {
             items: filteredItems,
-            fetched_at: Date.now(),
+            fetched_at_ms: nowMs,
+            fetched_at: nowMs,
             ttl_seconds,
             provider: 'vertex_grounding',
             confidence: Math.min(1, 0.2 + 0.15 * filteredItems.length),

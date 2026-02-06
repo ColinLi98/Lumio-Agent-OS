@@ -3,8 +3,10 @@ import { getUserPreferences } from './personalizationService';
 import { extractRoute } from './superAgentBrain';
 import { getEnhancedDigitalAvatar } from './localStorageService';
 import { BellmanContext, runBellmanPolicy } from './bellmanPolicyService';
-import { destinyEngine } from './destinyEngineService';
 import { soulArchitect } from './soulArchitectService';
+import { createBeliefState } from './dtoe/twinBeliefStore';
+import { createDefaultGoalStack } from './dtoe/coreSchemas';
+import { solveBellmanWithOptions } from './dtoe/bellmanSolver';
 
 // 职业决策关键词
 const CAREER_KEYWORDS = ['辞职', '跳槽', '离职', '创业', '换工作', '找工作', '转行', '裸辞', '面试', '简历', 'offer', '加薪', '升职'];
@@ -20,6 +22,114 @@ function isFinanceDecision(query: string): boolean {
 
 function isMajorDecision(query: string): boolean {
   return isCareerDecision(query) || isFinanceDecision(query);
+}
+
+type DtoeMajorEvaluation = {
+  scores: Record<string, number>;
+  recommendation: string;
+  reasoning: string;
+  failureProb: number;
+  policyActionType: 'do' | 'ask' | 'wait' | 'commit';
+  policyActionSummary: string;
+};
+
+function hashToSeed(input: string): number {
+  let hash = 2166136261 >>> 0;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  // Ensure non-zero positive seed.
+  return (hash >>> 0) || 42;
+}
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function inferPreferredOptionIndex(
+  optionCount: number,
+  actionType: 'do' | 'ask' | 'wait' | 'commit'
+): number {
+  if (optionCount <= 1) return 0;
+  if (actionType === 'wait') return optionCount - 1;
+  if (actionType === 'ask') return Math.min(1, optionCount - 1);
+  return 0;
+}
+
+function evaluateMajorDecisionWithDtoe(
+  query: string,
+  options: string[],
+  riskTolerance: 'low' | 'medium' | 'high'
+): DtoeMajorEvaluation {
+  const seed = hashToSeed(query);
+  const belief = createBeliefState(`major_choice_${seed}`, seed, 500);
+  const goals = createDefaultGoalStack(`major_choice_${seed}`);
+
+  const solveResult = solveBellmanWithOptions(
+    belief,
+    goals,
+    {
+      time_budget_ms: 1200,
+      coarse_scenarios: 120,
+      fine_scenarios: 1200,
+      cache: { enabled: false, ttl_ms: 300000 },
+    },
+    { seed }
+  );
+
+  const ranked = solveResult.ranked_actions.filter((s) => s.eligible);
+  const top = ranked[0] ?? solveResult.ranked_actions[0];
+  const failureProb = top ? Math.max(0, Math.min(1, top.failure_prob)) : 0.35;
+  const actionType = top?.action.action_type ?? 'ask';
+  const actionSummary = top?.action.summary ?? '建议先补充约束并谨慎推进';
+
+  const preferredIdx = inferPreferredOptionIndex(options.length, actionType);
+  const conservativeIdx = options.length - 1;
+  const balancedIdx = Math.min(1, conservativeIdx);
+
+  const scores: Record<string, number> = {};
+  for (let i = 0; i < options.length; i++) {
+    // Base distribution: preferred option gets strongest support.
+    let score = i === preferredIdx ? 76 : (i === balancedIdx ? 66 : 58);
+
+    // User risk preference adjustment.
+    if (riskTolerance === 'high') {
+      if (i === 0) score += 8;
+      if (i === conservativeIdx) score -= 6;
+    } else if (riskTolerance === 'low') {
+      if (i === conservativeIdx) score += 9;
+      if (i === 0) score -= 7;
+    } else {
+      if (i === balancedIdx) score += 6;
+    }
+
+    // Tail-risk aware adjustment from DTOE policy estimate.
+    if (failureProb >= 0.35) {
+      if (i === conservativeIdx) score += 12;
+      if (i === 0) score -= 10;
+    } else if (failureProb >= 0.2) {
+      if (i === balancedIdx) score += 7;
+    } else {
+      if (i === 0) score += 6;
+    }
+
+    scores[options[i]] = clampScore(score);
+  }
+
+  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  const recommendation = sorted[0]?.[0] ?? options[0];
+
+  return {
+    scores,
+    recommendation,
+    reasoning:
+      `DTOE policy action: ${actionSummary}；` +
+      `失败概率估计 ${(failureProb * 100).toFixed(0)}%，已做风险偏好校准 (${riskTolerance})`,
+    failureProb,
+    policyActionType: actionType,
+    policyActionSummary: actionSummary,
+  };
 }
 
 type DecisionInput = {
@@ -509,11 +619,10 @@ function buildDecisionForMajorLifeChoice(query: string): DecisionMeta | null {
     return null;
   }
   
-  // 使用 Destiny Engine 快速评估
-  const evaluation = destinyEngine.quickEvaluate(query, options);
-  
   // 获取用户画像
   const soulSummary = soulArchitect.getSoulSummary();
+  const riskTolerance = soulSummary.keyTraits.riskTolerance;
+  const evaluation = evaluateMajorDecisionWithDtoe(query, options, riskTolerance);
   
   // 构建推荐理由
   const reasons: string[] = [];
@@ -530,6 +639,8 @@ function buildDecisionForMajorLifeChoice(query: string): DecisionMeta | null {
   } else {
     reasons.push('各选项差距不大');
   }
+  reasons.push(`DTOE 推荐动作: ${evaluation.policyActionSummary}`);
+  reasons.push(`模型估计失败概率: ${(evaluation.failureProb * 100).toFixed(0)}%`);
   
   // 根据用户特征添加理由
   if (soulSummary.keyTraits.riskTolerance === 'high') {
@@ -576,7 +687,7 @@ function buildDecisionForMajorLifeChoice(query: string): DecisionMeta | null {
     },
     reasons,
     assumptions: [
-      `基于您的风险偏好: ${soulSummary.keyTraits.riskTolerance}`,
+      `基于您的风险偏好: ${riskTolerance}`,
       `当前压力水平: ${soulSummary.stressLevel}/100`
     ],
     followUpQuestions,

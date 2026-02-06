@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "services/dtoe/**/*.ts",
+    "tests/dtoe/**/*.ts",
+    "playwright-tests/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "lumi-life-optimizer/venv",
+    "lumi-website/node_modules",
+    ".venv",
+    "LumiKeyboard-Android"
+  ]
+}

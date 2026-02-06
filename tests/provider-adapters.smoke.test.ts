@@ -341,6 +341,7 @@ async function runAllTests() {
 
     console.log('All tests passed!');
     console.log('='.repeat(60));
+    process.exit(0);
 }
 
 runAllTests().catch(err => {

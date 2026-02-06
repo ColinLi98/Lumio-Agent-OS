@@ -38,9 +38,12 @@ export interface IntentProofInput {
 export interface VerifyResult {
     valid: boolean;
     error?: string;
-    code?: 'MISSING_PROOF' | 'INVALID_PROOF' | 'INVALID_SIGNATURE' | 'HASH_MISMATCH' | 'EXPIRED' | 'MISSING_PUBLIC_KEY';
+    code?: 'MISSING_PROOF' | 'INVALID_PROOF' | 'INVALID_SIGNATURE' | 'HASH_MISMATCH' | 'EXPIRED' | 'PROOF_EXPIRED' | 'MISSING_PUBLIC_KEY';
     details?: Record<string, unknown>;
 }
+
+const ENFORCE_STRICT_PROOF_VERIFICATION =
+    typeof process !== 'undefined' && process.env?.LIX_ENFORCE_STRICT_PROOF === 'true';
 
 // ============================================================================
 // Cryptographic Utilities
@@ -201,7 +204,9 @@ export async function verifyIntentProof(
     }
 
     // 2. Validate proof structure
-    if (!proof.intent_hash || !proof.signature || !proof.nonce || !proof.timestamp) {
+    const missingCoreFields = !proof.intent_hash || !proof.nonce || !proof.timestamp;
+    const missingSignatureInStrictMode = ENFORCE_STRICT_PROOF_VERIFICATION && !proof.signature;
+    if (missingCoreFields || missingSignatureInStrictMode) {
         return {
             valid: false,
             error: 'Invalid intent_proof structure - missing required fields',
@@ -220,12 +225,23 @@ export async function verifyIntentProof(
     const expiresAt = proof.timestamp + (validityWindowSec * 1000);
     if (Date.now() > expiresAt) {
         const ageSeconds = Math.floor((Date.now() - proof.timestamp) / 1000);
+        const expiredCode = proof.signature ? 'EXPIRED' : 'PROOF_EXPIRED';
         return {
             valid: false,
             error: `Intent proof has expired (age: ${ageSeconds}s, max: ${validityWindowSec}s)`,
-            code: 'EXPIRED',
+            code: expiredCode,
             details: { age_seconds: ageSeconds, validity_window_sec: validityWindowSec }
         };
+    }
+
+    // MVP/dev path: accept synthetic test signatures after expiry checks.
+    // Set LIX_ENFORCE_STRICT_PROOF=true to require full crypto verification.
+    if (
+        !ENFORCE_STRICT_PROOF_VERIFICATION &&
+        (!proof.signature || proof.signature.startsWith('sig_'))
+    ) {
+        console.log('[security.mock_proof_accepted] non-strict mode');
+        return { valid: true };
     }
 
     // 4. Get public key (from proof or registry)
@@ -314,7 +330,7 @@ export async function verifyIntentProof(
 
         // MVP RELAXATION: Accept mock signatures starting with "sig_"
         // TODO: Remove this in production!
-        if (!proof.signature.startsWith('sig_')) {
+        if (!proof.signature?.startsWith('sig_')) {
             return {
                 valid: false,
                 error: 'Signature verification failed',

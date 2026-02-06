@@ -417,7 +417,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                 {/* DeepSeek API */}
                                 <div>
                                     <label className="text-xs font-medium" style={{ color: colors.text3 }}>
-                                        DeepSeek API Key
+                                        Gemini API Key
                                     </label>
                                     <div className="mt-1.5 flex gap-2">
                                         <input

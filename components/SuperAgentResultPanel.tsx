@@ -10,7 +10,8 @@ import {
     ShoppingCart, Search, Brain, Languages, Calculator,
     Clock, MessageCircle, ExternalLink, TrendingDown, Star,
     CheckCircle, AlertCircle, Sparkles, Zap,
-    ChevronDown, ChevronRight, Play, Bell, Target, ListChecks
+    ChevronDown, ChevronRight, Play, Bell, Target, ListChecks,
+    ShieldCheck, Newspaper, Users, Globe
 } from 'lucide-react';
 import OfferComparisonCard from './OfferComparisonCard';
 import { ThreeStagePlan, PlanStep } from '../services/planTypes';
@@ -344,23 +345,137 @@ const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data, onRef
 // ============================================================================
 
 const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
+    // 预处理：修复跨行的 markdown 链接并提取独立URL
+    const preprocessText = (content: string): string => {
+        let processed = content;
+
+        // 1. 修复跨行的 markdown 链接 [text]\n(url) -> [text](url)
+        processed = processed.replace(/\[([^\]]+)\]\s*\n\s*\(([^)]+)\)/g, '[$1]($2)');
+
+        // 2. 修复 [text] 后面紧跟 (url) 但中间有空格的情况
+        processed = processed.replace(/\[([^\]]+)\]\s+\(([^)]+)\)/g, '[$1]($2)');
+
+        return processed;
+    };
+
+    // 渲染链接卡片 - 美观的可点击卡片
+    const renderLinkCard = (url: string, displayText: string, key: number) => {
+        // 提取域名
+        let domain = '';
+        try {
+            const urlObj = new URL(url);
+            domain = urlObj.hostname.replace('www.', '');
+        } catch {
+            domain = url.slice(0, 30);
+        }
+
+        return (
+            <a
+                key={key}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                }}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    marginTop: 12,
+                    marginBottom: 12,
+                    background: 'linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
+                    borderRadius: 12,
+                    border: '1px solid rgba(96, 165, 250, 0.3)',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(96, 165, 250, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(96, 165, 250, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                }}
+            >
+                <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: 'linear-gradient(135deg, #60A5FA 0%, #8B5CF6 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                }}>
+                    <ExternalLink size={20} color="white" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                        color: '#E0E7FF',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        marginBottom: 2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                    }}>
+                        {displayText || '点击查看详情'}
+                    </div>
+                    <div style={{
+                        color: '#94A3B8',
+                        fontSize: 12,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                    }}>
+                        {domain}
+                    </div>
+                </div>
+                <div style={{
+                    color: '#60A5FA',
+                    fontSize: 20,
+                }}>
+                    →
+                </div>
+            </a>
+        );
+    };
+
     // 将 markdown 文本解析为 React 元素
     const renderMarkdown = (content: string) => {
+        // 预处理文本
+        const processedContent = preprocessText(content);
+
         // 按行分割
-        const lines = content.split('\n');
+        const lines = processedContent.split('\n');
         const elements: React.ReactNode[] = [];
         let currentParagraph: string[] = [];
+        let elementKey = 0;
 
         const flushParagraph = () => {
             if (currentParagraph.length > 0) {
                 const text = currentParagraph.join(' ');
                 elements.push(
-                    <p key={elements.length} style={{ marginBottom: 12 }}>
+                    <p key={elementKey++} style={{ marginBottom: 12 }}>
                         {renderInlineMarkdown(text)}
                     </p>
                 );
                 currentParagraph = [];
             }
+        };
+
+        // 检测独立的 URL 行（包括被括号包围的）
+        const urlLinePattern = /^\s*\(?https?:\/\/[^\s)]+\)?\s*(?:\*?\(来源[^)]*\)\*?)?$/i;
+        const extractUrlFromLine = (line: string): string | null => {
+            const match = line.match(/https?:\/\/[^\s)]+/);
+            return match ? match[0] : null;
         };
 
         lines.forEach((line, index) => {
@@ -372,11 +487,29 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                 return;
             }
 
+            // 检测独立 URL 行 - 渲染为链接卡片
+            if (urlLinePattern.test(trimmedLine)) {
+                flushParagraph();
+                const url = extractUrlFromLine(trimmedLine);
+                if (url) {
+                    elements.push(renderLinkCard(url, '点击查看详细信息', elementKey++));
+                }
+                return;
+            }
+
+            // 检测 markdown 链接行 [text](url) - 渲染为链接卡片
+            const markdownLinkMatch = trimmedLine.match(/^\s*[✈🔗📎]?\s*\[([^\]]+)\]\(([^)]+)\)/);
+            if (markdownLinkMatch) {
+                flushParagraph();
+                elements.push(renderLinkCard(markdownLinkMatch[2], markdownLinkMatch[1], elementKey++));
+                return;
+            }
+
             // ### 标题
             if (trimmedLine.startsWith('### ')) {
                 flushParagraph();
                 elements.push(
-                    <h4 key={elements.length} style={{
+                    <h4 key={elementKey++} style={{
                         color: colors.primary,
                         fontSize: 15,
                         fontWeight: 600,
@@ -395,7 +528,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
             if (trimmedLine.startsWith('## ')) {
                 flushParagraph();
                 elements.push(
-                    <h3 key={elements.length} style={{
+                    <h3 key={elementKey++} style={{
                         color: colors.text1,
                         fontSize: 16,
                         fontWeight: 700,
@@ -413,7 +546,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
             if (orderedMatch) {
                 flushParagraph();
                 elements.push(
-                    <div key={elements.length} style={{
+                    <div key={elementKey++} style={{
                         display: 'flex',
                         alignItems: 'flex-start',
                         gap: 8,
@@ -444,7 +577,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
             if (isBulletList) {
                 flushParagraph();
                 elements.push(
-                    <div key={elements.length} style={{
+                    <div key={elementKey++} style={{
                         display: 'flex',
                         alignItems: 'flex-start',
                         gap: 8,
@@ -1432,6 +1565,152 @@ const ThreeStagePlanCard: React.FC<ThreeStagePlanCardProps> = ({ plan, onActionE
 // Main Component
 // ============================================================================
 
+type ResultViewMode = 'answer' | 'details';
+
+type SourceType = 'official' | 'news' | 'search' | 'ugc' | 'other';
+
+interface SourcePreview {
+    title: string;
+    url: string;
+    sourceName: string;
+    domain: string;
+    sourceType: SourceType;
+    confidence: number; // 0-1
+}
+
+function safeDomain(url: string): string {
+    try {
+        return new URL(url).hostname.replace('www.', '');
+    } catch {
+        return 'unknown';
+    }
+}
+
+const OFFICIAL_DOMAIN_HINTS = [
+    '.gov', '.edu', '.ac.', 'metoffice.gov.uk', 'weather.gov', 'wmo.int', 'who.int',
+];
+const NEWS_DOMAIN_HINTS = [
+    'reuters.com', 'bbc.com', 'nytimes.com', 'apnews.com', 'bloomberg.com', 'ft.com',
+    'theguardian.com', 'wsj.com', 'cnn.com',
+];
+const SEARCH_DOMAIN_HINTS = ['google.com', 'bing.com', 'baidu.com', 'duckduckgo.com'];
+const UGC_DOMAIN_HINTS = ['reddit.com', 'x.com', 'twitter.com', 'weibo.com', 'zhihu.com', 'youtube.com'];
+
+function inferSourceType(domain: string): SourceType {
+    const host = domain.toLowerCase();
+    if (OFFICIAL_DOMAIN_HINTS.some((hint) => host.includes(hint))) return 'official';
+    if (NEWS_DOMAIN_HINTS.some((hint) => host.includes(hint))) return 'news';
+    if (SEARCH_DOMAIN_HINTS.some((hint) => host.includes(hint))) return 'search';
+    if (UGC_DOMAIN_HINTS.some((hint) => host.includes(hint))) return 'ugc';
+    return 'other';
+}
+
+function scoreSourceConfidence(
+    sourceType: SourceType,
+    title?: string,
+    sourceName?: string
+): number {
+    const baseMap: Record<SourceType, number> = {
+        official: 0.94,
+        news: 0.82,
+        search: 0.72,
+        ugc: 0.58,
+        other: 0.68,
+    };
+
+    let score = baseMap[sourceType];
+    const hintText = `${title || ''} ${sourceName || ''}`.toLowerCase();
+    if (hintText.includes('official') || hintText.includes('官方')) score += 0.04;
+    if (hintText.includes('blog') || hintText.includes('论坛') || hintText.includes('community')) score -= 0.04;
+    return Math.max(0.45, Math.min(0.99, score));
+}
+
+function classifySource(url: string, title: string, sourceName?: string): {
+    domain: string;
+    sourceType: SourceType;
+    confidence: number;
+} {
+    const domain = safeDomain(url);
+    const sourceType = inferSourceType(domain);
+    const confidence = scoreSourceConfidence(sourceType, title, sourceName);
+    return { domain, sourceType, confidence };
+}
+
+function collectSourcePreviews(result: SuperAgentResult): SourcePreview[] {
+    const previews: SourcePreview[] = [];
+    const seen = new Set<string>();
+
+    const pushSource = (title: string, url: string, sourceName?: string) => {
+        if (!url || seen.has(url)) return;
+        seen.add(url);
+        const { domain, sourceType, confidence } = classifySource(url, title, sourceName);
+        previews.push({
+            title: title || '来源链接',
+            url,
+            sourceName: sourceName || domain,
+            domain,
+            sourceType,
+            confidence,
+        });
+    };
+
+    const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+    const plainLinkRegex = /https?:\/\/[^\s)\]]+/g;
+
+    const answer = result.answer || '';
+    for (const match of answer.matchAll(markdownLinkRegex)) {
+        pushSource(match[1], match[2], safeDomain(match[2]));
+    }
+    for (const match of answer.matchAll(plainLinkRegex)) {
+        pushSource(safeDomain(match[0]), match[0], safeDomain(match[0]));
+    }
+
+    for (const item of result.results || []) {
+        const data = item.data;
+        if (!data || typeof data !== 'object') continue;
+
+        if (Array.isArray(data.items)) {
+            for (const source of data.items) {
+                if (source?.url) {
+                    pushSource(
+                        source.title || source.source_name || safeDomain(source.url),
+                        source.url,
+                        source.source_name
+                    );
+                }
+            }
+        }
+
+        if (Array.isArray(data.sources)) {
+            for (const source of data.sources) {
+                if (source?.url) {
+                    pushSource(
+                        source.title || source.source_name || safeDomain(source.url),
+                        source.url,
+                        source.source_name
+                    );
+                }
+            }
+        }
+
+        if (Array.isArray(data.results)) {
+            for (const source of data.results) {
+                if (source?.url) {
+                    pushSource(
+                        source.title || source.name || safeDomain(source.url),
+                        source.url,
+                        source.source_name || source.platform || safeDomain(source.url)
+                    );
+                }
+            }
+        }
+    }
+
+    return previews
+        .sort((a, b) => b.confidence - a.confidence)
+        .slice(0, 12);
+}
+
 export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
     result,
     onClose,
@@ -1441,8 +1720,79 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
 }) => {
     if (!result) return null;
 
+    const [activeView, setActiveView] = React.useState<ResultViewMode>('answer');
+    const [selectedSkillFilter, setSelectedSkillFilter] = React.useState<string>('all');
+    const [answerExpanded, setAnswerExpanded] = React.useState(true);
+    const [copyState, setCopyState] = React.useState<'idle' | 'copied'>('idle');
+
+    const validResults = React.useMemo(
+        () => (result.results || []).filter((r) => r.success && r.data),
+        [result.results]
+    );
+
+    const sourcePreviews = React.useMemo(() => collectSourcePreviews(result), [result]);
+
+    const sourceTypeMeta: Record<SourceType, {
+        label: string;
+        color: string;
+        background: string;
+        icon: React.ComponentType<{ size?: number; color?: string }>;
+    }> = {
+        official: { label: '官方', color: '#10B981', background: 'rgba(16, 185, 129, 0.18)', icon: ShieldCheck },
+        news: { label: '媒体', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.18)', icon: Newspaper },
+        search: { label: '搜索', color: '#0EA5E9', background: 'rgba(14, 165, 233, 0.18)', icon: Search },
+        ugc: { label: 'UGC', color: '#A78BFA', background: 'rgba(167, 139, 250, 0.18)', icon: Users },
+        other: { label: '网页', color: '#94A3B8', background: 'rgba(148, 163, 184, 0.18)', icon: Globe },
+    };
+
+    const skillFilters = React.useMemo(() => {
+        const counts = new Map<string, { id: string; label: string; count: number }>();
+        validResults.forEach((item, index) => {
+            const id = item.skillId || item.skillName || `skill_${index}`;
+            const label = item.skillName || item.skillId || `技能 ${index + 1}`;
+            const current = counts.get(id);
+            if (current) {
+                current.count += 1;
+            } else {
+                counts.set(id, { id, label, count: 1 });
+            }
+        });
+        return Array.from(counts.values());
+    }, [validResults]);
+
+    const filteredResults = React.useMemo(() => {
+        if (selectedSkillFilter === 'all') return validResults;
+        return validResults.filter((item, index) => {
+            const id = item.skillId || item.skillName || `skill_${index}`;
+            return id === selectedSkillFilter;
+        });
+    }, [validResults, selectedSkillFilter]);
+
+    const handleCopyAnswer = async () => {
+        if (!result.answer) return;
+        try {
+            if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(result.answer);
+            } else if (typeof document !== 'undefined') {
+                const textarea = document.createElement('textarea');
+                textarea.value = result.answer;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+            setCopyState('copied');
+            setTimeout(() => setCopyState('idle'), 1500);
+        } catch (e) {
+            console.warn('[SuperAgentResultPanel] copy failed:', e);
+        }
+    };
+
     const renderSkillResult = (skillResult: SkillResultData, index: number) => {
         const skillId = skillResult.skillId || `skill_${index}`;
+        const resultKey = `${skillId}_${index}`;
         const skillName = skillResult.skillName || '技能结果';
         const Icon = skillIcons[skillId] || MessageCircle;
         const data = skillResult.data;
@@ -1458,7 +1808,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
 
         if (isLiveSearch && data) {
             console.log('[SuperAgentResultPanel] Using LiveSearchResultCard for:', skillId);
-            return <LiveSearchResultCard key={skillId} data={data} />;
+            return <LiveSearchResultCard key={resultKey} data={data} />;
         }
 
         // 搜索结果 - 通过 skillId 检测 (优先检测，因为 web_search 也有 results 和 query)
@@ -1469,7 +1819,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
 
         if (isWebSearch && data) {
             console.log('[SuperAgentResultPanel] Using SearchResultCard for:', skillId);
-            return <SearchResultCard key={skillId} data={data} />;
+            return <SearchResultCard key={resultKey} data={data} />;
         }
 
         // LIX 意图交易 - 通过 skillId 或数据结构检测
@@ -1484,7 +1834,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
 
         if (isBroadcastIntent && data && !isDomainGuardBlocked) {
             console.log('[SuperAgentResultPanel] Using OfferComparisonCard for:', skillId);
-            return <OfferComparisonCard key={skillId} data={data} onOpenInMarket={onOpenInMarket} />;
+            return <OfferComparisonCard key={resultKey} data={data} onOpenInMarket={onOpenInMarket} />;
         }
 
         // P0-1: Completely hide blocked offers (Fallback A: no visual at all)
@@ -1502,7 +1852,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
 
         if (isPriceCompare && data) {
             console.log('[SuperAgentResultPanel] Using PriceCompareCard for:', skillId);
-            return <PriceCompareCard key={skillId} data={data} />;
+            return <PriceCompareCard key={resultKey} data={data} />;
         }
 
         // 跳过空数据或只有基础信息的结果
@@ -1519,7 +1869,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
         if (skillResult.success && data) {
             return (
                 <GenericSkillCard
-                    key={skillId}
+                    key={resultKey}
                     skillName={skillName}
                     data={data}
                     icon={Icon}
@@ -1571,6 +1921,48 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                 </div>
             </div>
 
+            {/* View Switcher */}
+            <div style={{
+                display: 'inline-flex',
+                gap: 6,
+                background: colors.bg2,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 12,
+                padding: 4,
+                marginBottom: 14,
+            }}>
+                <button
+                    onClick={() => setActiveView('answer')}
+                    style={{
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '7px 12px',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        background: activeView === 'answer' ? colors.primaryMuted : 'transparent',
+                        color: activeView === 'answer' ? colors.primary : colors.text2,
+                        fontWeight: 600,
+                    }}
+                >
+                    解答视图
+                </button>
+                <button
+                    onClick={() => setActiveView('details')}
+                    style={{
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '7px 12px',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        background: activeView === 'details' ? colors.primaryMuted : 'transparent',
+                        color: activeView === 'details' ? colors.primary : colors.text2,
+                        fontWeight: 600,
+                    }}
+                >
+                    证据与数据
+                </button>
+            </div>
+
             {/* Question */}
             <div style={{
                 background: colors.bg2,
@@ -1612,83 +2004,271 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                 />
             )}
 
-            {/* Answer */}
-            {result.answer && (
-                <div style={{
-                    background: colors.primaryMuted,
-                    borderRadius: 12,
-                    padding: 16,
-                    marginBottom: 16,
-                    borderLeft: `3px solid ${colors.primary}`,
-                }}>
+            {/* Answer View */}
+            {activeView === 'answer' && (
+                <>
+                    {/* Answer */}
+                    {result.answer && (
+                        <div style={{
+                            background: colors.primaryMuted,
+                            borderRadius: 12,
+                            padding: 16,
+                            marginBottom: 16,
+                            borderLeft: `3px solid ${colors.primary}`,
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 8,
+                                marginBottom: 10,
+                                flexWrap: 'wrap',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <CheckCircle size={16} color={colors.primary} />
+                                    <span style={{ color: colors.primary, fontWeight: 600, fontSize: 13 }}>
+                                        最优解答
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <button
+                                        onClick={handleCopyAnswer}
+                                        style={{
+                                            border: `1px solid ${colors.border}`,
+                                            background: colors.bg2,
+                                            color: colors.text2,
+                                            borderRadius: 8,
+                                            padding: '6px 10px',
+                                            fontSize: 12,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {copyState === 'copied' ? '已复制' : '复制答案'}
+                                    </button>
+                                    <button
+                                        onClick={() => setAnswerExpanded((prev) => !prev)}
+                                        style={{
+                                            border: `1px solid ${colors.border}`,
+                                            background: colors.bg2,
+                                            color: colors.text2,
+                                            borderRadius: 8,
+                                            padding: '6px 10px',
+                                            fontSize: 12,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {answerExpanded ? '收起' : '展开'}
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveView('details')}
+                                        style={{
+                                            border: `1px solid ${colors.primary}`,
+                                            background: colors.primaryMuted,
+                                            color: colors.primary,
+                                            borderRadius: 8,
+                                            padding: '6px 10px',
+                                            fontSize: 12,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        查看证据
+                                    </button>
+                                </div>
+                            </div>
+                            {answerExpanded && (
+                                <div style={{ color: colors.text1, fontSize: 14, lineHeight: 1.7 }}>
+                                    <SimpleMarkdown text={result.answer} />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Source Preview */}
+                    {sourcePreviews.length > 0 && (
+                        <div style={{
+                            background: colors.bg2,
+                            borderRadius: 12,
+                            padding: 14,
+                            marginBottom: 16,
+                            border: `1px solid ${colors.border}`,
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginBottom: 10,
+                            }}>
+                                <span style={{ color: colors.text1, fontWeight: 600, fontSize: 13 }}>证据来源</span>
+                                <span style={{ color: colors.text3, fontSize: 12 }}>{sourcePreviews.length} 条</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {sourcePreviews.slice(0, 3).map((source, index) => (
+                                    <a
+                                        key={`${source.url}_${index}`}
+                                        href={source.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            textDecoration: 'none',
+                                            background: colors.bg3,
+                                            borderRadius: 10,
+                                            padding: '10px 12px',
+                                            border: `1px solid ${colors.border}`,
+                                        }}
+                                    >
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: 8,
+                                            marginBottom: 5,
+                                        }}>
+                                            <div style={{
+                                                color: colors.primary,
+                                                fontSize: 13,
+                                                fontWeight: 600,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                                minWidth: 0,
+                                                flex: 1,
+                                            }}>
+                                                <span style={{
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                    flex: 1,
+                                                }}>
+                                                    {source.title}
+                                                </span>
+                                                <ExternalLink size={12} />
+                                            </div>
+                                            <span style={{
+                                                fontSize: 11,
+                                                color: colors.text2,
+                                                background: colors.bg2,
+                                                border: `1px solid ${colors.border}`,
+                                                borderRadius: 10,
+                                                padding: '2px 7px',
+                                                flexShrink: 0,
+                                            }}>
+                                                可信度 {(source.confidence * 100).toFixed(0)}%
+                                            </span>
+                                        </div>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: 8,
+                                        }}>
+                                            <div style={{ color: colors.text3, fontSize: 11 }}>
+                                                {source.sourceName}
+                                            </div>
+                                            <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                                borderRadius: 10,
+                                                padding: '2px 7px',
+                                                fontSize: 11,
+                                                color: sourceTypeMeta[source.sourceType].color,
+                                                background: sourceTypeMeta[source.sourceType].background,
+                                                flexShrink: 0,
+                                            }}>
+                                                {(() => {
+                                                    const Icon = sourceTypeMeta[source.sourceType].icon;
+                                                    return <Icon size={11} color={sourceTypeMeta[source.sourceType].color} />;
+                                                })()}
+                                                {sourceTypeMeta[source.sourceType].label}
+                                            </span>
+                                        </div>
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Three-Stage Plan (Phase 2 Week 2) */}
+                    {result.plan && (
+                        <ThreeStagePlanCard
+                            plan={result.plan}
+                            onActionExecuted={(action) => {
+                                console.log('[SuperAgentResultPanel] Action executed:', action);
+                            }}
+                        />
+                    )}
+                </>
+            )}
+
+            {/* Details View */}
+            {activeView === 'details' && (
+                <div>
+                    {/* Skill Filters */}
                     <div style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        marginBottom: 8
+                        flexWrap: 'wrap',
+                        gap: 8,
+                        marginBottom: 14,
                     }}>
-                        <CheckCircle size={16} color={colors.primary} />
-                        <span style={{ color: colors.primary, fontWeight: 600, fontSize: 13 }}>
-                            最优解答
-                        </span>
+                        <button
+                            onClick={() => setSelectedSkillFilter('all')}
+                            style={{
+                                border: `1px solid ${selectedSkillFilter === 'all' ? colors.primary : colors.border}`,
+                                background: selectedSkillFilter === 'all' ? colors.primaryMuted : colors.bg3,
+                                color: selectedSkillFilter === 'all' ? colors.primary : colors.text2,
+                                borderRadius: 16,
+                                padding: '5px 11px',
+                                fontSize: 12,
+                                cursor: 'pointer',
+                            }}
+                        >
+                            全部
+                        </button>
+                        {skillFilters.map((filter) => (
+                            <button
+                                key={filter.id}
+                                onClick={() => setSelectedSkillFilter(filter.id)}
+                                style={{
+                                    border: `1px solid ${selectedSkillFilter === filter.id ? colors.primary : colors.border}`,
+                                    background: selectedSkillFilter === filter.id ? colors.primaryMuted : colors.bg3,
+                                    color: selectedSkillFilter === filter.id ? colors.primary : colors.text2,
+                                    borderRadius: 16,
+                                    padding: '5px 11px',
+                                    fontSize: 12,
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {filter.label} · {filter.count}
+                            </button>
+                        ))}
                     </div>
-                    <div style={{ color: colors.text1, fontSize: 14, lineHeight: 1.6 }}>
-                        <SimpleMarkdown text={result.answer} />
+
+                    <div style={{
+                        color: colors.text3,
+                        fontSize: 12,
+                        marginBottom: 8,
+                        textTransform: 'uppercase',
+                        letterSpacing: 1,
+                    }}>
+                        详细数据
                     </div>
+
+                    {filteredResults.length === 0 ? (
+                        <div style={{
+                            background: colors.bg2,
+                            borderRadius: 12,
+                            padding: 16,
+                            color: colors.text3,
+                            fontSize: 13,
+                            textAlign: 'center',
+                        }}>
+                            当前筛选下暂无详细数据
+                        </div>
+                    ) : (
+                        filteredResults.map(renderSkillResult)
+                    )}
                 </div>
-            )
-            }
-
-            {/* Three-Stage Plan (Phase 2 Week 2) */}
-            {
-                result.plan && (
-                    <ThreeStagePlanCard
-                        plan={result.plan}
-                        onActionExecuted={(action) => {
-                            console.log('[SuperAgentResultPanel] Action executed:', action);
-                        }}
-                    />
-                )
-            }
-
-            {/* Skills Used */}
-            <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 8,
-                marginBottom: 16,
-            }}>
-                {result.skillsUsed.map((skill, i) => (
-                    <span
-                        key={i}
-                        style={{
-                            background: colors.bg3,
-                            color: colors.text2,
-                            padding: '4px 10px',
-                            borderRadius: 16,
-                            fontSize: 12,
-                        }}
-                    >
-                        {skill}
-                    </span>
-                ))}
-            </div>
-
-            {/* Detailed Results */}
-            <div>
-                <div style={{
-                    color: colors.text3,
-                    fontSize: 12,
-                    marginBottom: 8,
-                    textTransform: 'uppercase',
-                    letterSpacing: 1,
-                }}>
-                    详细数据
-                </div>
-                {result.results
-                    .filter(r => r.success && r.data)
-                    .map(renderSkillResult)}
-            </div>
+            )}
 
             {/* Follow-up Suggestions */}
             {
