@@ -12,7 +12,7 @@ import { getEnhancedDigitalAvatar, saveEnhancedDigitalAvatar } from '../services
 // ============================================================================
 
 interface DigitalSoulOnboardingProps {
-    onComplete: (soul: SoulMatrix) => void;
+    onComplete: (soul: SoulMatrix, source: 'questionnaire' | 'import') => void;
     onSkip: () => void;
 }
 
@@ -786,7 +786,7 @@ export const DigitalSoulOnboarding: React.FC<DigitalSoulOnboardingProps> = ({ on
         }
         
         saveEnhancedDigitalAvatar(avatar);
-        onComplete(soul);
+        onComplete(soul, 'questionnaire');
     }, [step, totalSteps, choices, onComplete]);
 
     const handleBack = useCallback(() => {
@@ -822,7 +822,7 @@ export const DigitalSoulOnboarding: React.FC<DigitalSoulOnboardingProps> = ({ on
         }
         
         saveEnhancedDigitalAvatar(avatar);
-        onComplete(soul);
+        onComplete(soul, 'import');
     }, [onComplete]);
 
     const handleAdjustManually = useCallback(() => {

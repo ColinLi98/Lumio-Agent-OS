@@ -9,12 +9,122 @@
 import { getToolRegistry, setToolRegistryApiKey, GeminiFunctionDeclaration } from './toolRegistry';
 import { runShadowProfiling, setProfilingApiKey, ProfilingResult, onProfileUpdate } from './profilingService';
 import { getMemR3Router } from './memr3Service';
-import { SkillResult } from './skillRegistry';
+import { SkillResult, getSkillRegistry } from './skillRegistry';
 import { getPlanGenerator } from './planGenerator';
 import { ThreeStagePlan } from './planTypes';
 import { track } from './telemetryService';
 import { classifyFreshness, createStructuredFallback, type StructuredFallback, type IntentDomain } from './freshnessClassifier';
 import { buildFlightActionLinks, parseFlightConstraints, type FlightConstraints } from './flightConstraintParser';
+import { ensureMarketplaceCatalogReady, detectDomain, detectCapabilities } from './agentMarketplaceService';
+import type { MarketplaceTask, AgentExecutionResult } from './agentMarketplaceTypes';
+import { executeSpecializedAgent } from './specializedAgents';
+import type { SpecializedAgentType } from '../types';
+import { buildApiUrl } from './apiBaseUrl';
+
+// ============================================================================
+// Travel Context Extraction (for multi-agent param sharing)
+// ============================================================================
+
+interface TravelContext {
+    destination?: string;
+    origin?: string;
+    checkInDate?: string;
+    checkOutDate?: string;
+    departureDate?: string;
+    nights?: number;
+    adults?: number;
+    budget?: number;
+    currency?: string;
+}
+
+function parseTravelContext(query: string): TravelContext {
+    const ctx: TravelContext = {};
+    const now = new Date();
+
+    // Destination: "去X" / "到X" / "X旅行" / "X酒店"
+    const destMatch = query.match(/(?:去|到|飞)\s*([\u4e00-\u9fa5a-zA-Z]{2,10})(?:旅[行游]|度假|出差|玩)?/)
+        || query.match(/([\u4e00-\u9fa5a-zA-Z]{2,10})(?:的)?(?:酒店|住宿|旅[行游]|机票|航班)/);
+    if (destMatch) {
+        const raw = destMatch[1].replace(/的$/, '');
+        // Filter out non-destination words
+        if (!/^(我|你|他|她|想|要|需要|帮|搜索|查找|推荐|最)/.test(raw)) {
+            ctx.destination = raw;
+        }
+    }
+
+    // Origin: "从X出发" / "从X到Y"
+    const originMatch = query.match(/从\s*([\u4e00-\u9fa5a-zA-Z]{2,10})\s*(?:到|出发|飞)/);
+    if (originMatch) {
+        ctx.origin = originMatch[1];
+        // If origin matched, try destination from "从X到Y"
+        const routeMatch = query.match(/从\s*[\u4e00-\u9fa5a-zA-Z]+\s*(?:到|飞)\s*([\u4e00-\u9fa5a-zA-Z]{2,10})/);
+        if (routeMatch) ctx.destination = routeMatch[1];
+    }
+
+    // Dates: YYYY-MM-DD / M月D日 / 明天 / 后天
+    const fullDateMatch = query.match(/(\d{4})[\-\/年](\d{1,2})[\-\/月](\d{1,2})/);
+    if (fullDateMatch) {
+        const y = parseInt(fullDateMatch[1]);
+        const m = String(parseInt(fullDateMatch[2])).padStart(2, '0');
+        const d = String(parseInt(fullDateMatch[3])).padStart(2, '0');
+        ctx.departureDate = `${y}-${m}-${d}`;
+        ctx.checkInDate = ctx.departureDate;
+    } else {
+        const mdMatch = query.match(/(\d{1,2})[月\/\-](\d{1,2})[日号]?/);
+        if (mdMatch) {
+            let year = now.getFullYear();
+            const m = parseInt(mdMatch[1]);
+            const d = parseInt(mdMatch[2]);
+            const candidate = new Date(year, m - 1, d);
+            if (candidate < now) year++;
+            ctx.departureDate = `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            ctx.checkInDate = ctx.departureDate;
+        } else if (/明天/.test(query)) {
+            const t = new Date(now); t.setDate(t.getDate() + 1);
+            ctx.departureDate = t.toISOString().split('T')[0];
+            ctx.checkInDate = ctx.departureDate;
+        } else if (/后天/.test(query)) {
+            const t = new Date(now); t.setDate(t.getDate() + 2);
+            ctx.departureDate = t.toISOString().split('T')[0];
+            ctx.checkInDate = ctx.departureDate;
+        }
+    }
+
+    // Nights: "住X晚" / "X天"
+    const nightsMatch = query.match(/(\d+)\s*(?:晚|夜)/) || query.match(/住\s*(\d+)\s*天/);
+    if (nightsMatch) {
+        ctx.nights = parseInt(nightsMatch[1]);
+    } else {
+        const daysMatch = query.match(/(\d+)\s*天/);
+        if (daysMatch) ctx.nights = Math.max(1, parseInt(daysMatch[1]) - 1);
+    }
+
+    // Check-out from check-in + nights
+    if (ctx.checkInDate && ctx.nights) {
+        const co = new Date(ctx.checkInDate);
+        co.setDate(co.getDate() + ctx.nights);
+        ctx.checkOutDate = co.toISOString().split('T')[0];
+    } else if (ctx.checkInDate && !ctx.checkOutDate) {
+        // Default 3 nights
+        ctx.nights = 3;
+        const co = new Date(ctx.checkInDate);
+        co.setDate(co.getDate() + 3);
+        ctx.checkOutDate = co.toISOString().split('T')[0];
+    }
+
+    // Adults
+    const adultsMatch = query.match(/(\d+)\s*(?:人|位|个人)/);
+    if (adultsMatch) ctx.adults = parseInt(adultsMatch[1]);
+
+    // Budget
+    const budgetMatch = query.match(/预算\s*(?:约|大约)?\s*(\d+)/);
+    if (budgetMatch) ctx.budget = parseInt(budgetMatch[1]);
+
+    // Currency
+    ctx.currency = /[\u4e00-\u9fa5]/.test(ctx.destination || '') ? 'CNY' : 'USD';
+
+    return ctx;
+}
 
 // ============================================================================
 // Types
@@ -38,6 +148,10 @@ export interface AgentResponse {
     profilingResult?: ProfilingResult;
     /** Three-Stage Plan (Phase 2 Week 2) */
     plan?: ThreeStagePlan;
+    /** Marketplace trace info (when marketplace was used) */
+    marketplace_trace_id?: string;
+    marketplace_selected_agents?: Array<{ task_id: string; agent_id: string }>;
+    marketplace_fallback_used?: boolean;
 }
 
 export interface ToolExecutionResult {
@@ -56,6 +170,87 @@ export interface ToolExecutionResult {
 let geminiClient: any = null;
 let currentApiKey: string = '';
 let GoogleGenerativeAI: any = null;
+const DEFAULT_EXTERNAL_AGENT_TIMEOUT_MS = 12_000;
+const DEFAULT_EXTERNAL_PROXY_RETRIES = 1;
+
+function getExternalAgentTimeoutMs(): number {
+    const configured = typeof process !== 'undefined'
+        ? Number(process.env?.AGENT_MARKET_EXECUTOR_TIMEOUT_MS)
+        : NaN;
+    if (Number.isFinite(configured) && configured > 0) {
+        return Math.floor(configured);
+    }
+    return DEFAULT_EXTERNAL_AGENT_TIMEOUT_MS;
+}
+
+function resolveExternalAgentEndpoint(executeRef: string): string | null {
+    if (!executeRef || typeof executeRef !== 'string') return null;
+    const trimmed = executeRef.trim();
+    if (!trimmed) return null;
+
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    if (trimmed.startsWith('/')) return buildApiUrl(trimmed);
+
+    const base = typeof process !== 'undefined' ? process.env?.AGENT_MARKET_EXECUTOR_BASE?.trim() : '';
+    if (!base) return null;
+    return `${base.replace(/\/+$/, '')}/${trimmed.replace(/^\/+/, '')}`;
+}
+
+function shouldUseExternalProxy(): boolean {
+    const raw = (typeof process !== 'undefined' ? process.env?.AGENT_MARKET_EXECUTOR_USE_PROXY : '') || '';
+    if (!raw) return true;
+    const normalized = raw.trim().toLowerCase();
+    return !['0', 'false', 'off', 'no'].includes(normalized);
+}
+
+function getExternalProxyRetries(): number {
+    const configured = typeof process !== 'undefined'
+        ? Number(process.env?.AGENT_MARKET_EXECUTOR_RETRIES)
+        : NaN;
+    if (Number.isFinite(configured) && configured >= 0) {
+        return Math.max(0, Math.min(3, Math.floor(configured)));
+    }
+    return DEFAULT_EXTERNAL_PROXY_RETRIES;
+}
+
+function getExternalProxyToken(): string | undefined {
+    if (typeof process === 'undefined') return undefined;
+    const raw = process.env?.VITE_AGENT_MARKET_PROXY_TOKEN || process.env?.AGENT_MARKET_PROXY_TOKEN;
+    if (!raw) return undefined;
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeExternalEvidence(
+    payload: any,
+    fallbackSource: string,
+    fallbackUrl: string
+): Array<{ source: string; url: string; fetched_at?: string }> | undefined {
+    if (Array.isArray(payload?.evidence)) {
+        return payload.evidence.map((item: any) => ({
+            source: String(item?.source || fallbackSource),
+            url: String(item?.url || fallbackUrl),
+            fetched_at: item?.fetched_at ? String(item.fetched_at) : undefined,
+        }));
+    }
+
+    if (Array.isArray(payload?.evidence?.items)) {
+        return payload.evidence.items.map((item: any) => ({
+            source: String(item?.source_name || item?.source || payload?.evidence?.provider || fallbackSource),
+            url: String(item?.url || fallbackUrl),
+            fetched_at: payload?.evidence?.fetched_at ? String(payload.evidence.fetched_at) : undefined,
+        }));
+    }
+
+    if (Array.isArray(payload?.sources)) {
+        return payload.sources.map((source: any) => ({
+            source: String(source || fallbackSource),
+            url: fallbackUrl,
+        }));
+    }
+
+    return undefined;
+}
 
 async function getGeminiClient(apiKey: string) {
     if (!geminiClient || apiKey !== currentApiKey) {
@@ -76,6 +271,34 @@ async function getGeminiClient(apiKey: string) {
 
 export class SuperAgentService {
     private apiKey: string = '';
+
+    private formatFlightFallbackExample(query: string): string {
+        const constraints = parseFlightConstraints(query);
+        const datePart = constraints.departureDate || '明天';
+        const timeMap: Record<string, string> = {
+            morning: '早上',
+            afternoon: '下午',
+            evening: '晚上',
+            night: '夜间',
+        };
+        const timePart = constraints.departureTimePreference
+            ? timeMap[constraints.departureTimePreference] || ''
+            : '';
+        const routePart = constraints.origin && constraints.destination
+            ? `${constraints.origin}到${constraints.destination}`
+            : '出发地到目的地';
+        const classMap: Record<string, string> = {
+            economy: '经济舱',
+            business: '商务舱',
+            first: '头等舱',
+        };
+        const classPart = constraints.travelClass
+            ? classMap[constraints.travelClass] || '经济舱'
+            : '经济舱';
+        const passengerPart = `${constraints.passengers || 1}人`;
+
+        return `${datePart}${timePart ? `${timePart}，` : '，'}${routePart}，${classPart}，${passengerPart}`;
+    }
 
     /**
      * Set API Key for all components
@@ -112,6 +335,337 @@ export class SuperAgentService {
 
         // Telemetry: Track query received
         track.queryReceived(query, traceId);
+
+        // ====================================================================
+        // Marketplace Pre-Routing: Complex multi-task queries go through
+        // the marketplace pipeline for agent discovery + DAG execution.
+        // Simple queries continue to the standard ReAct loop below.
+        // ====================================================================
+        const detectedCaps = detectCapabilities(query);
+        const detectedDomain = detectDomain(query);
+        const marketplace = await ensureMarketplaceCatalogReady(true);
+        const isComplexQuery = detectedCaps.length >= 2
+            && !detectedCaps.every(c => c === 'general')
+            && marketplace.getRegisteredAgents().length > 0;
+
+        // Parse travel context once, share across all agents
+        const travelCtx = parseTravelContext(query);
+        if (travelCtx.destination) {
+            console.log(`[SuperAgent] 🗺️ Travel context parsed:`, JSON.stringify(travelCtx));
+        }
+
+        if (isComplexQuery) {
+            console.log(`[SuperAgent] 🏪 Marketplace pre-route: domain=${detectedDomain}, caps=[${detectedCaps}]`);
+            try {
+                const executor = async (agentId: string, task: MarketplaceTask): Promise<AgentExecutionResult> => {
+                    const start = Date.now();
+                    try {
+                        // Find the agent descriptor and delegate by source.
+                        const agents = marketplace.getRegisteredAgents();
+                        const agent = agents.find(a => a.id === agentId);
+                        if (!agent) throw new Error(`Agent ${agentId} not found`);
+
+                        if (agent.source === 'specialized') {
+                            // Build rich params from parsed travel context
+                            const agentType = agent.execute_ref as SpecializedAgentType;
+                            const taskParams: Record<string, any> = { query: task.objective };
+
+                            // Share travel context across agents
+                            if (travelCtx.destination) taskParams.destination = travelCtx.destination;
+                            if (travelCtx.origin) taskParams.origin = travelCtx.origin;
+
+                            if (agentType === 'hotel_booking') {
+                                if (travelCtx.checkInDate) taskParams.checkInDate = travelCtx.checkInDate;
+                                if (travelCtx.checkOutDate) taskParams.checkOutDate = travelCtx.checkOutDate;
+                                if (travelCtx.nights) taskParams.nights = travelCtx.nights;
+                                if (travelCtx.adults) taskParams.adults = travelCtx.adults;
+                                if (travelCtx.currency) taskParams.currency = travelCtx.currency;
+                            }
+                            if (agentType === 'flight_booking') {
+                                if (travelCtx.departureDate) taskParams.departureDate = travelCtx.departureDate;
+                                if (travelCtx.adults) taskParams.passengers = travelCtx.adults;
+                            }
+
+                            const specializedTask = {
+                                id: `mkt_${task.id}`,
+                                agentType,
+                                description: task.objective,
+                                params: taskParams,
+                                appliedPreferences: [],
+                                status: 'pending' as const,
+                                priority: 1,
+                                canRunParallel: task.parallelizable,
+                            };
+                            console.log(`[SuperAgent] Executing ${agentType} with params:`, JSON.stringify(taskParams));
+                            const result = await executeSpecializedAgent(specializedTask as any, this.apiKey);
+                            return {
+                                task_id: task.id,
+                                agent_id: agentId,
+                                success: Boolean(result?.success),
+                                data: result,
+                                evidence: result?.source
+                                    ? [{ source: result.source, url: '' }]
+                                    : undefined,
+                                latency_ms: Date.now() - start,
+                            };
+                        }
+
+                        if (agent.source === 'skill_registry') {
+                            const registry = getSkillRegistry();
+                            const skill = registry.getSkill(agent.execute_ref);
+                            if (!skill) throw new Error(`Skill not found: ${agent.execute_ref}`);
+
+                            const firstParam = skill.parameters.find(p => p.required)?.name
+                                || skill.parameters[0]?.name
+                                || 'query';
+                            const input: Record<string, any> = { [firstParam]: task.objective, query: task.objective };
+                            const skillResult = await skill.execute(input, {});
+
+                            return {
+                                task_id: task.id,
+                                agent_id: agentId,
+                                success: Boolean(skillResult?.success),
+                                data: skillResult,
+                                evidence: (skillResult?.sources || []).map((s: string) => ({ source: s, url: '' })),
+                                latency_ms: Date.now() - start,
+                            };
+                        }
+
+                        if (agent.source === 'external_market') {
+                            const upstreamEndpoint = resolveExternalAgentEndpoint(agent.execute_ref);
+                            if (!upstreamEndpoint) {
+                                throw new Error(`External agent endpoint unresolved for execute_ref=${agent.execute_ref}`);
+                            }
+
+                            const requestPayload = {
+                                trace_id: traceId,
+                                agent_id: agent.id,
+                                execute_ref: agent.execute_ref,
+                                task: {
+                                    id: task.id,
+                                    objective: task.objective,
+                                    required_capabilities: task.required_capabilities,
+                                    dependencies: task.dependencies,
+                                    parallelizable: task.parallelizable,
+                                },
+                                input: {
+                                    query: task.objective,
+                                    required_capabilities: task.required_capabilities,
+                                    domain: detectedDomain,
+                                },
+                            };
+
+                            const timeoutMs = getExternalAgentTimeoutMs();
+                            const useProxy = shouldUseExternalProxy();
+                            const controller = typeof AbortController !== 'undefined'
+                                ? new AbortController()
+                                : undefined;
+                            const timeout = controller
+                                ? setTimeout(() => controller.abort(), timeoutMs)
+                                : undefined;
+                            const requestUrl = useProxy
+                                ? buildApiUrl('/api/agent-market/execute')
+                                : upstreamEndpoint;
+                            const requestBody = useProxy
+                                ? {
+                                    target_url: upstreamEndpoint,
+                                    payload: requestPayload,
+                                    timeout_ms: timeoutMs,
+                                    retries: getExternalProxyRetries(),
+                                }
+                                : requestPayload;
+                            const requestHeaders: Record<string, string> = {
+                                'content-type': 'application/json',
+                            };
+                            if (useProxy) {
+                                const proxyToken = getExternalProxyToken();
+                                if (proxyToken) {
+                                    requestHeaders['x-agent-market-token'] = proxyToken;
+                                }
+                            }
+
+                            try {
+                                const resp = await fetch(requestUrl, {
+                                    method: 'POST',
+                                    headers: requestHeaders,
+                                    body: JSON.stringify(requestBody),
+                                    signal: controller?.signal,
+                                });
+
+                                const text = await resp.text();
+                                let payload: any = null;
+                                if (text) {
+                                    try {
+                                        payload = JSON.parse(text);
+                                    } catch {
+                                        payload = { raw: text };
+                                    }
+                                }
+
+                                if (!resp.ok) {
+                                    const snippet = text ? text.slice(0, 240) : '';
+                                    throw new Error(`external_agent_http_${resp.status}${snippet ? `: ${snippet}` : ''}`);
+                                }
+
+                                const normalizedData = payload?.data ?? payload ?? {};
+                                const evidence = normalizeExternalEvidence(payload, agentId, upstreamEndpoint);
+
+                                return {
+                                    task_id: task.id,
+                                    agent_id: agentId,
+                                    success: payload?.success !== false,
+                                    data: normalizedData,
+                                    evidence,
+                                    latency_ms: Date.now() - start,
+                                };
+                            } finally {
+                                if (timeout) clearTimeout(timeout);
+                            }
+                        }
+
+                        const toolRegistry = getToolRegistry();
+                        const tool = toolRegistry.getTool(agent.execute_ref);
+                        if (!tool) {
+                            throw new Error(`No execute_ref found for agent ${agentId}`);
+                        }
+
+                        const toolArgs: Record<string, any> = { query: task.objective };
+                        if (
+                            task.required_capabilities.includes('live_search')
+                            || task.required_capabilities.includes('flight_search')
+                            || task.required_capabilities.includes('hotel_search')
+                            || task.required_capabilities.includes('local_transport')
+                        ) {
+                            toolArgs.intent_domain = detectedDomain === 'travel'
+                                ? 'travel.flight'
+                                : detectedDomain === 'finance'
+                                    ? 'finance'
+                                    : 'knowledge';
+                            toolArgs.locale = 'zh-CN';
+                        }
+
+                        const result = await tool.execute(toolArgs);
+                        const evidence = Array.isArray(result?.evidence?.items)
+                            ? result.evidence.items.map((item: any) => ({
+                                source: item?.source_name || result?.evidence?.provider || agentId,
+                                url: item?.url || '',
+                                fetched_at: result?.evidence?.fetched_at
+                                    ? String(result.evidence.fetched_at)
+                                    : undefined,
+                            }))
+                            : undefined;
+
+                        return {
+                            task_id: task.id,
+                            agent_id: agentId,
+                            success: Boolean(result?.success),
+                            data: result,
+                            evidence,
+                            latency_ms: Date.now() - start,
+                        };
+                    } catch (err) {
+                        return {
+                            task_id: task.id,
+                            agent_id: agentId,
+                            success: false,
+                            data: null,
+                            error: err instanceof Error ? err.message : String(err),
+                            latency_ms: Date.now() - start,
+                        };
+                    }
+                };
+
+                const { plan, summary, aggregated } = await marketplace.runFullPipeline(query, executor, detectedDomain);
+                const elapsed = performance.now() - startTime;
+                const successfulCount = summary.results.filter(r => r.success).length;
+                const confidence = summary.results.length > 0
+                    ? successfulCount / summary.results.length
+                    : 0.5;
+                const highRisk = detectedDomain === 'health'
+                    || detectedDomain === 'legal'
+                    || detectedDomain === 'finance';
+                const degradedConstraints = detectedDomain === 'finance'
+                    ? '请补充标的（如股票代码/币种）、时间范围与风险偏好'
+                    : detectedDomain === 'health'
+                        ? '请补充症状持续时间、既往病史与当前用药'
+                        : detectedDomain === 'legal'
+                            ? '请补充法域、合同条款/争议点与时间线'
+                            : '请补充关键约束信息';
+                const fallbackByTask = new Map(
+                    summary.fallback_used.map(item => [item.task_id, item.to_agent_id])
+                );
+                const effectiveSelectedAgents = summary.selected_agents.map(item => ({
+                    task_id: item.task_id,
+                    agent_id: fallbackByTask.get(item.task_id) ?? item.agent_id,
+                }));
+                const selectedAgentMeta = new Map(
+                    marketplace.getRegisteredAgents().map(agent => [agent.id, agent])
+                );
+                const hasStrongEvidenceAgent = effectiveSelectedAgents.some(item =>
+                    selectedAgentMeta.get(item.agent_id)?.evidence_level === 'strong'
+                );
+                const hasTraceableEvidence = aggregated.evidence.length > 0;
+                const shouldDegradeForEvidence = highRisk && (!hasStrongEvidenceAgent || !hasTraceableEvidence);
+
+                // Convert marketplace results to AgentResponse format
+                const mktToolResults: ToolExecutionResult[] = summary.results.map(r => ({
+                    toolName: r.agent_id || 'marketplace_agent',
+                    args: { task_id: r.task_id },
+                    output: r.data,
+                    success: r.success,
+                    error: r.error,
+                    executionTimeMs: r.latency_ms,
+                }));
+
+                // Build structured answer with actual agent result summaries
+                let answerParts: string[] = [];
+                if (shouldDegradeForEvidence) {
+                    answerParts.push(`当前为高风险领域且缺少强证据链，已降级为约束补全模式。${degradedConstraints}。`);
+                } else {
+                    // Summarize each successful agent's results
+                    for (const r of summary.results) {
+                        if (!r.success) continue;
+                        const agentMeta = selectedAgentMeta.get(r.agent_id);
+                        const agentName = agentMeta?.name || r.agent_id;
+                        const data = r.data;
+
+                        if (data?.data?.hotels?.length) {
+                            const hotels = data.data.hotels;
+                            answerParts.push(`🏨 **${agentName}**: 找到 ${hotels.length} 家酒店` +
+                                (hotels[0]?.name ? `，推荐 ${hotels[0].name}（${hotels[0].pricePerNight ? '¥' + hotels[0].pricePerNight + '/晚' : ''}）` : ''));
+                        } else if (data?.data?.flights?.length || data?.flights?.length) {
+                            const flights = data?.data?.flights || data?.flights;
+                            answerParts.push(`🛫 **${agentName}**: 找到 ${flights.length} 个航班`);
+                        } else if (data?.success !== undefined) {
+                            answerParts.push(`✅ **${agentName}**: 任务完成`);
+                        }
+                    }
+
+                    if (aggregated.failed_tasks.length > 0) {
+                        answerParts.push(`⚠️ 未完成: ${aggregated.failed_tasks.join(', ')}`);
+                    }
+
+                    if (answerParts.length === 0) {
+                        answerParts.push(`已通过 ${summary.selected_agents.length} 个专业Agent完成任务。`);
+                    }
+                }
+
+                return {
+                    answer: answerParts.join('\n'),
+                    toolsUsed: Array.from(new Set(effectiveSelectedAgents.map(s => s.agent_id))),
+                    toolResults: mktToolResults,
+                    confidence,
+                    executionTimeMs: elapsed,
+                    turns: 1,
+                    marketplace_trace_id: plan.trace_id,
+                    marketplace_selected_agents: effectiveSelectedAgents,
+                    marketplace_fallback_used: summary.fallback_used.length > 0,
+                };
+            } catch (mktErr) {
+                console.warn('[SuperAgent] Marketplace pre-route failed, falling through to ReAct:', mktErr);
+                // Fall through to standard ReAct loop
+            }
+        }
 
         const toolsUsed: string[] = [];
         const toolResults: ToolExecutionResult[] = [];
@@ -271,6 +825,11 @@ export class SuperAgentService {
         } catch (error) {
             console.error('[SuperAgent] ❌ Fatal error:', error);
 
+            const realtimeFallback = await this.tryRealtimeToolFallback(query, flightConstraints, startTime);
+            if (realtimeFallback) {
+                return realtimeFallback;
+            }
+
             // Try fallback to simple LLM call
             try {
                 console.log('[SuperAgent] 🔄 Attempting fallback...');
@@ -295,6 +854,111 @@ export class SuperAgentService {
                 executionTimeMs: Math.round(performance.now() - startTime),
                 turns: 0
             };
+        }
+    }
+
+    private buildDirectLiveSearchAnswer(query: string, liveOutput: any): string | null {
+        if (!liveOutput || typeof liveOutput !== 'object' || !liveOutput.success) {
+            return null;
+        }
+
+        const route = classifyFreshness(query);
+        const quoteCards = Array.isArray(liveOutput.quote_cards) ? liveOutput.quote_cards : [];
+        const evidenceItems = Array.isArray(liveOutput?.evidence?.items) ? liveOutput.evidence.items : [];
+        const lines: string[] = [];
+
+        if ((route.intent_domain === 'travel.flight' || route.intent_domain === 'travel.train') && quoteCards.length > 0) {
+            lines.push('已获取实时票务结果（以平台实时页为准）：');
+            for (const card of quoteCards.slice(0, 3)) {
+                const provider = String(card?.provider || '来源');
+                const dep = String(card?.dep_time || '--:--');
+                const arr = String(card?.arr_time || '--:--');
+                const price = String(card?.price_text || '价格待确认');
+                const transfers = String(card?.transfers_text || '');
+                const url = String(card?.source_url || '');
+                if (url.startsWith('http')) {
+                    lines.push(`- ${dep}-${arr} ${price}${transfers ? `，${transfers}` : ''} [来源: ${provider}](${url})`);
+                } else {
+                    lines.push(`- ${dep}-${arr} ${price}${transfers ? `，${transfers}` : ''}（来源: ${provider}）`);
+                }
+            }
+            return lines.join('\n');
+        }
+
+        if (evidenceItems.length > 0) {
+            lines.push('已获取实时信息：');
+            for (const item of evidenceItems.slice(0, 3)) {
+                const title = String(item?.title || '实时结果');
+                const sourceName = String(item?.source_name || '来源');
+                const url = String(item?.url || '');
+                if (url.startsWith('http')) {
+                    lines.push(`- ${title} [来源: ${sourceName}](${url})`);
+                } else {
+                    lines.push(`- ${title}（来源: ${sourceName}）`);
+                }
+            }
+            return lines.join('\n');
+        }
+
+        return null;
+    }
+
+    private async tryRealtimeToolFallback(
+        query: string,
+        flightConstraints: FlightConstraints,
+        startTime: number
+    ): Promise<AgentResponse | null> {
+        const route = classifyFreshness(query);
+        if (!route.needs_live_data) return null;
+
+        const registry = getToolRegistry();
+        const liveSearch = registry.getTool('live_search');
+        if (!liveSearch) return null;
+
+        const args = {
+            query,
+            intent_domain: route.intent_domain,
+            locale: 'zh-CN',
+        };
+
+        try {
+            console.log('[SuperAgent] 🧯 Realtime fallback: executing live_search directly');
+            const execStart = performance.now();
+            const output = await liveSearch.execute(args);
+            const executionTimeMs = Math.round(performance.now() - execStart);
+            const success = output?.success !== false;
+            const error = success ? undefined : String(output?.error?.message || output?.error?.code || 'live_search failed');
+
+            const toolResult: ToolExecutionResult = {
+                toolName: 'live_search',
+                args,
+                output,
+                success,
+                error,
+                executionTimeMs,
+            };
+
+            const seedAnswer = this.buildDirectLiveSearchAnswer(query, output) || '实时查询已执行。';
+            const guardedAnswer = this.enforceEvidenceFirstAnswer(query, seedAnswer, [toolResult]);
+            const finalAnswer = this.enforceFlightTimePreference(
+                query,
+                guardedAnswer,
+                [toolResult],
+                flightConstraints
+            );
+            const hasUsable = success && this.hasUsableEvidence(route.intent_domain, output);
+
+            return {
+                answer: finalAnswer,
+                toolsUsed: ['live_search'],
+                toolResults: [toolResult],
+                confidence: hasUsable ? 0.65 : success ? 0.45 : 0.35,
+                executionTimeMs: Math.round(performance.now() - startTime),
+                turns: 1,
+            };
+        } catch (fallbackError) {
+            console.warn('[SuperAgent] ⚠️ Realtime fallback failed:', fallbackError);
+            return null;
         }
     }
 
@@ -382,8 +1046,21 @@ export class SuperAgentService {
             ? missing.map((m) => `- ${m}`).join('\n')
             : '- 出发日期\n- 舱位偏好（经济/商务）\n- 乘客人数';
 
+        const extractedLinks = this.extractActionLinks(relevant);
+        const fallbackFlightLinks = route.intent_domain === 'travel.flight'
+            ? buildFlightActionLinks(parseFlightConstraints(query))
+            : [];
+        const links = extractedLinks.length > 0 ? extractedLinks : fallbackFlightLinks;
+        const linkText = links.length > 0
+            ? [
+                '',
+                '你也可以先打开以下实时入口（若未指定日期请在站内补选）：',
+                ...links.slice(0, 3).map((link) => `- [${link.title}](${link.url})`)
+            ].join('\n')
+            : '';
+
         const example = route.intent_domain === 'travel.flight'
-            ? '明天早上，上海虹桥到北京首都，经济舱，1人'
+            ? this.formatFlightFallbackExample(query)
             : route.intent_domain === 'travel.train'
                 ? '明天上午，上海到北京，二等座，1人'
                 : '请补充日期、人数与预算';
@@ -395,6 +1072,7 @@ export class SuperAgentService {
             missingText,
             '',
             `可直接回复：\`${example}\``,
+            linkText,
             '',
             '补充后我会立即重新检索并给出可验证来源。'
         ].join('\n');
@@ -737,7 +1415,10 @@ ${toolNames.map(name => `- ${name}`).join('\n')}
                 skillName: r.toolName
             })),
             confidence: response.confidence,
-            executionTimeMs: response.executionTimeMs
+            executionTimeMs: response.executionTimeMs,
+            marketplace_trace_id: response.marketplace_trace_id,
+            marketplace_selected_agents: response.marketplace_selected_agents,
+            marketplace_fallback_used: response.marketplace_fallback_used,
         };
     }
 }
@@ -754,6 +1435,9 @@ interface LegacySolution {
     confidence: number;
     executionTimeMs: number;
     followUpSuggestions?: string[];
+    marketplace_trace_id?: string;
+    marketplace_selected_agents?: Array<{ task_id: string; agent_id: string }>;
+    marketplace_fallback_used?: boolean;
 }
 
 // ============================================================================

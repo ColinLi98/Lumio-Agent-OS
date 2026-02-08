@@ -5,14 +5,17 @@
   },
   "include": [
     "services/dtoe/**/*.ts",
-    "tests/dtoe/**/*.ts",
-    "playwright-tests/**/*.ts"
+    "tests/dtoe/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
+    ".vercel",
+    "coverage",
     "lumi-life-optimizer/venv",
+    "lumi-life-optimizer/node_modules",
     "lumi-website/node_modules",
+    "lumi-website/dist",
     ".venv",
     "LumiKeyboard-Android"
   ]

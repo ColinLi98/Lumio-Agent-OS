@@ -672,7 +672,7 @@ export interface Milestone {
  * 人生阶段定义
  * 用于命运导航系统的人生阶段分类
  */
-export type LifeStage = 
+export type LifeStage =
   | 'student'           // 学生阶段
   | 'early_career'      // 职业早期 (22-30)
   | 'career_growth'     // 职业成长期 (30-40)
@@ -689,14 +689,14 @@ export interface LifeStateSnapshot {
   age: number;                        // 年龄
   birthYear?: number;                 // 出生年份 (可选，用于自动更新年龄)
   lifeStage: LifeStage;               // 当前人生阶段
-  
+
   // 教育背景
   education: {
     highestDegree: 'high_school' | 'bachelor' | 'master' | 'phd' | 'other';
     field?: string;                   // 专业领域
     institutions?: string[];          // 就读院校
   };
-  
+
   // 职业状态
   career: {
     currentStatus: 'student' | 'employed' | 'self_employed' | 'freelance' | 'unemployed' | 'retired';
@@ -705,7 +705,7 @@ export interface LifeStateSnapshot {
     yearsOfExperience: number;        // 工作年限
     careerSatisfaction: number;       // 职业满意度 (0-100)
   };
-  
+
   // 财务状况 (相对评估，不涉及具体数字)
   finance: {
     incomeLevel: 'low' | 'medium' | 'high' | 'very_high';  // 收入水平
@@ -715,7 +715,7 @@ export interface LifeStateSnapshot {
     hasInvestments: boolean;          // 是否有投资
     hasProperty: boolean;             // 是否有房产
   };
-  
+
   // 健康状况
   health: {
     physicalHealth: number;           // 身体健康 (0-100)
@@ -725,7 +725,7 @@ export interface LifeStateSnapshot {
     exerciseFrequency: 'none' | 'rarely' | 'weekly' | 'daily';
     chronicConditions?: string[];     // 慢性疾病 (可选)
   };
-  
+
   // 关系状态
   relationships: {
     status: 'single' | 'dating' | 'married' | 'divorced' | 'widowed';
@@ -735,7 +735,7 @@ export interface LifeStateSnapshot {
     socialCircleSize: 'small' | 'medium' | 'large';
     socialSatisfaction: number;          // 社交满意度 (0-100)
   };
-  
+
   // 技能与能力
   skills: {
     topSkills: string[];              // 核心技能 (最多5个)
@@ -744,7 +744,7 @@ export interface LifeStateSnapshot {
     technicalProficiency: number;     // 技术能力 (0-100)
     leadershipExperience: number;     // 领导经验 (0-100)
   };
-  
+
   // 人生目标
   lifeGoals: {
     shortTerm: string[];              // 短期目标 (1年内)
@@ -754,7 +754,7 @@ export interface LifeStateSnapshot {
     dreamJob?: string;                // 理想职业
     lifeVision?: string;              // 人生愿景
   };
-  
+
   // 当前挑战与焦虑
   currentChallenges: {
     primaryConcerns: string[];        // 主要担忧
@@ -762,7 +762,7 @@ export interface LifeStateSnapshot {
     anxietyTriggers: string[];        // 焦虑触发因素
     bigDecisions: string[];           // 面临的重大决策
   };
-  
+
   // 资源与优势
   resources: {
     networkQuality: number;           // 人脉质量 (0-100)
@@ -770,7 +770,7 @@ export interface LifeStateSnapshot {
     uniqueAdvantages: string[];       // 独特优势
     availableTime: 'limited' | 'moderate' | 'abundant';  // 可用时间
   };
-  
+
   // 元数据
   lastUpdated: number;                // 最后更新时间
   completeness: number;               // 完整度 (0-100)
@@ -832,7 +832,7 @@ export interface EnhancedDigitalAvatar extends DigitalAvatar {
   lifeState: LifeStateSnapshot;           // 人生状态快照
   lifeTransitions: LifeTransition[];      // 人生转折点
   decisionHistory: DecisionHistory[];     // 决策历史
-  
+
   // === 新增：命运导航偏好 ===
   destinyPreferences: {
     optimizationGoal: 'wealth' | 'happiness' | 'health' | 'balance' | 'achievement';
@@ -934,4 +934,18 @@ export interface DynamicAvatarState {
   isActive: boolean;                 // 是否活跃中
   lastActiveTime: number;            // 最后活跃时间
   animation?: 'idle' | 'wave' | 'nod' | 'celebrate';
+}
+
+// ====================================
+// Agent Marketplace Re-exports
+// ====================================
+
+export type { AgentDomain, EvidenceLevel, CostTier } from './services/agentMarketplaceTypes';
+export type GenericAgentDomain = import('./services/agentMarketplaceTypes').AgentDomain;
+export interface GenericMarketplaceTask {
+  id: string;
+  objective: string;
+  required_capabilities: string[];
+  dependencies: string[];
+  parallelizable: boolean;
 }

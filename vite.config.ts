@@ -2,14 +2,12 @@ import path from 'path';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import type { ServerResponse, IncomingMessage } from 'http';
-import lixBroadcastHandler from './api/lix-broadcast';
-import lixAcceptHandler from './api/lix-accept';
-import lixProcessPendingHandler from './api/lix-process-pending';
-import lixMetricsHandler from './api/lix-metrics';
-import lixConversionCallbackHandler from './api/lix-conversion-callback';
-import lixDisputeHandler from './api/lix-dispute';
-import lixIntentHandler from './api/lix-intent';
-import lixOffersHandler from './api/lix-offers';
+import liveSearchApiHandler from './api/live-search';
+import tavilySearchApiHandler from './api/tavily-search';
+import { handleAgentMarketDiscover, handleAgentMarketExecute, handleAgentMarketManualExecute } from './api/agent-market/[action]';
+import serpApiExecuteHandler from './api/serpapi/execute';
+import serpApiStatusHandler from './api/serpapi/status';
+import lixSolutionHandler from './api/lix/solution/[action]';
 
 // ============================================================================
 // 6.1 Intent Domain Types (5 domains)
@@ -106,7 +104,7 @@ function generateTraceId(): string {
 interface LiveSearchRequest {
   query: string;
   locale?: string;
-  intent_domain?: IntentDomain;
+  intent_domain?: string;
   max_items?: number;
 }
 
@@ -282,16 +280,30 @@ interface LixDevRoute {
   handler: WebApiHandler;
 }
 
+const LIX_DEPRECATED_PATH_ALIASES: Record<string, string> = {
+  '/api/lix-broadcast': '/api/lix/solution/broadcast',
+  '/api/lix-accept': '/api/lix/solution/offer/accept',
+  '/api/lix-offers': '/api/lix/solution/offers',
+};
+
 const LIX_DEV_ROUTES: LixDevRoute[] = [
-  { path: '/api/lix/broadcast', handler: lixBroadcastHandler },
-  { path: '/api/lix/offer/accept', handler: lixAcceptHandler },
-  { path: '/api/lix/process-pending', handler: lixProcessPendingHandler },
-  { path: '/api/lix/metrics', handler: lixMetricsHandler },
-  { path: /^\/api\/lix\/conversion\/callback\/[^/]+$/, handler: lixConversionCallbackHandler },
-  { path: '/api/lix/conversion/dispute', handler: lixDisputeHandler },
-  { path: '/api/lix/intent', handler: lixIntentHandler },
-  { path: '/api/lix/offers', handler: lixOffersHandler },
+  { path: /^\/api\/lix\/solution(?:\/.*)?$/, handler: lixSolutionHandler },
 ];
+
+function resolveLixDevPathAlias(pathname: string): {
+  canonicalPath: string;
+  deprecatedPath?: string;
+} {
+  const directAlias = LIX_DEPRECATED_PATH_ALIASES[pathname];
+  if (directAlias) {
+    return {
+      canonicalPath: directAlias,
+      deprecatedPath: pathname,
+    };
+  }
+
+  return { canonicalPath: pathname };
+}
 
 function matchLixDevRoute(pathname: string): LixDevRoute | undefined {
   return LIX_DEV_ROUTES.find((route) =>
@@ -364,8 +376,31 @@ function redactPII(q: string): string {
 // 6.1: Domain Classifier (5 domains with ticketing separate from travel)
 // ============================================================================
 
-function inferDomain(query: string, intent_domain?: IntentDomain): IntentDomain {
-  if (intent_domain) return intent_domain;
+function normalizeIncomingDomain(intentDomain?: string): IntentDomain | undefined {
+  if (!intentDomain) return undefined;
+  const normalized = intentDomain.trim().toLowerCase();
+
+  const aliases: Record<string, IntentDomain> = {
+    ticketing: 'ticketing',
+    travel: 'travel',
+    ecommerce: 'ecommerce',
+    knowledge: 'knowledge',
+    local_life: 'local_life',
+    'travel.flight': 'ticketing',
+    'travel.train': 'ticketing',
+    'travel.hotel': 'travel',
+    'ecommerce.product': 'ecommerce',
+    'local.service': 'local_life',
+    finance: 'knowledge',
+    news: 'knowledge',
+  };
+
+  return aliases[normalized];
+}
+
+function inferDomain(query: string, intent_domain?: string): IntentDomain {
+  const normalizedIntentDomain = normalizeIncomingDomain(intent_domain);
+  if (normalizedIntentDomain) return normalizedIntentDomain;
 
   const q = query.toLowerCase();
 
@@ -905,18 +940,57 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
   return {
     name: 'api-routes',
     configureServer(server) {
-      // Local LIX compatibility routes: expose /api/lix/* while keeping api/lix-*.ts modules.
+      if (env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
+        process.env.GEMINI_API_KEY = env.GEMINI_API_KEY;
+      }
+      if (env.SERPAPI_API_KEY && !process.env.SERPAPI_API_KEY) {
+        process.env.SERPAPI_API_KEY = env.SERPAPI_API_KEY;
+      }
+      if (env.SERPAPI_KEY && !process.env.SERPAPI_KEY) {
+        process.env.SERPAPI_KEY = env.SERPAPI_KEY;
+      }
+      if (env.VITE_SERPAPI_KEY && !process.env.VITE_SERPAPI_KEY) {
+        process.env.VITE_SERPAPI_KEY = env.VITE_SERPAPI_KEY;
+      }
+      if (env.AGENT_MARKET_FEEDS && !process.env.AGENT_MARKET_FEEDS) {
+        process.env.AGENT_MARKET_FEEDS = env.AGENT_MARKET_FEEDS;
+      } else if (env.VITE_AGENT_MARKET_FEEDS && !process.env.AGENT_MARKET_FEEDS) {
+        process.env.AGENT_MARKET_FEEDS = env.VITE_AGENT_MARKET_FEEDS;
+      }
+      if (env.AGENT_MARKET_EXECUTOR_BASE && !process.env.AGENT_MARKET_EXECUTOR_BASE) {
+        process.env.AGENT_MARKET_EXECUTOR_BASE = env.AGENT_MARKET_EXECUTOR_BASE;
+      }
+      if (env.AGENT_MARKET_EXECUTOR_USE_PROXY && !process.env.AGENT_MARKET_EXECUTOR_USE_PROXY) {
+        process.env.AGENT_MARKET_EXECUTOR_USE_PROXY = env.AGENT_MARKET_EXECUTOR_USE_PROXY;
+      }
+      if (env.AGENT_MARKET_PROXY_TOKEN && !process.env.AGENT_MARKET_PROXY_TOKEN) {
+        process.env.AGENT_MARKET_PROXY_TOKEN = env.AGENT_MARKET_PROXY_TOKEN;
+      }
+      if (env.AGENT_MARKET_PROXY_ALLOWLIST && !process.env.AGENT_MARKET_PROXY_ALLOWLIST) {
+        process.env.AGENT_MARKET_PROXY_ALLOWLIST = env.AGENT_MARKET_PROXY_ALLOWLIST;
+      }
+
+      // Local LIX compatibility routes: route legacy and solution paths through the unified solution handler.
       server.middlewares.use(async (req, res, next) => {
         const host = req.headers.host || '127.0.0.1:5173';
         const requestUrl = new URL(req.url || '/', `http://${host}`);
-        const route = matchLixDevRoute(requestUrl.pathname);
+        const resolved = resolveLixDevPathAlias(requestUrl.pathname);
+        const route = matchLixDevRoute(resolved.canonicalPath);
 
         if (!route) {
           return next();
         }
 
         try {
-          await bridgeWebApiHandler(req, res, route.handler, requestUrl);
+          const canonicalUrl = new URL(requestUrl.toString());
+          canonicalUrl.pathname = resolved.canonicalPath;
+          if (resolved.deprecatedPath) {
+            console.warn(
+              `[lix-dev-route] Deprecated path alias "${resolved.deprecatedPath}" -> "${resolved.canonicalPath}"`
+            );
+            res.setHeader('X-LIX-Deprecated-Route', resolved.deprecatedPath);
+          }
+          await bridgeWebApiHandler(req, res, route.handler, canonicalUrl);
         } catch (error) {
           console.error(`[lix-dev-route] ${requestUrl.pathname} failed`, error);
           if (!res.headersSent) {
@@ -948,7 +1022,141 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
       server.middlewares.use('/api/web-exec', handleWebExec);
       server.middlewares.use('/api/live-execute', handleWebExec);  // alias for backward compat
 
+      // /api/tavily-search
+      server.middlewares.use('/api/tavily-search', async (req, res, next) => {
+        if (req.method === 'OPTIONS') {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+          res.statusCode = 200;
+          res.end();
+          return;
+        }
+        if (req.method !== 'POST') {
+          return safeJson(res, 405, { error: 'Method not allowed' });
+        }
+
+        try {
+          const requestUrl = new URL(req.url || '/api/tavily-search', 'http://127.0.0.1');
+          await bridgeWebApiHandler(req, res, tavilySearchApiHandler, requestUrl);
+        } catch (error) {
+          console.error('[tavily-search] local bridge failed', error);
+          if (!res.headersSent) {
+            safeJson(res, 500, {
+              success: false,
+              error: {
+                code: 'internal_error',
+                message: error instanceof Error ? error.message : 'Unknown error',
+              },
+            });
+          }
+        }
+      });
+
+      // /api/serpapi/execute
+      server.middlewares.use('/api/serpapi/execute', async (req, res, next) => {
+        if (req.method === 'OPTIONS') {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+          res.statusCode = 200;
+          res.end();
+          return;
+        }
+        if (req.method !== 'POST') {
+          return safeJson(res, 405, { error: 'Method not allowed' });
+        }
+
+        try {
+          const parsedBody = await readJsonBody(req);
+          const vercelReq = req as any;
+          const vercelRes = res as any;
+          vercelReq.body = parsedBody;
+
+          if (typeof vercelRes.status !== 'function') {
+            vercelRes.status = (statusCode: number) => {
+              res.statusCode = statusCode;
+              return vercelRes;
+            };
+          }
+          if (typeof vercelRes.json !== 'function') {
+            vercelRes.json = (payload: unknown) => {
+              if (!res.headersSent) {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              }
+              res.end(JSON.stringify(payload));
+              return vercelRes;
+            };
+          }
+
+          await serpApiExecuteHandler(vercelReq, vercelRes);
+        } catch (error) {
+          console.error('[serpapi/execute] local bridge failed', error);
+          if (!res.headersSent) {
+            safeJson(res, 500, {
+              success: false,
+              error: {
+                code: 'internal_error',
+                message: error instanceof Error ? error.message : 'Unknown error',
+                retryable: true,
+              },
+            });
+          }
+        }
+      });
+
+      // /api/serpapi/status
+      server.middlewares.use('/api/serpapi/status', async (req, res, next) => {
+        if (req.method === 'OPTIONS') {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+          res.statusCode = 200;
+          res.end();
+          return;
+        }
+        if (req.method !== 'GET' && req.method !== 'POST') {
+          return safeJson(res, 405, { error: 'Method not allowed' });
+        }
+
+        try {
+          const vercelReq = req as any;
+          const vercelRes = res as any;
+
+          if (typeof vercelRes.status !== 'function') {
+            vercelRes.status = (statusCode: number) => {
+              res.statusCode = statusCode;
+              return vercelRes;
+            };
+          }
+          if (typeof vercelRes.json !== 'function') {
+            vercelRes.json = (payload: unknown) => {
+              if (!res.headersSent) {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              }
+              res.end(JSON.stringify(payload));
+              return vercelRes;
+            };
+          }
+
+          await serpApiStatusHandler(vercelReq, vercelRes);
+        } catch (error) {
+          console.error('[serpapi/status] local bridge failed', error);
+          if (!res.headersSent) {
+            safeJson(res, 500, {
+              success: false,
+              error: {
+                code: 'internal_error',
+                message: error instanceof Error ? error.message : 'Unknown error',
+                retryable: true,
+              },
+            });
+          }
+        }
+      });
+
       // /api/live-search
+      // Delegate to the shared Vercel handler to keep local/production behavior aligned.
       server.middlewares.use('/api/live-search', async (req, res, next) => {
         if (req.method === 'OPTIONS') {
           res.setHeader('Access-Control-Allow-Origin', '*');
@@ -958,215 +1166,202 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
           res.end();
           return;
         }
-
         if (req.method !== 'POST') {
           return safeJson(res, 405, { error: 'Method not allowed' });
         }
 
-        const startTime = Date.now();
-        const trace_id = generateTraceId();
+        try {
+          const parsedBody = await readJsonBody(req);
+          const vercelReq = req as any;
+          const vercelRes = res as any;
+          vercelReq.body = parsedBody;
+
+          if (typeof vercelRes.status !== 'function') {
+            vercelRes.status = (statusCode: number) => {
+              res.statusCode = statusCode;
+              return vercelRes;
+            };
+          }
+          if (typeof vercelRes.json !== 'function') {
+            vercelRes.json = (payload: unknown) => {
+              if (!res.headersSent) {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              }
+              res.end(JSON.stringify(payload));
+              return vercelRes;
+            };
+          }
+
+          await liveSearchApiHandler(vercelReq, vercelRes);
+        } catch (error) {
+          console.error('[live-search] local bridge failed', error);
+          if (!res.headersSent) {
+            safeJson(res, 500, {
+              success: false,
+              error: {
+                code: 'internal_error',
+                message: error instanceof Error ? error.message : 'Unknown error',
+                retryable: true,
+              },
+            });
+          }
+        }
+      });
+
+      // /api/agent-market/discover
+      server.middlewares.use('/api/agent-market/discover', async (req, res, next) => {
+        if (req.method === 'OPTIONS') {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+          res.statusCode = 200;
+          res.end();
+          return;
+        }
+        if (req.method !== 'POST') {
+          return safeJson(res, 405, { error: 'Method not allowed' });
+        }
 
         try {
-          const body = await readJsonBody(req) as LiveSearchRequest;
+          const parsedBody = await readJsonBody(req);
+          const vercelReq = req as any;
+          const vercelRes = res as any;
+          vercelReq.body = parsedBody;
 
-          const queryRaw = String(body.query || "");
-          if (!queryRaw.trim()) {
-            const { constraints, cta_buttons } = getMissingConstraints("knowledge" as IntentDomain, "");
-            const response: LiveSearchErrorResponse = {
-              success: false,
-              trace_id,
-              error: { code: "insufficient_constraints", message: "query is required", retryable: false },
-              fallback: {
-                failure_reason: "缺少查询内容",
-                missing_constraints: ["查询内容"],
-                cta_buttons: [{ label: "重新输入", action: "edit_query", constraint_key: "query" }]
+          if (typeof vercelRes.status !== 'function') {
+            vercelRes.status = (statusCode: number) => {
+              res.statusCode = statusCode;
+              return vercelRes;
+            };
+          }
+          if (typeof vercelRes.json !== 'function') {
+            vercelRes.json = (payload: unknown) => {
+              if (!res.headersSent) {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
               }
+              res.end(JSON.stringify(payload));
+              return vercelRes;
             };
-            storeTrace({ trace_id, type: 'live_search', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime, error_code: "insufficient_constraints" });
-            return safeJson(res, 400, response);
           }
 
-          const locale = body.locale || "zh-CN";
-          const maxItems = Math.max(1, Math.min(10, body.max_items ?? 5));
-          const normalized = normalizeQuery(queryRaw);
-
-          // 6.1: Domain classification
-          const domain = inferDomain(normalized, body.intent_domain);
-          const liveDecision = needsLiveDataByDomain(domain, normalized);
-
-          const route_decision = {
-            intent_domain: domain,
-            needs_live_data: liveDecision.needs,
-            needs_interaction: liveDecision.needs_interaction,
-            reason: liveDecision.reason
-          };
-
-          console.log(`[live-search] trace_id=${trace_id}, Query: "${normalized}", Domain: ${domain}`);
-
-          // If live data not required
-          if (!liveDecision.needs) {
-            const response: LiveSearchSuccessResponse = {
-              success: true,
-              trace_id,
-              evidence: {
-                items: [],
-                fetched_at: Date.now(),
-                ttl_seconds: 0,
-                provider: "none",
-                confidence: 0
-              },
-              route_decision,
-              debug: isDev ? { cache_hit: false, webSearchQueries: [] } : undefined
-            };
-            storeTrace({ trace_id, type: 'live_search', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime });
-            return safeJson(res, 200, response);
-          }
-
-          // 6.3: Check cache
-          const ttl = ttlByDomain(domain);
-          const key = cacheKey(locale, domain, normalized, maxItems);
-          const now = Date.now();
-
-          const hit = evidenceCache.get(key);
-          if (hit && hit.expires_at > now) {
-            console.log(`[live-search] trace_id=${trace_id} Cache HIT, expires in ${Math.round((hit.expires_at - now) / 1000)}s`);
-            const response: LiveSearchSuccessResponse = {
-              success: true,
-              trace_id,
-              evidence: { ...hit.evidence },
-              route_decision,
-              debug: isDev ? { cache_hit: true, webSearchQueries: hit.webSearchQueries } : undefined
-            };
-            storeTrace({
-              trace_id,
-              type: 'live_search',
-              timestamp: startTime,
-              request: body,
-              response,
-              duration_ms: Date.now() - startTime,
-              stage: 'compose_answer',
-              items_count: hit.evidence.items.length,
-              top_domains: hit.evidence.items.slice(0, 3).map((i: any) => i.source_name),
-              intent_domain: domain,
-              cache_hit: true
-            });
-            return safeJson(res, 200, response);
-          }
-
-          // Check API key
-          if (!env.GEMINI_API_KEY) {
-            const { constraints, cta_buttons } = getMissingConstraints(domain, normalized);
-            const response: LiveSearchErrorResponse = {
-              success: false,
-              trace_id,
-              error: { code: "auth", message: "Gemini API key not configured", retryable: false },
-              fallback: {
-                failure_reason: "API密钥未配置",
-                missing_constraints: ["GEMINI_API_KEY"],
-                cta_buttons: [{ label: "配置API密钥", action: "configure_api", constraint_key: "api_key" }]
-              }
-            };
-            storeTrace({ trace_id, type: 'live_search', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime, error_code: "auth" });
-            return safeJson(res, 400, response);
-          }
-
-          // Call Gemini with PII redaction
-          const redacted = redactPII(normalized);
-
-          let items: Array<{ title: string; snippet: string; url: string; source_name: string }> = [];
-          let webSearchQueries: string[] = [];
-
-          try {
-            const result = await geminiSearchGrounding(env, redacted, maxItems, domain);
-            items = result.items;
-            webSearchQueries = result.webSearchQueries;
-          } catch (e: any) {
-            const { constraints, cta_buttons } = getMissingConstraints(domain, normalized);
-            const errorCode: FailureCode = e.code || "provider_error";
-            const response: LiveSearchErrorResponse = {
-              success: false,
-              trace_id,
-              error: { code: errorCode, message: e?.message || "live search failed", retryable: true },
-              fallback: {
-                failure_reason: getFailureReason(errorCode),
-                missing_constraints: constraints,
-                cta_buttons
-                // 6.2: NO ecommerce_offers - completely hidden
-              }
-            };
-            storeTrace({ trace_id, type: 'live_search', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime, error_code: errorCode });
-            return safeJson(res, 502, response);
-          }
-
-          // 6.1 & 6.2: No results - show constraint CTAs, NOT ecommerce offers
-          if (!items.length) {
-            const { constraints, cta_buttons } = getMissingConstraints(domain, normalized);
-            const response: LiveSearchErrorResponse = {
-              success: false,
-              trace_id,
-              error: { code: "no_results", message: "no live results found", retryable: true },
-              fallback: {
-                failure_reason: "未找到相关实时信息，请补充更多约束条件",
-                missing_constraints: constraints.length ? constraints : ["出发地", "目的地", "出发日期"],
-                cta_buttons
-                // 6.2: NO ecommerce_offers - completely hidden
-              }
-            };
-            storeTrace({ trace_id, type: 'live_search', timestamp: startTime, request: body, response, duration_ms: Date.now() - startTime, error_code: "no_results" });
-            return safeJson(res, 200, response);
-          }
-
-          const fetched_at = Date.now();
-          const evidence = {
-            items,
-            fetched_at,
-            ttl_seconds: ttl,
-            provider: "google_search_grounding",
-            confidence: calcConfidence(items.length)
-          };
-
-          // 6.3: Write to cache
-          evidenceCache.set(key, { expires_at: fetched_at + ttl * 1000, evidence, webSearchQueries });
-          console.log(`[live-search] trace_id=${trace_id} Cached ${items.length} items, TTL=${ttl}s`);
-
-          const response: LiveSearchSuccessResponse = {
-            success: true,
-            trace_id,
-            evidence,
-            route_decision,
-            debug: isDev ? { cache_hit: false, webSearchQueries } : undefined
-          };
-          storeTrace({
-            trace_id,
-            type: 'live_search',
-            timestamp: startTime,
-            request: body,
-            response,
-            duration_ms: Date.now() - startTime,
-            // P0-3 Observability
-            stage: 'compose_answer',
-            items_count: items.length,
-            top_domains: items.slice(0, 3).map(i => i.source_name),
-            intent_domain: domain,
-            cache_hit: false
-          });
-
-          return safeJson(res, 200, response);
-
+          await handleAgentMarketDiscover(vercelReq, vercelRes);
         } catch (error) {
-          const { constraints, cta_buttons } = getMissingConstraints("knowledge" as IntentDomain, "");
-          const response: LiveSearchErrorResponse = {
-            success: false,
-            trace_id,
-            error: { code: "internal_error", message: error instanceof Error ? error.message : "Unknown error", retryable: true },
-            fallback: {
-              failure_reason: "内部错误，请重试",
-              missing_constraints: [],
-              cta_buttons: [{ label: "重试", action: "retry_live_search", constraint_key: "retry" }]
-            }
-          };
-          storeTrace({ trace_id, type: 'live_search', timestamp: startTime, request: {}, response, duration_ms: Date.now() - startTime, error_code: "internal_error" });
-          return safeJson(res, 500, response);
+          console.error('[agent-market/discover] local bridge failed', error);
+          if (!res.headersSent) {
+            safeJson(res, 500, {
+              success: false,
+              error: {
+                code: 'internal_error',
+                message: error instanceof Error ? error.message : 'Unknown error',
+              },
+            });
+          }
+        }
+      });
+
+      // /api/agent-market/execute
+      server.middlewares.use('/api/agent-market/execute', async (req, res, next) => {
+        if (req.method === 'OPTIONS') {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-agent-market-token');
+          res.statusCode = 200;
+          res.end();
+          return;
+        }
+        if (req.method !== 'POST') {
+          return safeJson(res, 405, { error: 'Method not allowed' });
+        }
+
+        try {
+          const parsedBody = await readJsonBody(req);
+          const vercelReq = req as any;
+          const vercelRes = res as any;
+          vercelReq.body = parsedBody;
+
+          if (typeof vercelRes.status !== 'function') {
+            vercelRes.status = (statusCode: number) => {
+              res.statusCode = statusCode;
+              return vercelRes;
+            };
+          }
+          if (typeof vercelRes.json !== 'function') {
+            vercelRes.json = (payload: unknown) => {
+              if (!res.headersSent) {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              }
+              res.end(JSON.stringify(payload));
+              return vercelRes;
+            };
+          }
+
+          if (typeof vercelReq.headers !== 'object' || !vercelReq.headers) {
+            vercelReq.headers = {};
+          }
+
+          await handleAgentMarketExecute(vercelReq, vercelRes);
+        } catch (error) {
+          console.error('[agent-market/execute] local bridge failed', error);
+          if (!res.headersSent) {
+            safeJson(res, 500, {
+              success: false,
+              error: {
+                code: 'internal_error',
+                message: error instanceof Error ? error.message : 'Unknown error',
+              },
+            });
+          }
+        }
+      });
+
+      // /api/agent-market/manual-execute
+      server.middlewares.use('/api/agent-market/manual-execute', async (req, res, next) => {
+        if (req.method === 'OPTIONS') {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+          res.statusCode = 200;
+          res.end();
+          return;
+        }
+        if (req.method !== 'POST') {
+          return safeJson(res, 405, { error: 'Method not allowed' });
+        }
+
+        try {
+          const parsedBody = await readJsonBody(req);
+          const vercelReq = req as any;
+          const vercelRes = res as any;
+          vercelReq.body = parsedBody;
+
+          if (typeof vercelRes.status !== 'function') {
+            vercelRes.status = (statusCode: number) => {
+              res.statusCode = statusCode;
+              return vercelRes;
+            };
+          }
+          if (typeof vercelRes.json !== 'function') {
+            vercelRes.json = (payload: unknown) => {
+              if (!res.headersSent) {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              }
+              res.end(JSON.stringify(payload));
+              return vercelRes;
+            };
+          }
+
+          await handleAgentMarketManualExecute(vercelReq, vercelRes);
+        } catch (error) {
+          console.error('[agent-market/manual-execute] local bridge failed', error);
+          if (!res.headersSent) {
+            safeJson(res, 500, {
+              success: false,
+              error: {
+                code: 'internal_error',
+                message: error instanceof Error ? error.message : 'Unknown error',
+              },
+            });
+          }
         }
       });
 

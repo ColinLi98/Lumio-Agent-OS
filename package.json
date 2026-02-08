@@ -8,11 +8,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest run --config vitest.config.ts",
-    "test:script": "npx vite-node tests/provider-adapters.smoke.test.ts && npx vite-node tests/e2e/intent_router_e2e.test.ts && API_BASE=http://127.0.0.1:5173/api/lix npx vite-node tests/lix-v02-compliance.test.ts && API_BASE=http://127.0.0.1:5173/api/lix npx vite-node tests/lix-validation.test.ts",
+    "test:script:raw": "/bin/sh -lc 'BASE_URL=${LUMI_BASE_URL:-https://lumi-agent-simulator.vercel.app}; npx vite-node tests/provider-adapters.smoke.test.ts && npx vite-node tests/e2e/intent_router_e2e.test.ts && API_BASE=${BASE_URL}/api/lix npx vite-node tests/lix-v02-compliance.test.ts && API_BASE=${BASE_URL}/api/lix npx vite-node tests/lix-validation.test.ts'",
+    "test:script": "node scripts/with-dev-server.mjs -- npm run test:script:raw",
     "test:life-optimizer": "/bin/sh -lc 'cd \"lumi-life-optimizer\" && ./venv/bin/python smoke_check.py'",
-    "test:e2e": "playwright test",
+    "test:e2e:raw": "playwright test",
+    "test:e2e": "node scripts/with-dev-server.mjs -- npm run test:e2e:raw",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
-    "debug:all": "/bin/sh -lc 'npm run build && npm run typecheck && npm run test:unit && npm run test:life-optimizer && { npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/lumi-debug-dev.log 2>&1 & DEV_PID=$!; sleep 2; npm run test:script && npm run test:e2e; STATUS=$?; kill $DEV_PID; wait $DEV_PID 2>/dev/null; exit $STATUS; }'"
+    "benchmark:scenarios": "npx vite-node scripts/benchmark-scenarios.ts",
+    "verify:external-market": "/bin/sh -lc 'LUMI_API_BASE_URL=${LUMI_API_BASE_URL:-http://127.0.0.1:3000} AGENT_MARKET_FEEDS=${AGENT_MARKET_FEEDS:-http://127.0.0.1:3000/agent-market/external-feed.json} npx vite-node scripts/verify-external-market.ts'",
+    "debug:all": "/bin/sh -lc 'npm run build && npm run typecheck && npm run test:unit && npm run benchmark:scenarios && npm run test:life-optimizer && npm run test:script && npm run test:e2e'"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",

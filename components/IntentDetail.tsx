@@ -8,8 +8,12 @@ import {
     AlertTriangle, ChevronDown, ChevronUp, ExternalLink,
     Package, Briefcase, Users, HelpCircle, Copy, XCircle, AlertOctagon, Ticket, Bell, Calendar
 } from 'lucide-react';
+import { buildApiUrl } from '../services/apiBaseUrl';
 import { lixStore, StoredIntent } from '../services/lixStore';
-import { RankedOffer } from '../services/lixTypes';
+import type { StoredSolutionIntent } from '../services/lixStore';
+import { type AgentSolutionOffer, RankedOffer, type SolutionCustomRequirements } from '../services/lixTypes';
+import { getCurrentUserId } from '../services/digitalTwinMarketplaceBridge';
+import { syncApprovedAgentToDigitalTwin } from '../services/digitalTwinLixSyncService';
 
 // ============================================================================
 // Design Tokens
@@ -125,9 +129,10 @@ interface OfferCardProps {
     isTop: boolean;
     onAccept: () => void;
     isAccepted: boolean;
+    viewUrl: string;
 }
 
-const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isAccepted }) => {
+const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isAccepted, viewUrl }) => {
     const [showDetails, setShowDetails] = useState(false);
     const { offer, rank, total_score, score_breakdown, explanation } = rankedOffer;
 
@@ -347,7 +352,10 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                         '接受报价'
                     )}
                 </button>
-                <button
+                <a
+                    href={viewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{
                         padding: '10px 16px',
                         borderRadius: 8,
@@ -358,13 +366,106 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 4
+                        gap: 4,
+                        textDecoration: 'none'
                     }}
                 >
                     <ExternalLink size={14} />
                     查看
-                </button>
+                </a>
             </div>
+        </div>
+    );
+};
+
+interface AgentCollabMetaProps {
+    offer: AgentSolutionOffer;
+}
+
+const AgentCollabMeta: React.FC<AgentCollabMetaProps> = ({ offer }) => {
+    const collaborators = Array.isArray(offer.collaborator_agents)
+        ? offer.collaborator_agents.filter(Boolean)
+        : [];
+
+    return (
+        <div
+            style={{
+                marginBottom: 8,
+                padding: 8,
+                borderRadius: 8,
+                backgroundColor: 'rgba(167, 139, 250, 0.08)',
+                border: `1px solid ${colors.primaryMuted}`,
+            }}
+        >
+            {collaborators.length > 0 && (
+                <div style={{ color: colors.text3, fontSize: 11, marginBottom: 4 }}>
+                    协同 Agent: {collaborators.slice(0, 4).join(' / ')}
+                </div>
+            )}
+            {offer.orchestration_strategy && (
+                <div style={{ color: colors.text3, fontSize: 11 }}>
+                    编排策略: {offer.orchestration_strategy}
+                </div>
+            )}
+        </div>
+    );
+};
+
+interface CustomRequirementMetaProps {
+    customRequirements?: SolutionCustomRequirements;
+}
+
+const CustomRequirementMeta: React.FC<CustomRequirementMetaProps> = ({ customRequirements }) => {
+    if (!customRequirements) return null;
+    const mustHave = customRequirements.must_have_capabilities || [];
+    const exclusions = customRequirements.exclusions || [];
+    const successCriteria = customRequirements.success_criteria || [];
+
+    return (
+        <div
+            style={{
+                padding: 10,
+                borderRadius: 10,
+                backgroundColor: 'rgba(251, 191, 36, 0.07)',
+                border: `1px solid ${colors.warningMuted}`,
+                marginBottom: 12,
+            }}
+        >
+            <div style={{ color: colors.text1, fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                定制化需求
+            </div>
+            {customRequirements.objective && (
+                <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
+                    目标: {customRequirements.objective}
+                </div>
+            )}
+            {mustHave.length > 0 && (
+                <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
+                    必须能力: {mustHave.join(' / ')}
+                </div>
+            )}
+            {exclusions.length > 0 && (
+                <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
+                    排除条件: {exclusions.join(' / ')}
+                </div>
+            )}
+            {(typeof customRequirements.budget_max_cny === 'number' || typeof customRequirements.expected_delivery_hours === 'number') && (
+                <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
+                    {typeof customRequirements.budget_max_cny === 'number' ? `预算上限: ¥${customRequirements.budget_max_cny}` : '预算上限: 未设置'}
+                    {' · '}
+                    {typeof customRequirements.expected_delivery_hours === 'number' ? `期望交付: ${customRequirements.expected_delivery_hours}h` : '期望交付: 未设置'}
+                </div>
+            )}
+            {successCriteria.length > 0 && (
+                <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
+                    验收标准: {successCriteria.join(' / ')}
+                </div>
+            )}
+            {customRequirements.notes && (
+                <div style={{ color: colors.text3, fontSize: 11 }}>
+                    备注: {customRequirements.notes}
+                </div>
+            )}
         </div>
     );
 };
@@ -380,8 +481,23 @@ interface IntentDetailProps {
 
 export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) => {
     const [intent, setIntent] = useState<StoredIntent | undefined>(lixStore.getIntent(intentId));
+    const [solutionIntent, setSolutionIntent] = useState<StoredSolutionIntent | undefined>(lixStore.getSolutionIntent(intentId));
     const [isAccepting, setIsAccepting] = useState(false);
     const [isPolling, setIsPolling] = useState(false);
+    const [submittingDelivery, setSubmittingDelivery] = useState(false);
+    const [reviewingDelivery, setReviewingDelivery] = useState(false);
+    const currentUserId = getCurrentUserId();
+
+    useEffect(() => {
+        setIntent(lixStore.getIntent(intentId));
+        setSolutionIntent(lixStore.getSolutionIntent(intentId));
+    }, [intentId]);
+
+    useEffect(() => {
+        if (!solutionIntent?.delivery_manifest) return;
+        if (solutionIntent.status !== 'approved') return;
+        syncApprovedAgentToDigitalTwin(solutionIntent, solutionIntent.delivery_manifest);
+    }, [solutionIntent]);
 
     // Poll for updates when status is broadcasting (every 2s)
     useEffect(() => {
@@ -406,7 +522,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
         return () => clearInterval(pollInterval);
     }, [intentId, intent?.status]);
 
-    if (!intent) {
+    if (!intent && !solutionIntent) {
         return (
             <div style={{ padding: 20, textAlign: 'center', color: colors.text3 }}>
                 意图不存在
@@ -424,11 +540,379 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
         }
     };
 
+    const buildOfferViewUrl = (ro: RankedOffer): string => {
+        const direct = String(ro?.offer?.price_proof?.proof_url || '').trim();
+        if (/^https?:\/\//i.test(direct)) return direct;
+        const query = `${intent?.item_name || ''} ${ro?.offer?.provider?.name || ''}`.trim() || ro?.offer?.offer_id;
+        return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    };
+
+    const handleAcceptSolution = async (offerId: string) => {
+        if (!solutionIntent) return;
+        setIsAccepting(true);
+        try {
+            const resp = await fetch(buildApiUrl('/api/lix/solution/offer/accept'), {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    intent_id: solutionIntent.intent_id,
+                    offer_id: offerId,
+                }),
+            });
+            const payload = await resp.json().catch(() => null);
+            if (!resp.ok || !payload?.success || !payload?.intent) {
+                throw new Error(payload?.error || `HTTP ${resp.status}: solution accept failed`);
+            }
+            lixStore.ingestSolutionIntent(payload.intent);
+            setSolutionIntent(payload.intent);
+        } catch (error) {
+            console.error('[IntentDetail] accept solution failed:', error);
+        } finally {
+            setIsAccepting(false);
+        }
+    };
+
+    const handleSubmitSolutionDelivery = async () => {
+        if (!solutionIntent?.accepted_offer_id) return;
+        setSubmittingDelivery(true);
+        try {
+            const executorUrl = typeof window !== 'undefined'
+                ? `${window.location.origin}/api/lix/solution/executor`
+                : 'http://127.0.0.1:3000/api/lix/solution/executor';
+            const resp = await fetch(buildApiUrl('/api/lix/solution/delivery'), {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    intent_id: solutionIntent.intent_id,
+                    offer_id: solutionIntent.accepted_offer_id,
+                    owner_id: solutionIntent.requester_id || currentUserId,
+                    submitted_by: 'expert_mock',
+                    name: `LIX Agent · ${solutionIntent.title.slice(0, 20)}`,
+                    description: `由 LIX 专家交付：${solutionIntent.query}`,
+                    execute_ref: executorUrl,
+                    domains: [solutionIntent.domain],
+                    capabilities: solutionIntent.required_capabilities,
+                    supports_realtime: true,
+                    evidence_level: 'weak',
+                    supports_parallel: true,
+                    cost_tier: 'mid',
+                    avg_latency_ms: 1800,
+                    success_rate: 0.96,
+                }),
+            });
+            const payload = await resp.json().catch(() => null);
+            if (!resp.ok || !payload?.success || !payload?.intent) {
+                throw new Error(payload?.error || `HTTP ${resp.status}: solution delivery failed`);
+            }
+            lixStore.ingestSolutionIntent(payload.intent);
+            setSolutionIntent(payload.intent);
+        } catch (error) {
+            console.error('[IntentDetail] submit delivery failed:', error);
+        } finally {
+            setSubmittingDelivery(false);
+        }
+    };
+
+    const handleReviewSolutionDelivery = async (decision: 'approved' | 'rejected') => {
+        if (!solutionIntent) return;
+        setReviewingDelivery(true);
+        try {
+            const resp = await fetch(buildApiUrl('/api/lix/solution/review'), {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    intent_id: solutionIntent.intent_id,
+                    decision,
+                    reviewer_id: 'reviewer_admin',
+                    reason: decision === 'approved' ? '自动审核通过（演示）' : '未通过审核（演示）',
+                }),
+            });
+            const payload = await resp.json().catch(() => null);
+            if (!resp.ok || !payload?.success || !payload?.intent) {
+                throw new Error(payload?.error || `HTTP ${resp.status}: solution review failed`);
+            }
+            lixStore.ingestSolutionIntent(payload.intent);
+            setSolutionIntent(payload.intent);
+            if (decision === 'approved' && payload.intent?.delivery_manifest) {
+                syncApprovedAgentToDigitalTwin(payload.intent, payload.intent.delivery_manifest);
+            }
+        } catch (error) {
+            console.error('[IntentDetail] review delivery failed:', error);
+        } finally {
+            setReviewingDelivery(false);
+        }
+    };
+
     const categoryIcons: Record<string, React.ReactNode> = {
         purchase: <Package size={20} />,
         job: <Briefcase size={20} />,
         collaboration: <Users size={20} />
     };
+
+    if (solutionIntent && (!intent || solutionIntent.intent_id === intentId)) {
+        return (
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    marginBottom: 16,
+                    paddingBottom: 16,
+                    borderBottom: `1px solid ${colors.border}`
+                }}>
+                    <button
+                        onClick={onBack}
+                        style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 10,
+                            backgroundColor: colors.bg2,
+                            border: 'none',
+                            color: colors.text1,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
+                    >
+                        <ArrowLeft size={18} />
+                    </button>
+                    <div style={{ flex: 1 }}>
+                        <h1 style={{ color: colors.text1, fontSize: 18, fontWeight: 600, margin: 0 }}>
+                            🤖 专家 / Agent 协同交付
+                        </h1>
+                        <p style={{ color: colors.text3, fontSize: 12, margin: '4px 0 0' }}>
+                            {solutionIntent.title}
+                        </p>
+                    </div>
+                    <span style={{
+                        padding: '4px 8px',
+                        borderRadius: 8,
+                        backgroundColor: colors.primaryMuted,
+                        color: colors.primary,
+                        fontSize: 11,
+                        fontWeight: 600
+                    }}>
+                        {solutionIntent.status}
+                    </span>
+                </div>
+
+                <div style={{
+                    padding: 12,
+                    backgroundColor: colors.bg2,
+                    borderRadius: 12,
+                    marginBottom: 14
+                }}>
+                    <div style={{ color: colors.text2, fontSize: 13, marginBottom: 6 }}>{solutionIntent.query}</div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, color: colors.text3 }}>
+                        <span>domain: {solutionIntent.domain}</span>
+                        <span>cap: {solutionIntent.required_capabilities.join(', ') || 'general'}</span>
+                        <span>offers: {solutionIntent.offers.length}</span>
+                        <span>
+                            requester: {solutionIntent.requester_type === 'agent'
+                                ? `agent ${solutionIntent.requester_agent_name || solutionIntent.requester_agent_id || ''}`.trim()
+                                : 'user'}
+                        </span>
+                    </div>
+                </div>
+
+                <CustomRequirementMeta customRequirements={solutionIntent.custom_requirements} />
+
+                {solutionIntent.digital_twin_snapshot && (
+                    <div
+                        style={{
+                            padding: 12,
+                            backgroundColor: 'rgba(14, 165, 233, 0.08)',
+                            borderRadius: 12,
+                            border: `1px solid rgba(14, 165, 233, 0.25)`,
+                            marginBottom: 14,
+                        }}
+                    >
+                        <div style={{ color: colors.text1, fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                            已附带数字分身画像
+                        </div>
+                        <div style={{ color: colors.text2, fontSize: 12, marginBottom: 4 }}>
+                            user: {solutionIntent.digital_twin_snapshot.user_id}
+                        </div>
+                        {solutionIntent.digital_twin_snapshot.marketplace_context?.preferences && (
+                            <div style={{ color: colors.text3, fontSize: 11, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                <span>
+                                    domains:{' '}
+                                    {solutionIntent.digital_twin_snapshot.marketplace_context.preferences.preferred_domains.slice(0, 3).join(' / ') || 'general'}
+                                </span>
+                                <span>
+                                    evidence: {solutionIntent.digital_twin_snapshot.marketplace_context.preferences.preferred_evidence_level}
+                                </span>
+                                <span>
+                                    latency: {solutionIntent.digital_twin_snapshot.marketplace_context.preferences.preferred_latency}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {solutionIntent.offers.map((offer) => (
+                        <div
+                            key={offer.offer_id}
+                            style={{
+                                backgroundColor: colors.bg2,
+                                border: `1px solid ${colors.border}`,
+                                borderRadius: 12,
+                                padding: 12
+                            }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div style={{ color: colors.text1, fontSize: 14, fontWeight: 600 }}>
+                                        {offer.expert_name}
+                                    </div>
+                                    <span
+                                        style={{
+                                            padding: '2px 8px',
+                                            borderRadius: 999,
+                                            backgroundColor: offer.offer_type === 'agent_collab'
+                                                ? colors.primaryMuted
+                                                : colors.warningMuted,
+                                            color: offer.offer_type === 'agent_collab'
+                                                ? colors.primary
+                                                : colors.warning,
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        {offer.offer_type === 'agent_collab' ? 'Agent 协同' : '人工专家'}
+                                    </span>
+                                </div>
+                                <div style={{ color: colors.positive, fontSize: 13, fontWeight: 600 }}>
+                                    ¥{offer.quote_amount}
+                                </div>
+                            </div>
+                            <div style={{ color: colors.text2, fontSize: 12, marginBottom: 8 }}>{offer.summary}</div>
+                            {offer.offer_type === 'agent_collab' && (
+                                <AgentCollabMeta offer={offer} />
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ color: colors.text3, fontSize: 11 }}>
+                                    预计交付 {offer.estimated_delivery_hours} 小时
+                                </div>
+                                <button
+                                    onClick={() => handleAcceptSolution(offer.offer_id)}
+                                    disabled={isAccepting || solutionIntent.accepted_offer_id === offer.offer_id || solutionIntent.status === 'approved'}
+                                    style={{
+                                        padding: '6px 10px',
+                                        borderRadius: 8,
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        backgroundColor: solutionIntent.accepted_offer_id === offer.offer_id ? colors.positive : colors.primary,
+                                        color: '#fff',
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        opacity: isAccepting ? 0.7 : 1,
+                                    }}
+                                >
+                                    {solutionIntent.accepted_offer_id === offer.offer_id
+                                        ? '已接受'
+                                        : (offer.offer_type === 'agent_collab' ? '接受并自动交付' : '接受方案')}
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {solutionIntent.status === 'offer_accepted' && !solutionIntent.delivery_manifest && (
+                    <button
+                        onClick={handleSubmitSolutionDelivery}
+                        disabled={submittingDelivery}
+                        style={{
+                            marginTop: 14,
+                            padding: '10px 12px',
+                            borderRadius: 10,
+                            border: 'none',
+                            backgroundColor: colors.primary,
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            fontWeight: 600,
+                        }}
+                    >
+                        {submittingDelivery ? '提交交付中...' : '提交交付（模拟专家）'}
+                    </button>
+                )}
+
+                {solutionIntent.delivery_manifest && (
+                    <div style={{
+                        marginTop: 14,
+                        padding: 12,
+                        borderRadius: 12,
+                        border: `1px solid ${colors.border}`,
+                        backgroundColor: colors.bg2
+                    }}>
+                        <div style={{ color: colors.text1, fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+                            交付物：{solutionIntent.delivery_manifest.name}
+                        </div>
+                        <div style={{ color: colors.text3, fontSize: 11, marginBottom: 8, wordBreak: 'break-all' }}>
+                            execute_ref: {solutionIntent.delivery_manifest.execute_ref}
+                        </div>
+                        <div style={{ color: colors.text3, fontSize: 11, marginBottom: 8 }}>
+                            市场发布: {solutionIntent.delivery_manifest.market_visibility === 'private' ? '私有' : '公开'}
+                            {' · '}
+                            收益模式: {solutionIntent.delivery_manifest.pricing_model === 'free'
+                                ? '免费'
+                                : `按次 ¥${solutionIntent.delivery_manifest.price_per_use_cny || 0}`}
+                        </div>
+                        {(solutionIntent.status === 'delivery_submitted' || solutionIntent.status === 'rejected') && (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <button
+                                    onClick={() => handleReviewSolutionDelivery('approved')}
+                                    disabled={reviewingDelivery}
+                                    style={{
+                                        padding: '7px 10px',
+                                        borderRadius: 8,
+                                        border: 'none',
+                                        backgroundColor: colors.positive,
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    审核通过并上架
+                                </button>
+                                <button
+                                    onClick={() => handleReviewSolutionDelivery('rejected')}
+                                    disabled={reviewingDelivery}
+                                    style={{
+                                        padding: '7px 10px',
+                                        borderRadius: 8,
+                                        border: `1px solid ${colors.border}`,
+                                        backgroundColor: colors.bg3,
+                                        color: colors.text2,
+                                        cursor: 'pointer',
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    驳回
+                                </button>
+                            </div>
+                        )}
+                        {solutionIntent.status === 'approved' && (
+                            <div style={{ color: colors.positive, fontSize: 12, marginTop: 6 }}>
+                                {solutionIntent.review?.reviewer_id === 'system_auto'
+                                    ? 'Agent 协同方案已自动交付并通过系统审核，已进入 Agent Marketplace。'
+                                    : '已审核通过并进入 Agent Marketplace，可返回市场页执行。'}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    if (!intent) {
+        return null;
+    }
 
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -583,6 +1067,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                             isTop={i === 0}
                             isAccepted={intent.accepted_offer_id === ro.offer.offer_id}
                             onAccept={() => handleAccept(ro.offer.offer_id)}
+                            viewUrl={buildOfferViewUrl(ro)}
                         />
                     ))}
                 </div>

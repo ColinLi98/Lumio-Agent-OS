@@ -6,8 +6,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { SoulMatrix, PolicyConfig, DecisionMeta } from '../types';
-import { ApiKeyState, useSerpApiKey } from '../services/apiKeyManager';
+import { ApiKeyState } from '../services/apiKeyManager';
 import { getDashboardStats } from '../services/localStorageService';
+import { buildApiUrl } from '../services/apiBaseUrl';
+import {
+    buildMarketplaceTwinContext,
+    getProfileShareConsent,
+    revokeProfileShareConsent,
+} from '../services/digitalTwinMarketplaceBridge';
 import { DigitalAvatarPanel } from './DigitalAvatarPanel';
 import { PreferencePanel } from './PreferencePanel';
 import { LifeCoachPanel } from './LifeCoachPanel';
@@ -16,6 +22,7 @@ import { DestinyNavigatorPanel } from './DestinyNavigator';
 import { DigitalSoulEditor } from './DigitalSoulEditor';
 import { SoulMatrixPanel } from './SoulMatrixPanel';
 import { MarketHome } from './MarketHome';
+import { AgentMarketplacePanel } from './AgentMarketplacePanel';
 import { IntentDetail } from './IntentDetail';
 import { ObservabilityDashboard } from './ObservabilityDashboard';
 import { DestinySimulationResult } from '../App';
@@ -23,7 +30,7 @@ import {
     Home, User, Settings, Keyboard, ChevronRight, Key,
     Compass, FlaskConical, Navigation, Activity, ArrowRight, Check,
     Zap, TrendingUp, Clock, UserCheck, X, Target, AlertCircle, CheckCircle2,
-    Store
+    Store, Bot
 } from 'lucide-react';
 
 // ============================================================================
@@ -67,7 +74,7 @@ interface LumiAppViewProps {
     onCloseDestinyResult?: () => void;
 }
 
-type AppTab = 'home' | 'avatar' | 'coach' | 'destiny' | 'lix_market' | 'lix_intent' | 'test' | 'settings';
+type AppTab = 'home' | 'avatar' | 'coach' | 'destiny' | 'lix_market' | 'lix_intent' | 'agent_market' | 'test' | 'settings';
 
 // ============================================================================
 // Sub Components
@@ -169,7 +176,10 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
     const [activeTab, setActiveTab] = useState<AppTab>('home');
     const [avatarSubTab, setAvatarSubTab] = useState<'profile' | 'editor' | 'matrix'>('profile');
     const [lixIntentId, setLixIntentId] = useState<string | null>(null);
-    const { serpApiKey, isConfigured: serpConfigured, setSerpApiKey, clearSerpApiKey } = useSerpApiKey();
+    const [serpStatusLoading, setSerpStatusLoading] = useState(false);
+    const [serpConfigured, setSerpConfigured] = useState<boolean | null>(null);
+    const [serpKeySource, setSerpKeySource] = useState<string>('none');
+    const [serpStatusError, setSerpStatusError] = useState<string | null>(null);
 
     // 仪表盘统计数据
     const [stats, setStats] = useState(() => getDashboardStats());
@@ -185,9 +195,46 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
         }
     }, [activeTab]);
 
+    useEffect(() => {
+        let cancelled = false;
+        if (activeTab !== 'settings') return;
+
+        const loadSerpStatus = async () => {
+            setSerpStatusLoading(true);
+            setSerpStatusError(null);
+            try {
+                const resp = await fetch(buildApiUrl('/api/serpapi/status'), { method: 'GET' });
+                if (!resp.ok) {
+                    throw new Error(`HTTP ${resp.status}`);
+                }
+                const payload = await resp.json();
+                if (!cancelled) {
+                    setSerpConfigured(Boolean(payload?.configured));
+                    setSerpKeySource(String(payload?.source || 'none'));
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    setSerpConfigured(null);
+                    setSerpKeySource('none');
+                    setSerpStatusError(error instanceof Error ? error.message : String(error));
+                }
+            } finally {
+                if (!cancelled) {
+                    setSerpStatusLoading(false);
+                }
+            }
+        };
+
+        loadSerpStatus();
+        return () => {
+            cancelled = true;
+        };
+    }, [activeTab]);
+
     const tabs: { id: AppTab; icon: React.FC<{ size?: number }>; label: string }[] = [
         { id: 'home', icon: Home, label: '首页' },
-        { id: 'lix_market', icon: Store, label: '市场' },
+        { id: 'lix_market', icon: Store, label: 'LIX' },
+        { id: 'agent_market', icon: Bot, label: 'Agent' },
         { id: 'avatar', icon: User, label: '画像' },
         { id: 'destiny', icon: Navigation, label: '导航' },
         { id: 'settings', icon: Settings, label: '设置' },
@@ -283,6 +330,13 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                 title="人生教练"
                                 description="获取个性化建议"
                                 onClick={() => setActiveTab('coach')}
+                            />
+                            <ActionCard
+                                icon={<Bot size={18} />}
+                                title="Agent Marketplace"
+                                description="查看候选评分、拒绝原因与 trace_id"
+                                onClick={() => setActiveTab('agent_market')}
+                                badge="NEW"
                             />
                         </div>
 
@@ -392,6 +446,49 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                     />
                 );
 
+            case 'agent_market': {
+                const twinContext = buildMarketplaceTwinContext();
+                const profileConsent = getProfileShareConsent();
+                return (
+                    <div className="space-y-3">
+                        <div
+                            className="rounded-xl p-3"
+                            style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
+                        >
+                            <div className="flex items-center justify-between gap-2">
+                                <div>
+                                    <div className="text-xs font-medium" style={{ color: colors.text1 }}>
+                                        数字分身联动状态
+                                    </div>
+                                    <div className="text-xs mt-1" style={{ color: colors.text2 }}>
+                                        画像完整度 {twinContext.profile_completeness}% · 隐私模式 {twinContext.privacy_mode ? '开启' : '关闭'} · 授权状态 {profileConsent}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        revokeProfileShareConsent();
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-lg text-xs"
+                                    style={{
+                                        backgroundColor: colors.bg3,
+                                        color: colors.text2,
+                                        border: `1px solid ${colors.border}`,
+                                    }}
+                                >
+                                    撤销画像授权
+                                </button>
+                            </div>
+                        </div>
+                        <AgentMarketplacePanel
+                            onOpenLixMarket={(intentId) => {
+                                setLixIntentId(intentId);
+                                setActiveTab('lix_intent');
+                            }}
+                        />
+                    </div>
+                );
+            }
+
             case 'test':
                 return <BellmanTestPanel isDark={isDark} />;
 
@@ -455,31 +552,24 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                 {/* SerpApi */}
                                 <div style={{ paddingTop: 16, borderTop: `1px solid ${colors.border}` }}>
                                     <label className="text-xs font-medium" style={{ color: colors.text3 }}>
-                                        SerpApi Key (可选)
+                                        SerpApi 服务端配置状态
                                     </label>
-                                    <div className="mt-1.5 flex gap-2">
-                                        <input
-                                            type="password"
-                                            value={serpApiKey}
-                                            onChange={(e) => setSerpApiKey(e.target.value)}
-                                            placeholder="用于实时航班比价..."
-                                            className="flex-1 px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50"
-                                            style={{
-                                                backgroundColor: colors.bg3,
-                                                color: colors.text1,
-                                                border: `1px solid ${colors.border}`
-                                            }}
-                                        />
-                                        {serpApiKey && (
-                                            <button
-                                                onClick={clearSerpApiKey}
-                                                className="px-3 py-2.5 rounded-lg text-sm text-red-400 transition-colors"
-                                                style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
-                                            >
-                                                清除
-                                            </button>
-                                        )}
+                                    <div
+                                        className="mt-1.5 rounded-lg px-3 py-2.5 text-sm"
+                                        style={{
+                                            backgroundColor: colors.bg3,
+                                            color: colors.text1,
+                                            border: `1px solid ${colors.border}`
+                                        }}
+                                    >
+                                        {serpStatusLoading && '检查中...'}
+                                        {!serpStatusLoading && serpConfigured === true && `已配置（${serpKeySource}）`}
+                                        {!serpStatusLoading && serpConfigured === false && '未配置（请在服务端环境变量设置 SERPAPI_API_KEY 或 SERPAPI_KEY）'}
+                                        {!serpStatusLoading && serpConfigured === null && `状态未知${serpStatusError ? `：${serpStatusError}` : ''}`}
                                     </div>
+                                    <p className="text-xs mt-1.5" style={{ color: colors.text3 }}>
+                                        安全策略：前端不再直接保存或发送 SerpApi Key，统一由服务端代理调用。
+                                    </p>
                                 </div>
 
                                 {/* Remember */}

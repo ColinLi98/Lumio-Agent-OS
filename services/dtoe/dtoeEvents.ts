@@ -18,6 +18,7 @@ export interface DtoeEvent {
 
 export type DtoeEventType =
     | 'dtoe.engine_init'
+    | 'dtoe.bootstrap_snapshot_registered'
     | 'dtoe.belief_created'
     | 'dtoe.belief_update'
     | 'dtoe.belief_reset'

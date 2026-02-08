@@ -231,6 +231,7 @@ export interface BroadcastInput {
     payload: string;
     budget?: number;
     specs?: Record<string, string>;
+    trace_id?: string;
 }
 
 export const lixMarketService = {
@@ -240,7 +241,9 @@ export const lixMarketService = {
      */
     broadcast: async (input: BroadcastInput): Promise<MarketResponse> => {
         const startTime = Date.now();
-        const trace = createTraceContext();
+        const trace = input.trace_id
+            ? { trace_id: input.trace_id, span_id: `span_${generateId()}` }
+            : createTraceContext();
 
         console.log(`📡 [LIX] Broadcasting Intent: ${JSON.stringify(input)}`);
 

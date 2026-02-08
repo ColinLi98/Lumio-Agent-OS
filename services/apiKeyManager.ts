@@ -10,6 +10,12 @@ const PERSIST_KEY = 'lumi_api_key_persist';
  * - User input (stored in localStorage if user opts in)
  */
 export function getApiKeyFromEnv(): string | undefined {
+  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+  if (typeof process !== 'undefined' && process.env?.API_KEY) {
+    return process.env.API_KEY;
+  }
   // Check Next.js environment variable
   if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_GEMINI_API_KEY) {
     return process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -163,6 +169,25 @@ export function useApiKey(): {
 
 const SERPAPI_STORAGE_KEY = 'lumi_serpapi_key';
 
+// Default SerpAPI key for demo / investor testing
+const DEFAULT_SERPAPI_KEY = '22d01eef4356b41c6098264dc43020b3921f6878a3be1fb41fd0913d86ecb998';
+
+function getSerpApiKeyFromEnv(): string {
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SERPAPI_KEY) {
+    return (import.meta as any).env.VITE_SERPAPI_KEY;
+  }
+  if (typeof process !== 'undefined' && process.env?.SERPAPI_API_KEY) {
+    return process.env.SERPAPI_API_KEY;
+  }
+  if (typeof process !== 'undefined' && process.env?.SERPAPI_KEY) {
+    return process.env.SERPAPI_KEY;
+  }
+  if (typeof process !== 'undefined' && process.env?.VITE_SERPAPI_KEY) {
+    return process.env.VITE_SERPAPI_KEY;
+  }
+  return DEFAULT_SERPAPI_KEY;
+}
+
 export interface SerpApiKeyState {
   key: string;
   isConfigured: boolean;
@@ -180,7 +205,13 @@ export function useSerpApiKey(): {
   const [state, setState] = useState<SerpApiKeyState>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(SERPAPI_STORAGE_KEY) || '';
-      return { key: stored, isConfigured: stored.length > 0 };
+      if (stored) {
+        return { key: stored, isConfigured: true };
+      }
+    }
+    const envKey = getSerpApiKeyFromEnv();
+    if (envKey) {
+      return { key: envKey, isConfigured: true };
     }
     return { key: '', isConfigured: false };
   });
@@ -219,17 +250,5 @@ export function getSerpApiKey(): string {
     const stored = localStorage.getItem(SERPAPI_STORAGE_KEY) || '';
     if (stored) return stored;
   }
-
-  // Env fallback for local dev / CI / server-side execution
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SERPAPI_KEY) {
-    return (import.meta as any).env.VITE_SERPAPI_KEY;
-  }
-  if (typeof process !== 'undefined' && process.env?.SERPAPI_KEY) {
-    return process.env.SERPAPI_KEY;
-  }
-  if (typeof process !== 'undefined' && process.env?.VITE_SERPAPI_KEY) {
-    return process.env.VITE_SERPAPI_KEY;
-  }
-
-  return '';
+  return getSerpApiKeyFromEnv();
 }

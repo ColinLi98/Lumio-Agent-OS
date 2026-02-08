@@ -8,6 +8,7 @@
 
 import type { TwinState, Observation, UncertaintyVariable } from './coreSchemas';
 import { createDefaultTwinState } from './coreSchemas';
+import type { DigitalTwinBootstrapSnapshot } from './bootstrapTypes';
 
 // ============================================================================
 // Types
@@ -154,6 +155,106 @@ export function createBeliefState(
         updated_at_ms: Date.now(),
         version: 1,
         ess_threshold: n_particles / 2,
+    };
+}
+
+function normalizeWeights(
+    input: NonNullable<TwinState['preferences']['values_weights']>
+): NonNullable<TwinState['preferences']['values_weights']> {
+    const keys = Object.keys(input) as Array<keyof typeof input>;
+    const total = keys.reduce((sum, key) => sum + Math.max(0, input[key] || 0), 0) || 1;
+    const normalized = { ...input };
+    for (const key of keys) {
+        normalized[key] = Math.max(0, normalized[key] || 0) / total;
+    }
+    return normalized;
+}
+
+/**
+ * Create initial belief from Digital Twin bootstrap snapshot.
+ * This converts cold-start questionnaire/import signals into Bayesian priors.
+ */
+export function createBeliefStateFromBootstrap(
+    entity_id: string,
+    snapshot: DigitalTwinBootstrapSnapshot,
+    opts: { seed?: number; n_particles?: number } = {}
+): BeliefState {
+    const seed = opts.seed ?? snapshot.created_at_ms;
+    const n_particles = opts.n_particles ?? 1000;
+    const belief = createBeliefState(entity_id, seed, n_particles);
+    const rng = new SeededRNG((seed ^ 0x9e3779b9) >>> 0);
+
+    const riskBase = snapshot.inferred_priors.risk_aversion;
+    const discountBase = snapshot.inferred_priors.time_discount;
+    const execBase = snapshot.inferred_priors.execution_reliability;
+    const spendingBias = snapshot.inferred_priors.spending_bias;
+
+    const updatedParticles = belief.particles.map((particle) => {
+        const riskNoise = Math.max(-0.5, Math.min(0.5, rng.random() * 0.2 - 0.1));
+        const discountNoise = Math.max(-0.02, Math.min(0.02, rng.random() * 0.02 - 0.01));
+        const execNoise = Math.max(-0.08, Math.min(0.08, rng.random() * 0.08 - 0.04));
+
+        const valuesWeights = {
+            ...(particle.state.preferences.values_weights || {
+                health: 0.2,
+                wealth: 0.2,
+                freedom: 0.15,
+                meaning: 0.2,
+                relationships: 0.15,
+                stability: 0.1,
+            }),
+        };
+
+        if (spendingBias === 'price_first') {
+            valuesWeights.wealth += 0.08;
+            valuesWeights.stability += 0.05;
+            valuesWeights.meaning = Math.max(0.01, valuesWeights.meaning - 0.04);
+        } else if (spendingBias === 'quality_first') {
+            valuesWeights.meaning += 0.08;
+            valuesWeights.health += 0.04;
+            valuesWeights.wealth = Math.max(0.01, valuesWeights.wealth - 0.04);
+        }
+
+        const normalizedWeights = normalizeWeights(valuesWeights);
+        return {
+            ...particle,
+            state: {
+                ...particle.state,
+                preferences: {
+                    ...particle.state.preferences,
+                    risk_aversion: Math.max(0.5, Math.min(5, riskBase + riskNoise)),
+                    time_discount: Math.max(0.01, Math.min(0.25, discountBase + discountNoise)),
+                    values_weights: normalizedWeights,
+                },
+                capabilities: {
+                    ...particle.state.capabilities,
+                    execution_reliability: Math.max(0.2, Math.min(0.95, execBase + execNoise)),
+                },
+                trust: {
+                    ...particle.state.trust,
+                    confidence: Math.max(particle.state.trust.confidence, 0.68),
+                    last_verified_ms: Date.now(),
+                    sources: Array.from(
+                        new Set([
+                            ...(particle.state.trust.sources || []),
+                            `bootstrap:${snapshot.source}`,
+                            `bootstrap_snapshot:${snapshot.snapshot_id}`,
+                        ])
+                    ),
+                },
+            },
+            params: {
+                ...particle.params,
+                execution_adherence: Math.max(0.2, Math.min(0.95, execBase + execNoise)),
+            },
+        };
+    });
+
+    return {
+        ...belief,
+        particles: updatedParticles,
+        updated_at_ms: Date.now(),
+        version: belief.version + 1,
     };
 }
 

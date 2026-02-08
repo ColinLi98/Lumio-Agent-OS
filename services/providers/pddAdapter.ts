@@ -245,36 +245,35 @@ export const pddAdapter: ProviderAdapter = {
         const offer: Offer = {
             offer_id: generateOfferId(PROVIDER_ID),
             intent_id: intent.intent_id || '',
-            provider_id: PROVIDER_ID,
-            provider_name: config.name,
-            title: candidate.title,
-            description: `${candidate.title} - ${detail.shop_name || '拼多多'}`,
+            provider: {
+                id: PROVIDER_ID,
+                name: detail.shop_name || config.name,
+                type: 'B2C',
+                reputation_score: 4.0,
+                verified: false,
+            },
+            item_sku: intent.item?.canonical_sku || candidate.title,
             price: {
                 amount: detail.final_price,
                 currency: 'CNY',
-                formatted: `¥${detail.final_price.toFixed(2)}`
             },
-            inventory_signal: detail.inventory_signal,
+            price_proof: {
+                claimed_price: detail.final_price,
+                proof_url: detail.source_url || candidate.url,
+                proof_timestamp: detail.price_verified_at,
+                provider_signature: `sig_${PROVIDER_ID}_${Date.now().toString(36)}`,
+            },
+            inventory_signal: normalizeInventorySignal(detail.inventory_signal),
             fulfillment: {
-                type: 'delivery',
-                eta: detail.delivery_eta || '2-5天',
-                shipping_cost: 0, // PDD mostly free shipping
-                shipping_formatted: '包邮'
+                delivery_eta: detail.delivery_eta || '2-5天',
+                method: 'delivery',
+                tracking_available: true,
             },
-            proof: {
-                source_url: detail.source_url,
-                price_verified_at: detail.price_verified_at,
-                html_hash: detail.html_hash
-            },
-            scoring: {
-                relevance: calculateRelevance(candidate, intent),
-                price_score: detail.final_price,
-                trust_score: 0.7, // PDD has more varied quality
-                validation_score: 1.0
-            },
-            created_at: new Date().toISOString(),
             expires_at: new Date(Date.now() + 3600000).toISOString(),
-            trace_id
+            trace: {
+                trace_id,
+                span_id: `span_${PROVIDER_ID}_${Date.now().toString(36)}`,
+            }
         };
 
         return offer;
@@ -449,4 +448,9 @@ function simpleHash(str: string): string {
 
 function hashUrl(url: string): string {
     return simpleHash(url.substring(0, 100));
+}
+
+function normalizeInventorySignal(signal: InventorySignal): 'in_stock' | 'low_stock' | 'out_of_stock' | 'unknown' {
+    if (signal === 'limited') return 'low_stock';
+    return signal;
 }

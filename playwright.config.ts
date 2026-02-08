@@ -1,11 +1,13 @@
 import { defineConfig } from '@playwright/test';
 
+const baseURL = process.env.LUMI_BASE_URL || 'https://lumi-agent-simulator.vercel.app';
+
 export default defineConfig({
   testDir: './playwright-tests',
   timeout: 30_000,
   retries: 0,
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     headless: true,
     viewport: { width: 1280, height: 720 },
   },

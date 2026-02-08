@@ -52,6 +52,15 @@ export interface Skill {
     execute: (input: Record<string, any>, context: ExecutionContext) => Promise<SkillResult>;
 }
 
+export interface SkillRuntimeStats {
+    invocations: number;
+    success_count: number;
+    failure_count: number;
+    avg_latency_ms: number;
+    success_rate: number;
+    last_updated_at: number;
+}
+
 // ============================================================================
 // Skill Registry 实现
 // ============================================================================
@@ -59,6 +68,13 @@ export interface Skill {
 export class SkillRegistry {
     private skills: Map<string, Skill> = new Map();
     private capabilityIndex: Map<string, Set<string>> = new Map(); // capability -> skill ids
+    private runtimeStats: Map<string, {
+        invocations: number;
+        success_count: number;
+        failure_count: number;
+        total_latency_ms: number;
+        last_updated_at: number;
+    }> = new Map();
 
     /**
      * 注册一个新的 Skill
@@ -68,7 +84,24 @@ export class SkillRegistry {
             console.warn(`[SkillRegistry] Skill '${skill.id}' already registered, overwriting...`);
         }
 
-        this.skills.set(skill.id, skill);
+        const originalExecute = skill.execute;
+        const wrappedSkill: Skill = {
+            ...skill,
+            execute: async (input: Record<string, any>, context: ExecutionContext) => {
+                const start = Date.now();
+                try {
+                    const result = await originalExecute(input, context);
+                    const success = result?.success !== false;
+                    this.recordRuntimeStats(skill.id, success, Date.now() - start);
+                    return result;
+                } catch (error) {
+                    this.recordRuntimeStats(skill.id, false, Date.now() - start);
+                    throw error;
+                }
+            }
+        };
+
+        this.skills.set(skill.id, wrappedSkill);
 
         // 建立能力索引
         for (const capability of skill.capabilities) {
@@ -182,6 +215,93 @@ export class SkillRegistry {
      */
     getAllCapabilities(): string[] {
         return Array.from(this.capabilityIndex.keys());
+    }
+
+    getSkillRuntimeStats(skillId: string): SkillRuntimeStats | undefined {
+        const stat = this.runtimeStats.get(skillId);
+        if (!stat || stat.invocations === 0) return undefined;
+        return {
+            invocations: stat.invocations,
+            success_count: stat.success_count,
+            failure_count: stat.failure_count,
+            avg_latency_ms: Math.round(stat.total_latency_ms / stat.invocations),
+            success_rate: Number((stat.success_count / stat.invocations).toFixed(4)),
+            last_updated_at: stat.last_updated_at,
+        };
+    }
+
+    getAllSkillRuntimeStats(): Record<string, SkillRuntimeStats> {
+        const out: Record<string, SkillRuntimeStats> = {};
+        for (const id of this.runtimeStats.keys()) {
+            const stats = this.getSkillRuntimeStats(id);
+            if (stats) out[id] = stats;
+        }
+        return out;
+    }
+
+    private recordRuntimeStats(skillId: string, success: boolean, latencyMs: number): void {
+        const prev = this.runtimeStats.get(skillId) || {
+            invocations: 0,
+            success_count: 0,
+            failure_count: 0,
+            total_latency_ms: 0,
+            last_updated_at: Date.now(),
+        };
+
+        prev.invocations += 1;
+        if (success) {
+            prev.success_count += 1;
+        } else {
+            prev.failure_count += 1;
+        }
+        prev.total_latency_ms += Math.max(0, latencyMs);
+        prev.last_updated_at = Date.now();
+        this.runtimeStats.set(skillId, prev);
+    }
+
+    /**
+     * 根据能力标签+查询文本查找并打分（Marketplace 用）
+     * 返回按综合分数排序的候选 Skill 列表
+     */
+    findByCapabilitiesWithScore(
+        capabilities: string[],
+        query: string
+    ): Array<{ skill: Skill; score: number }> {
+        const queryLower = query.toLowerCase();
+        const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 0);
+        const capSet = new Set(capabilities.map(c => c.toLowerCase()));
+
+        const results: Array<{ skill: Skill; score: number }> = [];
+
+        for (const skill of this.skills.values()) {
+            let score = 0;
+
+            // 1. Capability overlap (0-1, weight=0.5)
+            const skillCapsLower = skill.capabilities.map(c => c.toLowerCase());
+            const overlapCount = skillCapsLower.filter(sc =>
+                capSet.has(sc) || [...capSet].some(rc => sc.includes(rc) || rc.includes(sc))
+            ).length;
+            const capScore = capabilities.length > 0
+                ? overlapCount / capabilities.length
+                : 0;
+            score += capScore * 0.5;
+
+            // 2. Description/name keyword match (0-1, weight=0.3)
+            const searchText = `${skill.name} ${skill.description} ${skill.capabilities.join(' ')}`.toLowerCase();
+            const termHits = queryTerms.filter(t => searchText.includes(t)).length;
+            const termScore = queryTerms.length > 0 ? termHits / queryTerms.length : 0;
+            score += termScore * 0.3;
+
+            // 3. Priority bonus (0-1 normalized from 0-100, weight=0.2)
+            const priorityScore = (skill.priority ?? 50) / 100;
+            score += priorityScore * 0.2;
+
+            if (score > 0.05) {
+                results.push({ skill, score: Math.round(score * 100) / 100 });
+            }
+        }
+
+        return results.sort((a, b) => b.score - a.score);
     }
 
     /**

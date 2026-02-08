@@ -12,6 +12,7 @@ import { createDefaultGoalStack } from './coreSchemas';
 import type { BeliefState } from './twinBeliefStore';
 import {
     createBeliefState,
+    createBeliefStateFromBootstrap,
     updateBeliefWithEvidence,
     getPosteriorSummary,
     computeESS,
@@ -24,6 +25,7 @@ import { validateEvidenceGate, isEvidenceFresh } from './schemaValidators';
 import { logDtoeEvent } from './dtoeEvents';
 import { calibrateAndApply } from './calibrationService';
 import { mapEvidencePackToObservation } from './observationMapper';
+import type { DigitalTwinBootstrapSnapshot } from './bootstrapTypes';
 
 // ============================================================================
 // Types
@@ -37,6 +39,7 @@ export interface RecommendationInput {
     time_budget_ms?: number;
     enable_parallel_scenarios?: boolean;
     seed?: number;
+    bootstrap_snapshot_id?: string;
 }
 
 export interface RecommendationOutput {
@@ -86,6 +89,7 @@ export class DestinyEngine {
     private beliefStores: Map<string, BeliefState> = new Map();
     private pendingActions: Map<string, Action[]> = new Map();
     private recommendationCounts: Map<string, number> = new Map();
+    private bootstrapSnapshots: Map<string, DigitalTwinBootstrapSnapshot> = new Map();
     private calibrationStatus: Map<string, {
         calibration_applied: boolean;
         calibration_method: 'ema' | 'bayes_lite';
@@ -98,13 +102,55 @@ export class DestinyEngine {
     /**
      * Get or create belief state for entity
      */
-    private getOrCreateBelief(entity_id: string, seed?: number): BeliefState {
+    private getOrCreateBelief(entity_id: string, seed?: number, bootstrap_snapshot_id?: string): BeliefState {
         if (!this.beliefStores.has(entity_id)) {
-            const belief = createBeliefState(entity_id, seed ?? Date.now());
+            const snapshot = bootstrap_snapshot_id
+                ? this.bootstrapSnapshots.get(bootstrap_snapshot_id)
+                : undefined;
+            const belief = snapshot
+                ? createBeliefStateFromBootstrap(entity_id, snapshot, { seed: seed ?? snapshot.created_at_ms })
+                : createBeliefState(entity_id, seed ?? Date.now());
             this.beliefStores.set(entity_id, belief);
-            logDtoeEvent('dtoe.belief_created', { entity_id, n_particles: belief.n_particles });
+            logDtoeEvent('dtoe.belief_created', {
+                entity_id,
+                n_particles: belief.n_particles,
+                source: snapshot ? 'bootstrap' : 'default',
+                bootstrap_snapshot_id: snapshot?.snapshot_id,
+            });
         }
         return this.beliefStores.get(entity_id)!;
+    }
+
+    /**
+     * Register a bootstrap snapshot for subsequent recommendation calls.
+     */
+    registerBootstrapSnapshot(snapshot: DigitalTwinBootstrapSnapshot): void {
+        this.bootstrapSnapshots.set(snapshot.snapshot_id, snapshot);
+        logDtoeEvent('dtoe.bootstrap_snapshot_registered', {
+            entity_id: snapshot.entity_id,
+            snapshot_id: snapshot.snapshot_id,
+            source: snapshot.source,
+        });
+    }
+
+    /**
+     * Force-create/reset belief state from a bootstrap snapshot.
+     */
+    bootstrapEntityFromSnapshot(
+        entity_id: string,
+        snapshot: DigitalTwinBootstrapSnapshot,
+        options: { seed?: number; n_particles?: number } = {}
+    ): void {
+        this.registerBootstrapSnapshot(snapshot);
+        const belief = createBeliefStateFromBootstrap(entity_id, snapshot, options);
+        this.beliefStores.set(entity_id, belief);
+        this.pendingActions.set(entity_id, []);
+        logDtoeEvent('dtoe.belief_created', {
+            entity_id,
+            n_particles: belief.n_particles,
+            source: 'bootstrap',
+            bootstrap_snapshot_id: snapshot.snapshot_id,
+        });
     }
 
     /**
@@ -119,6 +165,7 @@ export class DestinyEngine {
             time_budget_ms = 2000,
             enable_parallel_scenarios = false,
             seed,
+            bootstrap_snapshot_id,
         } = input;
 
         const startTime = performance.now();
@@ -127,7 +174,7 @@ export class DestinyEngine {
         logDtoeEvent('dtoe.recommendation_start', { entity_id, time_budget_ms });
 
         // 1. Get belief state
-        const belief = this.getOrCreateBelief(entity_id, seed);
+        const belief = this.getOrCreateBelief(entity_id, seed, bootstrap_snapshot_id);
         const belief_ess = computeESS(belief.particles);
 
         // 2. Check evidence gate (P0)
@@ -227,6 +274,27 @@ export class DestinyEngine {
             goals: goal_stack,
             needs_live_data,
         });
+
+        if (bootstrap_snapshot_id) {
+            explanation.explanation_card.audit_trail = explanation.explanation_card.audit_trail || {
+                trace_id: solve_result.trace_id,
+                timestamp_ms: Date.now(),
+                model_version: 'dtoe-v0.3.0',
+                evidence_item_indices: [],
+                constraint_keys: [],
+                parameters_used: {},
+            };
+            explanation.explanation_card.audit_trail.parameters_used = {
+                ...(explanation.explanation_card.audit_trail.parameters_used || {}),
+                bootstrap_snapshot_present: 1,
+            };
+            explanation.explanation_card.audit_trail.constraint_keys = Array.from(
+                new Set([
+                    ...(explanation.explanation_card.audit_trail.constraint_keys || []),
+                    `bootstrap_snapshot:${bootstrap_snapshot_id}`,
+                ])
+            );
+        }
 
         // 6. Validate explanation
         const validation = validateExplanationCard(

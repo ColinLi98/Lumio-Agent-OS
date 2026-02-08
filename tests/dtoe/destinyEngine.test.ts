@@ -12,6 +12,7 @@ import {
 import { resetCalibrationState } from '../../services/dtoe/calibrationService';
 import { createDefaultGoalStack } from '../../services/dtoe/coreSchemas';
 import type { EvidencePack } from '../../services/dtoe/coreSchemas';
+import type { DigitalTwinBootstrapSnapshot } from '../../services/dtoe/bootstrapTypes';
 
 // ============================================================================
 // Setup
@@ -232,6 +233,46 @@ describe('closed loop learning', () => {
         const top2Action = result2.solve_result?.ranked_actions[0]?.action.action_id;
         const changed = top1Action !== top2Action || Math.abs(top2Score - top1Score) > 1e-6;
         expect(changed).toBe(true);
+    });
+});
+
+describe('bootstrap snapshot integration', () => {
+    it('should initialize belief from registered bootstrap snapshot and keep audit trail', async () => {
+        const engine = getDestinyEngine();
+        const snapshot: DigitalTwinBootstrapSnapshot = {
+            snapshot_id: 'bootstrap_test_1',
+            entity_id: 'bootstrap_user',
+            source: 'questionnaire',
+            created_at_ms: Date.now(),
+            soul: {
+                communicationStyle: 'Professional',
+                riskTolerance: 'Low',
+                privacyLevel: 'Balanced',
+                spendingPreference: 'Balanced',
+            },
+            inferred_priors: {
+                risk_aversion: 3.8,
+                time_discount: 0.05,
+                execution_reliability: 0.78,
+                spending_bias: 'balanced',
+            },
+            missing_fields: [],
+        };
+
+        engine.registerBootstrapSnapshot(snapshot);
+        const result = await engine.getRecommendation({
+            entity_id: 'bootstrap_user',
+            bootstrap_snapshot_id: snapshot.snapshot_id,
+            seed: 42,
+        });
+
+        expect(result.success).toBe(true);
+        expect(
+            result.explanation_card?.audit_trail?.parameters_used?.bootstrap_snapshot_present
+        ).toBe(1);
+        expect(
+            result.explanation_card?.audit_trail?.constraint_keys
+        ).toContain(`bootstrap_snapshot:${snapshot.snapshot_id}`);
     });
 });
 

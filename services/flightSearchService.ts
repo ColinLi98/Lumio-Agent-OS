@@ -7,6 +7,9 @@
  * - Estimated/mock data can only be enabled explicitly (debug/testing).
  */
 
+import { getApiBaseUrl } from './apiBaseUrl';
+import { executeSerpApi } from './serpApiClient';
+
 export interface FlightSearchParams {
     origin: string;       // City name or IATA code
     destination: string;  // City name or IATA code
@@ -188,17 +191,7 @@ function applyExplicitAirportConstraints(
     });
 }
 
-function getSerpApiEndpoint(): string {
-    if (typeof window !== 'undefined' && import.meta.env?.DEV) {
-        return '/api/serpapi/search.json';
-    }
-    return 'https://serpapi.com/search.json';
-}
-
 function readEnvValue(name: string): string | undefined {
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env?.[name]) {
-        return (import.meta as any).env[name];
-    }
     if (typeof process !== 'undefined' && process.env?.[name]) {
         return process.env[name];
     }
@@ -361,15 +354,9 @@ interface FlightProviderFailure {
 }
 
 function getLiveSearchEndpoint(): string | null {
-    if (typeof window !== 'undefined') {
-        return '/api/live-search';
-    }
-    const baseFromEnv = (typeof process !== 'undefined' && process.env?.LUMI_API_BASE_URL)
-        ? process.env.LUMI_API_BASE_URL
-        : '';
-    if (!baseFromEnv) return null;
-    const normalizedBase = baseFromEnv.endsWith('/') ? baseFromEnv.slice(0, -1) : baseFromEnv;
-    return `${normalizedBase}/api/live-search`;
+    const base = getApiBaseUrl();
+    if (!base) return null;
+    return `${base}/api/live-search`;
 }
 
 function parsePrice(text: string): { price: number; currency: string } | null {
@@ -449,7 +436,6 @@ function dedupeFlights(flights: FlightResult[]): FlightResult[] {
             flight.arrival.time,
             flight.departure.airport,
             flight.arrival.airport,
-            flight.price,
         ].join('|');
 
         const existing = deduped.get(key);
@@ -967,7 +953,7 @@ function mergeRealtimeProviderResults(
  */
 export async function searchFlightsWithSerpApi(
     params: FlightSearchParams,
-    apiKey: string
+    apiKey?: string
 ): Promise<FlightSearchResult> {
     const originCode = getCityCode(params.origin);
     const destCode = getCityCode(params.destination);
@@ -983,38 +969,38 @@ export async function searchFlightsWithSerpApi(
         };
     }
 
-    const endpoint = getSerpApiEndpoint();
-    const searchParams = new URLSearchParams();
-    searchParams.set('engine', 'google_flights');
-    searchParams.set('departure_id', originCode);
-    searchParams.set('arrival_id', destCode);
-    searchParams.set('outbound_date', params.departureDate);
-    searchParams.set('currency', params.currency || 'USD');
-    searchParams.set('hl', 'en');
-    searchParams.set('api_key', apiKey);
-
+    const serpApiParams: Record<string, string> = {
+        departure_id: originCode,
+        arrival_id: destCode,
+        outbound_date: params.departureDate,
+        // Explicitly set trip type to avoid provider defaulting to round-trip.
+        type: params.returnDate ? '1' : '2',
+        currency: params.currency || 'USD',
+        hl: 'en',
+    };
     if (params.returnDate) {
-        searchParams.set('return_date', params.returnDate);
+        serpApiParams.return_date = params.returnDate;
     }
     if (params.travelClass) {
         const classMap = { economy: '1', business: '2', first: '3' };
-        searchParams.set('travel_class', classMap[params.travelClass] || '1');
+        serpApiParams.travel_class = classMap[params.travelClass] || '1';
     }
 
     try {
-        const url = `${endpoint}?${searchParams.toString()}`;
-        const response = await fetch(url);
-        const rawText = await response.text();
-        let data: any = null;
+        const serpResult = await executeSerpApi(
+            {
+                engine: 'google_flights',
+                params: serpApiParams,
+                locale: 'en-US',
+                domain: 'travel',
+                freshness_policy: 'cache_ok',
+            },
+            { apiKeyOverride: apiKey }
+        );
+        const data = serpResult.raw || null;
 
-        try {
-            data = rawText ? JSON.parse(rawText) : null;
-        } catch {
-            data = null;
-        }
-
-        if (!response.ok) {
-            const errorMessage = data?.error || data?.message || rawText || `API error: ${response.status}`;
+        if (!serpResult.success || !data) {
+            const errorMessage = serpResult.error?.message || 'SerpApi returned empty response';
             return {
                 success: false,
                 flights: [],
@@ -1025,42 +1011,22 @@ export async function searchFlightsWithSerpApi(
             };
         }
 
-        if (data?.error) {
-            return {
-                success: false,
-                flights: [],
-                comparisonLinks: generateComparisonLinks(originCode, destCode, params.departureDate),
-                searchParams: params,
-                appliedConstraints: getAppliedConstraints(params),
-                error: data.error
-            };
-        }
-
-        if (!data) {
-            return {
-                success: false,
-                flights: [],
-                comparisonLinks: generateComparisonLinks(originCode, destCode, params.departureDate),
-                searchParams: params,
-                appliedConstraints: getAppliedConstraints(params),
-                error: 'SerpApi 返回空响应'
-            };
-        }
-
         // Parse SerpApi response
         const flights: FlightResult[] = [];
 
         // Parse best flights
         if (data.best_flights) {
             for (const flight of data.best_flights) {
-                flights.push(parseSerpApiFlight(flight, 'Google Flights (Best)', params.currency || 'CNY'));
+                const parsed = parseSerpApiFlight(flight, 'Google Flights (Best)', params.currency || 'CNY');
+                if (parsed) flights.push(parsed);
             }
         }
 
         // Parse other flights
         if (data.other_flights) {
             for (const flight of data.other_flights.slice(0, 10)) {
-                flights.push(parseSerpApiFlight(flight, 'Google Flights', params.currency || 'CNY'));
+                const parsed = parseSerpApiFlight(flight, 'Google Flights', params.currency || 'CNY');
+                if (parsed) flights.push(parsed);
             }
         }
 
@@ -1127,7 +1093,30 @@ export async function searchFlightsWithSerpApi(
     }
 }
 
-function parseSerpApiFlight(flight: any, source: string, preferredCurrency: string): FlightResult {
+function parseSerpApiPrice(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const normalized = value.replace(/[, ]/g, '');
+        const match = normalized.match(/(\d+(?:\.\d+)?)/);
+        if (match) {
+            const parsed = Number.parseFloat(match[1]);
+            if (Number.isFinite(parsed) && parsed > 0) {
+                return parsed;
+            }
+        }
+    }
+    return null;
+}
+
+function parseSerpApiFlight(flight: any, source: string, preferredCurrency: string): FlightResult | null {
+    const parsedPrice = parseSerpApiPrice(flight?.price);
+    if (parsedPrice === null) {
+        // SerpApi can return rows without price; keep only quote rows with verifiable price.
+        return null;
+    }
+
     const firstLeg = flight.flights?.[0] || {};
     const lastLeg = flight.flights?.[flight.flights.length - 1] || firstLeg;
 
@@ -1149,7 +1138,7 @@ function parseSerpApiFlight(flight: any, source: string, preferredCurrency: stri
         duration: flight.total_duration ? `${Math.floor(flight.total_duration / 60)}h ${flight.total_duration % 60}m` : '',
         stops: (flight.flights?.length || 1) - 1,
         stopover: flight.layovers?.[0]?.name,
-        price: flight.price || 0,
+        price: parsedPrice,
         currency: preferredCurrency,
         travelClass: flight.travel_class || 'Economy',
         source,
@@ -1319,25 +1308,23 @@ export async function searchFlights(
 
     const providers: Array<Promise<FlightProviderSuccess | FlightProviderFailure>> = [];
 
-    if (serpApiKey) {
-        providers.push(
-            searchFlightsWithSerpApi(params, serpApiKey)
-                .then((result) => {
-                    const ok = result.success && result.flights.length > 0 && result.realtime?.verified;
-                    if (ok) {
-                        return { provider: 'serpapi_google_flights', result } as FlightProviderSuccess;
-                    }
-                    return {
-                        provider: 'serpapi_google_flights',
-                        error: result.error || 'SerpApi returned no normalized flights'
-                    } as FlightProviderFailure;
-                })
-                .catch((error) => ({
+    providers.push(
+        searchFlightsWithSerpApi(params, serpApiKey)
+            .then((result) => {
+                const ok = result.success && result.flights.length > 0 && result.realtime?.verified;
+                if (ok) {
+                    return { provider: 'serpapi_google_flights', result } as FlightProviderSuccess;
+                }
+                return {
                     provider: 'serpapi_google_flights',
-                    error: error instanceof Error ? error.message : 'SerpApi provider failed',
-                } as FlightProviderFailure))
-        );
-    }
+                    error: result.error || 'SerpApi returned no normalized flights'
+                } as FlightProviderFailure;
+            })
+            .catch((error) => ({
+                provider: 'serpapi_google_flights',
+                error: error instanceof Error ? error.message : 'SerpApi provider failed',
+            } as FlightProviderFailure))
+    );
 
     providers.push(
         searchFlightsWithLiveSearchGrounding(params)
@@ -1401,7 +1388,7 @@ export async function searchFlights(
             coverage_scope: 'none',
             warnings: [
                 ...failures.map((f) => `${f.provider}: ${f.error}`),
-                !serpApiKey ? 'SERPAPI_KEY not configured' : 'SERPAPI provider failed',
+                'SERPAPI provider failed or unavailable',
                 !hasAmadeusProvider ? 'AMADEUS_CLIENT_ID / AMADEUS_CLIENT_SECRET not configured' : 'Amadeus provider failed',
                 'Estimated fallback disabled by realtime policy',
             ],

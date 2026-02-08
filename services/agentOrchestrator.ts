@@ -20,6 +20,8 @@ import {
 import { getUserPreferences } from './personalizationService';
 import { getEnhancedDigitalAvatar } from './localStorageService';
 import { executeSpecializedAgent, SPECIALIZED_AGENTS } from './specializedAgents';
+import { getAgentMarketplace, detectDomain } from './agentMarketplaceService';
+import type { AgentDomain } from './agentMarketplaceTypes';
 
 /**
  * Agent Orchestrator - 协调多个专业Agent完成复杂任务
@@ -99,78 +101,79 @@ export class AgentOrchestrator {
 
     /**
      * 根据意图确定需要调用的Agent列表
+     * Enhanced: tries marketplace discovery first, falls back to hardcoded map
      */
     private determineRequiredAgents(
         intent: IntentContext,
         preferences: AppliedPreferences
     ): AgentTask[] {
         const tasks: AgentTask[] = [];
-        const needsSet = new Set(intent.impliedNeeds.map(n => n.toLowerCase()));
+        const marketplace = getAgentMarketplace();
+        marketplace.syncInternalSources(false);
 
-        // 旅行相关Agent映射
-        const needToAgentMap: Record<string, { type: SpecializedAgentType; priority: number }> = {
-            '机票': { type: 'flight_booking', priority: 1 },
-            '航班': { type: 'flight_booking', priority: 1 },
-            'flight': { type: 'flight_booking', priority: 1 },
-            '酒店': { type: 'hotel_booking', priority: 2 },
-            '住宿': { type: 'hotel_booking', priority: 2 },
-            'hotel': { type: 'hotel_booking', priority: 2 },
-            '餐厅': { type: 'restaurant', priority: 3 },
-            '美食': { type: 'restaurant', priority: 3 },
-            '吃': { type: 'restaurant', priority: 3 },
-            'restaurant': { type: 'restaurant', priority: 3 },
-            '景点': { type: 'attraction', priority: 4 },
-            '旅游': { type: 'attraction', priority: 4 },
-            '玩': { type: 'attraction', priority: 4 },
-            'attraction': { type: 'attraction', priority: 4 },
-            '天气': { type: 'weather', priority: 5 },
-            'weather': { type: 'weather', priority: 5 },
-            '交通': { type: 'transportation', priority: 6 },
-            '出行': { type: 'transportation', priority: 6 },
-            '行程': { type: 'itinerary', priority: 10 }, // 行程规划最后执行
-            '安排': { type: 'itinerary', priority: 10 }
-        };
+        const domainHint = this.mapIntentCategoryToAgentDomain(intent.category, intent.primaryIntent);
+        const { plan } = marketplace.buildExecutionPlan(intent.primaryIntent, domainHint);
+        const registered = marketplace.getRegisteredAgents();
+        const dedup = new Set<SpecializedAgentType>();
+        let priority = 1;
 
-        // 根据隐含需求创建Agent任务
-        for (const need of intent.impliedNeeds) {
-            const needLower = need.toLowerCase();
-            const mapping = needToAgentMap[needLower];
+        for (const mktTask of plan.tasks) {
+            const selection = plan.selections.find(s => s.task_id === mktTask.id);
+            const primaryAgent = selection
+                ? registered.find(a => a.id === selection.primary_agent_id)
+                : undefined;
 
-            if (mapping) {
-                // 避免重复Agent
-                if (!tasks.some(t => t.agentType === mapping.type)) {
-                    tasks.push(this.createAgentTask(
-                        mapping.type,
-                        intent,
-                        preferences,
-                        mapping.priority
-                    ));
-                }
+            let mappedType: SpecializedAgentType | null = null;
+            if (primaryAgent && this.isSpecializedAgentType(primaryAgent.execute_ref)) {
+                mappedType = primaryAgent.execute_ref;
             }
+            if (!mappedType) {
+                mappedType = this.mapCapabilitiesToSpecializedType(mktTask.required_capabilities);
+            }
+            if (!mappedType || dedup.has(mappedType)) continue;
+
+            dedup.add(mappedType);
+            tasks.push(this.createAgentTask(mappedType, intent, preferences, priority++));
         }
 
-        // 如果是旅行意图，自动添加必要的Agent
-        if (intent.category === 'travel') {
-            const mustHaveAgents: SpecializedAgentType[] = ['flight_booking', 'hotel_booking'];
-            for (const agentType of mustHaveAgents) {
-                if (!tasks.some(t => t.agentType === agentType)) {
-                    tasks.push(this.createAgentTask(
-                        agentType,
-                        intent,
-                        preferences,
-                        agentType === 'flight_booking' ? 1 : 2
-                    ));
-                }
-            }
+        // Safety fallback: if discovery produced no executable specialized tasks.
+        if (tasks.length === 0) {
+            const fallbackType = intent.category === 'travel' ? 'flight_booking' : 'shopping';
+            tasks.push(this.createAgentTask(fallbackType, intent, preferences, priority));
         }
 
-        // 按优先级排序
+        if (plan.trace_id) {
+            console.log(`[AgentOrchestrator] Marketplace plan trace=${plan.trace_id}, tasks=${tasks.length}, domain=${plan.domain}`);
+        }
+
         return tasks.sort((a, b) => a.priority - b.priority);
     }
 
     /**
      * 创建单个Agent任务
      */
+    private mapIntentCategoryToAgentDomain(category: IntentContext['category'], query: string): AgentDomain {
+        if (category === 'travel') return 'travel';
+        if (category === 'shopping') return 'shopping';
+        return detectDomain(query);
+    }
+
+    private isSpecializedAgentType(value: string): value is SpecializedAgentType {
+        return Object.prototype.hasOwnProperty.call(SPECIALIZED_AGENTS, value);
+    }
+
+    private mapCapabilitiesToSpecializedType(capabilities: string[]): SpecializedAgentType | null {
+        if (capabilities.includes('flight_search')) return 'flight_booking';
+        if (capabilities.includes('hotel_search')) return 'hotel_booking';
+        if (capabilities.includes('local_transport')) return 'transportation';
+        if (capabilities.includes('itinerary_plan')) return 'itinerary';
+        if (capabilities.includes('restaurant_search')) return 'restaurant';
+        if (capabilities.includes('attraction_search')) return 'attraction';
+        if (capabilities.includes('weather_query')) return 'weather';
+        if (capabilities.includes('price_compare')) return 'shopping';
+        return null;
+    }
+
     private createAgentTask(
         agentType: SpecializedAgentType,
         intent: IntentContext,

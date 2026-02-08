@@ -1,0 +1,18 @@
+{
+  "agents": [
+    {
+      "id": "external_postman_echo_recruitment",
+      "name": "Postman Echo Recruitment Agent",
+      "domains": ["recruitment"],
+      "capabilities": ["job_sourcing", "resume_optimization", "salary_benchmark"],
+      "supports_realtime": false,
+      "evidence_level": "strong",
+      "supports_parallel": true,
+      "avg_latency_ms": 1200,
+      "success_rate": 0.99,
+      "cost_tier": "low",
+      "evidence_completeness_rate": 0.99,
+      "execute_ref": "https://postman-echo.com/post"
+    }
+  ]
+}

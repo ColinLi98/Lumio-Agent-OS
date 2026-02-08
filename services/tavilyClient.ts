@@ -4,9 +4,16 @@
  * Uses a Vercel serverless function proxy to bypass CORS restrictions.
  * The proxy is at /api/tavily-search
  */
+import { buildApiUrl } from './apiBaseUrl';
 
-// Use relative URL for the proxy - works both locally and on Vercel
-const TAVILY_PROXY_URL = '/api/tavily-search';
+const TAVILY_PROXY_URL = buildApiUrl('/api/tavily-search');
+const DEFAULT_TAVILY_TIMEOUT_MS = 6000;
+
+function getTavilyTimeoutMs(): number {
+    const raw = Number(process.env.TAVILY_PROXY_TIMEOUT_MS || process.env.VITE_TAVILY_PROXY_TIMEOUT_MS || DEFAULT_TAVILY_TIMEOUT_MS);
+    if (!Number.isFinite(raw)) return DEFAULT_TAVILY_TIMEOUT_MS;
+    return Math.max(1000, Math.min(20000, Math.floor(raw)));
+}
 
 export interface TavilySearchRequest {
     query: string;
@@ -35,25 +42,47 @@ export class TavilyClient {
     async search(request: TavilySearchRequest): Promise<TavilySearchResponse> {
         console.log(`[Tavily] Searching via proxy: "${request.query}"`);
 
-        const response = await fetch(TAVILY_PROXY_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                query: request.query,
-                search_depth: request.search_depth || 'basic',
-                max_results: request.max_results || 5
-            })
-        });
+        const timeoutMs = getTavilyTimeoutMs();
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        let response: Response;
+        try {
+            response = await fetch(TAVILY_PROXY_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    query: request.query,
+                    search_depth: request.search_depth || 'basic',
+                    max_results: request.max_results || 5
+                }),
+                signal: controller.signal,
+            });
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error(`Tavily proxy timeout after ${timeoutMs}ms`);
+            }
+            throw error;
+        } finally {
+            clearTimeout(timer);
+        }
+
+        const rawText = await response.text();
 
         if (!response.ok) {
-            const errorText = await response.text();
+            const errorText = rawText.slice(0, 500);
             console.error('[Tavily] Proxy Error:', response.status, errorText);
             throw new Error(`Tavily proxy error: ${response.status} - ${errorText}`);
         }
 
-        const data = await response.json();
+        let data: any;
+        try {
+            data = rawText ? JSON.parse(rawText) : {};
+        } catch {
+            throw new Error('Tavily proxy returned non-JSON response');
+        }
+
         console.log(`[Tavily] Got ${data.results?.length || 0} results`);
 
         return data as TavilySearchResponse;

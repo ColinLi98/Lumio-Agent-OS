@@ -4,9 +4,20 @@ import { LumiAppView } from './components/LumiAppView';
 import { OnboardingOverlay, shouldShowOnboarding } from './components/OnboardingOverlay';
 import { DigitalSoulOnboarding } from './components/DigitalSoulOnboarding';
 import { SoulMatrix, PolicyConfig, DecisionMeta } from './types';
-import { getDigitalSoul, saveDigitalSoul, initializeDigitalSoul, isDigitalSoulBootstrapped, markDigitalSoulBootstrapped } from './services/digitalSoulService';
+import {
+  getDigitalSoul,
+  saveDigitalSoul,
+  initializeDigitalSoul,
+  isDigitalSoulBootstrapped,
+  markDigitalSoulBootstrapped,
+  ensureDigitalSoulColdStartBaseline,
+  createDigitalTwinBootstrapSnapshot,
+  getLatestDigitalTwinBootstrapSnapshot,
+  type DigitalSoulBootstrapSource,
+} from './services/digitalSoulService';
 import { useApiKey } from './services/apiKeyManager';
 import { useTheme } from './services/themeManager';
+import { getDestinyEngine } from './services/dtoe/destinyEngine';
 import { Smartphone, AppWindow, AlertTriangle, X, Moon, Sun, Settings } from 'lucide-react';
 import { NavigatorOutput } from './prompts/personalNavigator';
 
@@ -43,6 +54,14 @@ const App: React.FC = () => {
     if (!isDigitalSoulBootstrapped()) {
       setShowSoulOnboarding(true);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!isDigitalSoulBootstrapped()) return;
+    const snapshot = getLatestDigitalTwinBootstrapSnapshot('default_user');
+    if (!snapshot) return;
+    const destinyEngine = getDestinyEngine();
+    destinyEngine.bootstrapEntityFromSnapshot('default_user', snapshot);
   }, []);
 
   // Default Configs
@@ -97,13 +116,31 @@ const App: React.FC = () => {
 
       {showSoulOnboarding && (
         <DigitalSoulOnboarding
-          onComplete={(soulConfig) => {
-            const initialized = initializeDigitalSoul(soulConfig);
+          onComplete={(soulConfig, source) => {
+            const bootstrapSource: DigitalSoulBootstrapSource = source === 'import' ? 'import' : 'questionnaire';
+            const initialized = initializeDigitalSoul({
+              ...soulConfig,
+              bootstrapSource,
+            });
             setSoul(initialized);
+            const snapshot = createDigitalTwinBootstrapSnapshot(initialized, {
+              entity_id: 'default_user',
+              source: bootstrapSource,
+            });
+            const destinyEngine = getDestinyEngine();
+            destinyEngine.bootstrapEntityFromSnapshot('default_user', snapshot);
             markDigitalSoulBootstrapped();
             setShowSoulOnboarding(false);
           }}
           onSkip={() => {
+            const baseline = ensureDigitalSoulColdStartBaseline('skip');
+            setSoul(baseline);
+            const snapshot = createDigitalTwinBootstrapSnapshot(baseline, {
+              entity_id: 'default_user',
+              source: 'skip',
+            });
+            const destinyEngine = getDestinyEngine();
+            destinyEngine.bootstrapEntityFromSnapshot('default_user', snapshot);
             markDigitalSoulBootstrapped();
             setShowSoulOnboarding(false);
           }}

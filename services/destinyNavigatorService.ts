@@ -113,6 +113,8 @@ export interface LifeDecision {
         income?: number;           // 对收入的影响
         skills?: { name: string; delta: number }[];  // 对技能的影响
         health?: number;           // 对健康的影响
+        energy?: number;           // 对精力的影响
+        mentalHealth?: number;     // 对心理健康的影响
         network?: number;          // 对人脉的影响
         fulfillment?: number;      // 对自我实现的影响
         risk?: number;             // 风险等级 (0-100)

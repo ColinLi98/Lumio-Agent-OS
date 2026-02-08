@@ -9,7 +9,7 @@ import { EmojiReactions } from './EmojiReactions';
 import { ImageUploadPanel, ImageUploadButton } from './ImageUploadPanel';
 import { LumiAppOverlay } from './LumiAppOverlay';
 import { SentinelIndicator } from './SentinelIndicator';
-import { SuperAgentResultPanel, SuperAgentResult } from './SuperAgentResultPanel';
+import { SuperAgentResult } from './SuperAgentResultPanel';
 import { InputMode, AgentOutput, AgentInput, SoulMatrix, PolicyConfig, TextDraft, ServiceCard, PrivacyAction, TaskPlan, DecisionMeta } from '../types';
 import { LumiAgent } from '../services/lumiAgent';
 import { ConversationMessage } from '../services/geminiService';
@@ -27,7 +27,7 @@ import { PassiveLearningConsentModal } from './PassiveLearningConsentModal';
 import { SmartChips, ChipAction } from './SmartChips';
 import { getSuperAgent } from '../services/superAgentService';
 import { registerBuiltinSkills } from '../services/builtinSkills';
-import { Wifi, Battery, Signal, Sparkles, X, Trash2, ChevronDown, Shield, AlertTriangle } from 'lucide-react';
+import { Wifi, Battery, Signal, Sparkles, X, Trash2, ChevronDown, Shield, AlertTriangle, ExternalLink, Bot } from 'lucide-react';
 import { DestinySimulationResult } from '../App';
 
 // 初始化 Super Agent 的内置能力
@@ -74,24 +74,214 @@ const mapFailureProbToRiskLevel = (failureProb: number): 'low' | 'medium' | 'hig
 const MESSAGES_STORAGE_KEY = 'lumi_chat_messages';
 type PendingIntent = { query: string; locked?: boolean; topic?: 'travel' | 'general' };
 
+type AssistantActionId =
+  | 'continue_filter'
+  | 'direct_only'
+  | 'budget_800'
+  | 'add_date'
+  | 'add_budget'
+  | 'add_passengers';
+
+interface AssistantLinkItem {
+  title: string;
+  url: string;
+  caption?: string;
+}
+
+interface AssistantChatMeta {
+  query: string;
+  traceId?: string;
+  highlights: string[];
+  links: AssistantLinkItem[];
+  missingConstraints: string[];
+}
+
+interface ChatMessage {
+  id: number;
+  text: string;
+  from: 'user' | 'me' | 'assistant';
+  timestamp: number;
+  assistantMeta?: AssistantChatMeta;
+}
+
+const formatDateYMD = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const getDefaultTravelDate = (): string => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return formatDateYMD(tomorrow);
+};
+
+const buildDefaultScenarioMessages = (scenario: AppScenario): ChatMessage[] =>
+  scenario.defaultMessages.map((m, i) => ({
+    id: i + 1,
+    text: m.text,
+    from: m.from,
+    timestamp: Date.now() - (5 - i) * 60000,
+  }));
+
+const normalizeStoredMessages = (raw: any, scenario: AppScenario): ChatMessage[] => {
+  if (!Array.isArray(raw)) return buildDefaultScenarioMessages(scenario);
+  const normalized = raw
+    .map((item: any): ChatMessage | null => {
+      const from = item?.from;
+      if (from !== 'user' && from !== 'me' && from !== 'assistant') return null;
+      const id = Number(item?.id);
+      const text = String(item?.text || '').trim();
+      const timestamp = Number(item?.timestamp);
+      if (!Number.isFinite(id) || !text) return null;
+      return {
+        id,
+        text,
+        from,
+        timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
+        assistantMeta: item?.assistantMeta,
+      };
+    })
+    .filter((item: ChatMessage | null): item is ChatMessage => Boolean(item));
+
+  return normalized.length > 0 ? normalized : buildDefaultScenarioMessages(scenario);
+};
+
+const buildAssistantMetaFromSolution = (solution: any, query: string): AssistantChatMeta | undefined => {
+  const highlights: string[] = [];
+  const links: AssistantLinkItem[] = [];
+  const missingConstraints: string[] = [];
+  const results = Array.isArray(solution?.results) ? solution.results : [];
+
+  results.forEach((row: any) => {
+    const data = row?.data || {};
+    if (typeof data?.answer === 'string' && data.answer.trim()) {
+      highlights.push(data.answer.trim().slice(0, 120));
+    }
+    if (Array.isArray(data?.results)) {
+      data.results.slice(0, 2).forEach((item: any) => {
+        if (typeof item?.title === 'string' && item.title.trim()) highlights.push(item.title.trim());
+        if (typeof item?.url === 'string' && item.url.trim()) {
+          links.push({ title: item?.title || '查看结果', url: item.url, caption: item?.source });
+        }
+      });
+    }
+    if (Array.isArray(data?.evidence?.items)) {
+      data.evidence.items.slice(0, 2).forEach((item: any) => {
+        if (typeof item?.title === 'string' && item.title.trim()) highlights.push(item.title.trim());
+        if (typeof item?.url === 'string' && item.url.trim()) {
+          links.push({ title: item?.title || '查看证据', url: item.url, caption: item?.source_name });
+        }
+      });
+    }
+    if (Array.isArray(data?.action_links)) {
+      data.action_links.slice(0, 3).forEach((item: any) => {
+        if (typeof item?.url === 'string' && item.url.trim()) {
+          links.push({ title: item?.title || '前往操作', url: item.url, caption: item?.provider });
+        }
+      });
+    }
+    const flights = Array.isArray(data?.data?.flights) ? data.data.flights : [];
+    if (flights.length > 0) {
+      const best = flights[0];
+      const airline = typeof best?.airline === 'string' ? best.airline : '航司';
+      const price = Number.isFinite(best?.price) ? `¥${best.price}` : '';
+      highlights.push(`航班推荐：${airline}${price ? ` · ${price}` : ''}`);
+      if (typeof best?.bookingUrl === 'string' && best.bookingUrl.trim()) {
+        links.push({ title: `${airline} 预订入口`, url: best.bookingUrl });
+      }
+    }
+    const hotels = Array.isArray(data?.data?.hotels) ? data.data.hotels : [];
+    if (hotels.length > 0) {
+      const best = hotels[0];
+      const name = typeof best?.name === 'string' ? best.name : '酒店';
+      const price = Number.isFinite(best?.pricePerNight) ? `¥${best.pricePerNight}/晚` : '';
+      highlights.push(`酒店推荐：${name}${price ? ` · ${price}` : ''}`);
+      if (typeof best?.bookingUrl === 'string' && best.bookingUrl.trim()) {
+        links.push({ title: `${name} 预订入口`, url: best.bookingUrl });
+      }
+    }
+    if (data?.data?.comparisonLinks && typeof data.data.comparisonLinks === 'object') {
+      Object.values(data.data.comparisonLinks).slice(0, 3).forEach((item: any) => {
+        if (typeof item?.url === 'string' && item.url.trim()) {
+          links.push({ title: item?.name || '比价入口', url: item.url, caption: '比价' });
+        }
+      });
+    }
+    const fallbackMissing = Array.isArray(data?.fallback?.missing_constraints)
+      ? data.fallback.missing_constraints
+      : [];
+    const routeMissing = Array.isArray(data?.route_decision?.missing_constraints)
+      ? data.route_decision.missing_constraints
+      : [];
+    [...fallbackMissing, ...routeMissing].forEach((item: any) => {
+      const value = String(item || '').trim();
+      if (value) missingConstraints.push(value);
+    });
+  });
+
+  if (typeof solution?.answer === 'string' && solution.answer.trim()) {
+    highlights.unshift(solution.answer.trim().slice(0, 140));
+  }
+
+  const dedupedHighlights = Array.from(new Set(highlights.map(v => String(v || '').trim()).filter(Boolean))).slice(0, 4);
+  const dedupedLinks = Array.from(
+    new Map(
+      links
+        .filter(item => typeof item.url === 'string' && item.url.trim())
+        .map(item => [item.url, item])
+    ).values()
+  ).slice(0, 5);
+  const dedupedMissing = Array.from(new Set(missingConstraints.map(v => String(v || '').trim()).filter(Boolean))).slice(0, 5);
+
+  if (dedupedHighlights.length === 0 && dedupedLinks.length === 0 && dedupedMissing.length === 0) {
+    return undefined;
+  }
+
+  return {
+    query,
+    traceId: typeof solution?.marketplace_trace_id === 'string' ? solution.marketplace_trace_id : undefined,
+    highlights: dedupedHighlights,
+    links: dedupedLinks,
+    missingConstraints: dedupedMissing,
+  };
+};
+
+const buildAssistantActionQuery = (baseQuery: string, action: AssistantActionId): string => {
+  const query = baseQuery.trim();
+  if (!query) return baseQuery;
+  switch (action) {
+    case 'continue_filter':
+      return /继续筛选/.test(query) ? query : `${query}，继续筛选`;
+    case 'direct_only':
+      return /直飞/.test(query) ? query : `${query}，只看直飞`;
+    case 'budget_800':
+      return /(预算|¥|￥)\s*800|800\s*元/.test(query) ? query : `${query}，预算800元以内`;
+    case 'add_date':
+      return /\d{4}-\d{2}-\d{2}|今天|明天|后天/.test(query) ? query : `${query}，出发日期${getDefaultTravelDate()}`;
+    case 'add_budget':
+      return /(预算|¥|￥)\s*\d+|\d+\s*元/.test(query) ? query : `${query}，预算1500元以内`;
+    case 'add_passengers':
+      return /\d+\s*(人|位)/.test(query) ? query : `${query}，1人出行`;
+    default:
+      return query;
+  }
+};
+
 export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, apiKey, onAgentLog, onOpenApp, onDecisionUpdate, onSoulUpdate, onDestinyResult, onOpenInMarket, fullscreen }) => {
   const [currentScenario, setCurrentScenario] = useState<AppScenario>(APP_SCENARIOS[0]);
   const [showScenarioPicker, setShowScenarioPicker] = useState(false);
-  const [messages, setMessages] = useState<{ id: number, text: string, from: 'user' | 'me', timestamp: number }[]>(() => {
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
     // Try to load from localStorage
     const saved = localStorage.getItem(MESSAGES_STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return normalizeStoredMessages(JSON.parse(saved), APP_SCENARIOS[0]);
       } catch { }
     }
     // Default messages with timestamps
-    return APP_SCENARIOS[0].defaultMessages.map((m, i) => ({
-      id: i + 1,
-      text: m.text,
-      from: m.from,
-      timestamp: Date.now() - (5 - i) * 60000 // Stagger timestamps
-    }));
+    return buildDefaultScenarioMessages(APP_SCENARIOS[0]);
   });
   const [inputValue, setInputValue] = useState('');
   const [sentinelOutput, setSentinelOutput] = useState<SentinelOutput | null>(null);
@@ -302,6 +492,16 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
     });
   };
 
+  const handleAssistantQuickAction = (meta: AssistantChatMeta, action: AssistantActionId) => {
+    const nextQuery = buildAssistantActionQuery(meta.query || '', action);
+    setMode(InputMode.AGENT);
+    setInputValue(nextQuery);
+    setPendingIntent({ query: meta.query || nextQuery, locked: false, topic: 'travel' });
+    setFollowUpPrompt(null);
+    setKeyboardCollapsed(false);
+    onAgentLog(`[Assistant] 已填入快捷操作: ${nextQuery}`);
+  };
+
   const handleEnter = async () => {
     if (mode === InputMode.TYPE) {
       if (inputValue.trim()) {
@@ -342,12 +542,22 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
       // AGENT MODE: 使用 Super Agent 处理
       setIsLoading(true);
       setAgentOutput(null);
+      const typedInput = inputValue.trim();
       const builtQuery = buildAgentQuery(inputValue);
       if (!builtQuery) {
         setIsLoading(false);
         return;
       }
       const rawText = builtQuery.rawText;
+      const requestTs = Date.now();
+
+      // 在主聊天流中显示用户提问
+      setMessages(prev => [...prev, {
+        id: requestTs,
+        text: typedInput || rawText,
+        from: 'me',
+        timestamp: requestTs,
+      }]);
 
       // 使用累积的对话上下文（保持多轮对话记忆）
       const updatedContext: ConversationMessage[] = [
@@ -379,8 +589,15 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
         ];
         setConversationContext(newContext);
 
-        // 🚀 Agent 模式：不添加到聊天消息，直接跳转 Lumi App 显示
-        // 用户消息也不需要添加到聊天（因为会在 Lumi App 里显示）
+        // 将 Super Agent 结果写回主聊天流（替代过去仅在 overlay 展示）
+        const assistantMeta = buildAssistantMetaFromSolution(solution, rawText);
+        setMessages(prev => [...prev, {
+          id: requestTs + 1,
+          text: solution.answer || '已为你生成可执行建议。',
+          from: 'assistant',
+          timestamp: Date.now(),
+          assistantMeta,
+        }]);
 
         // 🎯 保存结构化结果用于 Lumi App 可视化
         setSuperAgentResult({
@@ -394,9 +611,8 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
           timestamp: Date.now()
         });
 
-        // 🚀 Agent 模式：始终自动跳转到 Lumi App 显示详情
-        onAgentLog(`[Super Agent] Agent 模式完成，跳转到 Lumi App 显示结果`);
-        setShowAppOverlay(true);
+        // 保持在聊天流，可按需由用户再打开 Lumi App 详情
+        onAgentLog(`[Super Agent] Agent 模式完成，结果已写入聊天流`);
 
         // 如果有后续建议，显示为 drafts
         if (solution.followUpSuggestions && solution.followUpSuggestions.length > 0) {
@@ -574,7 +790,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
   // Handle scenario change
   const handleScenarioChange = (scenario: AppScenario) => {
     setCurrentScenario(scenario);
-    setMessages(scenario.defaultMessages.map((m, i) => ({ id: i + 1, text: m.text, from: m.from, timestamp: Date.now() - (5 - i) * 60000 })));
+    setMessages(buildDefaultScenarioMessages(scenario));
     setShowScenarioPicker(false);
     setAgentOutput(null);
     onAgentLog(`Switched to ${scenario.nameZh} scenario`);
@@ -721,7 +937,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
         {messages.length > 1 && (
           <button
             onClick={() => {
-              setMessages(currentScenario.defaultMessages.map((m, i) => ({ id: i + 1, text: m.text, from: m.from, timestamp: Date.now() - (5 - i) * 60000 })));
+              setMessages(buildDefaultScenarioMessages(currentScenario));
               onAgentLog('Chat history cleared');
             }}
             className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
@@ -739,25 +955,130 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
         ref={scrollRef}
         style={{ backgroundColor: currentScenario.secondaryColor }}
       >
-        {messages.map(msg => (
-          <div key={msg.id} className={`flex ${msg.from === 'me' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-sm ${msg.from === 'me' ? 'rounded-br-none' : 'rounded-bl-none'
-                }`}
-              style={{
-                backgroundColor: msg.from === 'me' ? currentScenario.bubbleMyColor : currentScenario.bubbleTheirColor,
-                color: msg.from === 'me' && ['#007AFF', '#1677FF'].includes(currentScenario.bubbleMyColor) ? 'white' : '#1f2937',
-                border: msg.from !== 'me' ? '1px solid #e5e7eb' : 'none'
-              }}
-            >
-              {msg.text}
+        {messages.map(msg => {
+          const isMine = msg.from === 'me';
+          const isAssistant = msg.from === 'assistant';
+          const meta = msg.assistantMeta;
+          const bubbleBg = isMine
+            ? currentScenario.bubbleMyColor
+            : isAssistant
+              ? '#EEF2FF'
+              : currentScenario.bubbleTheirColor;
+          const bubbleColor = isMine && ['#007AFF', '#1677FF'].includes(currentScenario.bubbleMyColor)
+            ? 'white'
+            : '#1f2937';
+
+          return (
+            <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+              <div className="max-w-[90%]">
+                <div
+                  className={`rounded-2xl px-4 py-2 text-sm shadow-sm ${isMine ? 'rounded-br-none' : 'rounded-bl-none'}`}
+                  style={{
+                    backgroundColor: bubbleBg,
+                    color: bubbleColor,
+                    border: isMine ? 'none' : '1px solid #e5e7eb'
+                  }}
+                >
+                  {isAssistant && (
+                    <div className="flex items-center gap-1 mb-1 text-[10px] font-medium text-indigo-600">
+                      <Bot size={11} />
+                      Lumi Assistant
+                    </div>
+                  )}
+
+                  <div>{msg.text}</div>
+
+                  {isAssistant && meta?.highlights && meta.highlights.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {meta.highlights.slice(0, 3).map((line, idx) => (
+                        <div key={`hl_${msg.id}_${idx}`} className="text-[11px] text-slate-600">
+                          • {line}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {isAssistant && meta?.links && meta.links.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {meta.links.slice(0, 3).map((link, idx) => (
+                        <a
+                          key={`link_${msg.id}_${idx}`}
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-indigo-200 bg-white text-indigo-600"
+                        >
+                          <ExternalLink size={10} />
+                          {link.title}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  {isAssistant && meta && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <button
+                        onClick={() => handleAssistantQuickAction(meta, 'continue_filter')}
+                        className="text-[11px] px-2 py-1 rounded border border-slate-200 bg-white text-slate-600"
+                      >
+                        继续筛选
+                      </button>
+                      <button
+                        onClick={() => handleAssistantQuickAction(meta, 'direct_only')}
+                        className="text-[11px] px-2 py-1 rounded border border-slate-200 bg-white text-slate-600"
+                      >
+                        只看直飞
+                      </button>
+                      <button
+                        onClick={() => handleAssistantQuickAction(meta, 'budget_800')}
+                        className="text-[11px] px-2 py-1 rounded border border-slate-200 bg-white text-slate-600"
+                      >
+                        预算≤800
+                      </button>
+                      <button
+                        onClick={() => setShowAppOverlay(true)}
+                        className="text-[11px] px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-600"
+                      >
+                        打开详情
+                      </button>
+                    </div>
+                  )}
+
+                  {isAssistant && meta?.missingConstraints && meta.missingConstraints.length > 0 && (
+                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2">
+                      <div className="text-[11px] text-amber-700 mb-1">
+                        缺失信息：{meta.missingConstraints.join('、')}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          onClick={() => handleAssistantQuickAction(meta, 'add_date')}
+                          className="text-[11px] px-2 py-1 rounded border border-amber-200 bg-white text-amber-700"
+                        >
+                          填日期（{getDefaultTravelDate()}）
+                        </button>
+                        <button
+                          onClick={() => handleAssistantQuickAction(meta, 'add_budget')}
+                          className="text-[11px] px-2 py-1 rounded border border-amber-200 bg-white text-amber-700"
+                        >
+                          填预算
+                        </button>
+                        <button
+                          onClick={() => handleAssistantQuickAction(meta, 'add_passengers')}
+                          className="text-[11px] px-2 py-1 rounded border border-amber-200 bg-white text-amber-700"
+                        >
+                          填人数
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className={`text-[10px] text-gray-400 mt-1 px-1 ${isMine ? 'text-right' : 'text-left'}`}>
+                  {formatMessageTime(msg.timestamp)}
+                </div>
+              </div>
             </div>
-            {/* Message timestamp */}
-            <div className={`text-[10px] text-gray-400 mt-1 px-1 ${msg.from === 'me' ? 'text-right' : 'text-left'}`}>
-              {formatMessageTime(msg.timestamp)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {/* Placeholder for visual balance */}
         <div className="h-4" />
       </div>

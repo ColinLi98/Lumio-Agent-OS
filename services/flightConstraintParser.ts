@@ -1,4 +1,4 @@
-import { classifyFreshness } from './freshnessClassifier';
+import { classifyFreshness } from './freshnessClassifier.js';
 
 export type DepartureTimePreference = 'morning' | 'afternoon' | 'evening' | 'night';
 export type TimePriorityMode = 'prefer' | 'strict';
@@ -33,9 +33,11 @@ const LOCATION_ROUTE_CODE_MAP: Record<string, string> = {
     '上海虹桥': 'sha',
     '上海浦东': 'pvg',
     '上海': 'sha',
+    '伦敦': 'lon',
     '北京首都': 'pek',
     '北京大兴': 'pkx',
     '北京': 'bjs',
+    '大连': 'dlc',
     '广州': 'can',
     '深圳': 'szx',
     '成都': 'ctu',
@@ -50,9 +52,11 @@ const LOCATION_AIRPORT_CODE_MAP: Record<string, string> = {
     '上海虹桥': 'SHA',
     '上海浦东': 'PVG',
     '上海': 'SHA',
+    '伦敦': 'LON',
     '北京首都': 'PEK',
     '北京大兴': 'PKX',
     '北京': 'BJS',
+    '大连': 'DLC',
     '广州': 'CAN',
     '深圳': 'SZX',
     '成都': 'CTU',
@@ -86,7 +90,9 @@ function buildDate(year: number, month: number, day: number): Date | null {
 function normalizeLocationToken(value: string): string {
     return value
         .trim()
+        .replace(/^从/, '')
         .replace(/[，,。.!！？?]+$/g, '')
+        .replace(/(?:的)?(?:机票|航班|飞机票|飞机|高铁票|火车票|车票|班次|时刻表)$/g, '')
         .replace(/(?:机场|国际机场|国内机场)$/g, '')
         .trim();
 }
@@ -243,7 +249,7 @@ export function buildFlightActionLinks(
     const destinationAirportCode = toAirportCode(constraints.destination);
     const departureDate = constraints.departureDate;
 
-    if (!originRouteCode || !destinationRouteCode || !departureDate) {
+    if (!originRouteCode || !destinationRouteCode) {
         return [];
     }
 
@@ -253,15 +259,21 @@ export function buildFlightActionLinks(
 
     const ctripOriginCode = (originAirportCode || originRouteCode).toLowerCase();
     const ctripDestinationCode = (destinationAirportCode || destinationRouteCode).toLowerCase();
-    const ctripUrl = `https://flights.ctrip.com/online/list/oneway-${ctripOriginCode}-${ctripDestinationCode}?depdate=${departureDate}&cabin=${cabin}`;
+    const ctripUrl = departureDate
+        ? `https://flights.ctrip.com/online/list/oneway-${ctripOriginCode}-${ctripDestinationCode}?depdate=${departureDate}&cabin=${cabin}`
+        : `https://flights.ctrip.com/online/list/oneway-${ctripOriginCode}-${ctripDestinationCode}?cabin=${cabin}`;
     const qunarUrl = originAirportCode && destinationAirportCode
-        ? `https://flight.qunar.com/site/oneway_list.htm?searchDepartureAirport=${originAirportCode}&searchArrivalAirport=${destinationAirportCode}&searchDepartureTime=${departureDate}`
-        : `https://flight.qunar.com/site/oneway_list.htm?searchDepartureAirport=${originRouteCode.toUpperCase()}&searchArrivalAirport=${destinationRouteCode.toUpperCase()}&searchDepartureTime=${departureDate}`;
+        ? `https://flight.qunar.com/site/oneway_list.htm?searchDepartureAirport=${originAirportCode}&searchArrivalAirport=${destinationAirportCode}${departureDate ? `&searchDepartureTime=${departureDate}` : ''}`
+        : `https://flight.qunar.com/site/oneway_list.htm?searchDepartureAirport=${originRouteCode.toUpperCase()}&searchArrivalAirport=${destinationRouteCode.toUpperCase()}${departureDate ? `&searchDepartureTime=${departureDate}` : ''}`;
     const tripUrl = originAirportCode && destinationAirportCode
-        ? `https://www.trip.com/flights/?dcity=${originAirportCode}&acity=${destinationAirportCode}&ddate=${departureDate}`
-        : `https://www.trip.com/flights/?dcity=${originRouteCode.toUpperCase()}&acity=${destinationRouteCode.toUpperCase()}&ddate=${departureDate}`;
-    const googleFlightsUrl = `https://www.google.com/travel/flights?q=Flights%20from%20${originAirportCode || originRouteCode.toUpperCase()}%20to%20${destinationAirportCode || destinationRouteCode.toUpperCase()}%20on%20${departureDate}`;
-    const skyscannerUrl = `https://www.skyscanner.com/transport/flights/${(originAirportCode || originRouteCode).toLowerCase()}/${(destinationAirportCode || destinationRouteCode).toLowerCase()}/${departureDate.replace(/-/g, '')}/`;
+        ? `https://www.trip.com/flights/?dcity=${originAirportCode}&acity=${destinationAirportCode}${departureDate ? `&ddate=${departureDate}` : ''}`
+        : `https://www.trip.com/flights/?dcity=${originRouteCode.toUpperCase()}&acity=${destinationRouteCode.toUpperCase()}${departureDate ? `&ddate=${departureDate}` : ''}`;
+    const googleFlightsUrl = departureDate
+        ? `https://www.google.com/travel/flights?q=Flights%20from%20${originAirportCode || originRouteCode.toUpperCase()}%20to%20${destinationAirportCode || destinationRouteCode.toUpperCase()}%20on%20${departureDate}`
+        : `https://www.google.com/travel/flights?q=Flights%20from%20${originAirportCode || originRouteCode.toUpperCase()}%20to%20${destinationAirportCode || destinationRouteCode.toUpperCase()}`;
+    const skyscannerUrl = departureDate
+        ? `https://www.skyscanner.com/transport/flights/${(originAirportCode || originRouteCode).toLowerCase()}/${(destinationAirportCode || destinationRouteCode).toLowerCase()}/${departureDate.replace(/-/g, '')}/`
+        : `https://www.skyscanner.com/transport/flights/${(originAirportCode || originRouteCode).toLowerCase()}/${(destinationAirportCode || destinationRouteCode).toLowerCase()}/`;
 
     return [
         {

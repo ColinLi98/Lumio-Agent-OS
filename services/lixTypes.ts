@@ -3,6 +3,9 @@
  * Version: 0.2.1
  */
 
+import type { EnhancedDigitalAvatar } from '../types';
+import type { DigitalTwinContext } from './agentMarketplaceTypes';
+
 // ============================================================================
 // Trace Context (End-to-End Observability)
 // ============================================================================
@@ -304,6 +307,8 @@ export interface AcceptToken {
     offer_id: string;
     provider_id: string;
     publisher_pseudonym: string;
+    offer_amount?: number;
+    currency?: string;
     created_at: string;
     expires_at: string;
     callback_url: string;
@@ -388,6 +393,136 @@ export interface LIXEvent {
     timestamp: string;
     trace: TraceContext;
     payload: Record<string, unknown>;
+}
+
+// ============================================================================
+// Agent Solution Marketplace Types (Phase 2)
+// ============================================================================
+
+export type SolutionIntentDomain =
+    | 'recruitment'
+    | 'travel'
+    | 'finance'
+    | 'health'
+    | 'legal'
+    | 'education'
+    | 'shopping'
+    | 'productivity'
+    | 'local_service'
+    | 'general';
+
+export type SolutionIntentStatus =
+    | 'broadcasting'
+    | 'offers_received'
+    | 'offer_accepted'
+    | 'delivery_submitted'
+    | 'approved'
+    | 'rejected'
+    | 'cancelled';
+
+export interface SolutionFailureContext {
+    candidate_count?: number;
+    failed_agent_ids?: string[];
+    failed_count?: number;
+    error_codes?: string[];
+}
+
+export interface SolutionCustomRequirements {
+    objective?: string;
+    must_have_capabilities?: string[];
+    exclusions?: string[];
+    budget_max_cny?: number;
+    expected_delivery_hours?: number;
+    success_criteria?: string[];
+    notes?: string;
+}
+
+export type ProfileShareConsentState = 'granted_once' | 'granted_remembered' | 'revoked';
+
+export interface LixDigitalTwinSnapshot {
+    user_id: string;
+    captured_at: string;
+    source: 'agent_marketplace';
+    enhanced_avatar: EnhancedDigitalAvatar;
+    marketplace_context?: DigitalTwinContext;
+}
+
+export interface AgentSolutionOffer {
+    offer_id: string;
+    intent_id: string;
+    expert_id: string;
+    expert_name: string;
+    offer_type?: 'human_expert' | 'agent_collab';
+    summary: string;
+    proposed_capabilities: string[];
+    collaborator_agents?: string[];
+    orchestration_strategy?: string;
+    estimated_delivery_hours: number;
+    quote_amount: number;
+    currency: string;
+    status: 'open' | 'accepted' | 'rejected';
+    created_at: string;
+}
+
+export interface DeliveredAgentManifest {
+    intent_id: string;
+    offer_id: string;
+    agent_id: string;
+    name: string;
+    description?: string;
+    execute_ref: string; // external endpoint or execute path
+    domains: SolutionIntentDomain[];
+    capabilities: string[];
+    supports_realtime: boolean;
+    evidence_level: 'none' | 'weak' | 'strong';
+    supports_parallel: boolean;
+    cost_tier: 'low' | 'mid' | 'high';
+    avg_latency_ms?: number;
+    success_rate?: number;
+    owner_id: string;
+    submitted_by: string;
+    submitted_at: string;
+    market_visibility?: 'public' | 'private';
+    pricing_model?: 'free' | 'pay_per_use';
+    price_per_use_cny?: number;
+    github_repo?: string;
+    manifest_path?: string;
+    delivery_mode_preference?: 'agent_collab' | 'human_expert' | 'hybrid';
+}
+
+export interface ReviewDecision {
+    intent_id: string;
+    offer_id: string;
+    agent_id: string;
+    reviewer_id: string;
+    decision: 'approved' | 'rejected';
+    reason?: string;
+    reviewed_at: string;
+}
+
+export interface AgentSolutionIntent {
+    intent_id: string;
+    kind: 'solution';
+    requester_id: string;
+    requester_type?: 'user' | 'agent';
+    requester_agent_id?: string;
+    requester_agent_name?: string;
+    title: string;
+    query: string;
+    domain: SolutionIntentDomain;
+    required_capabilities: string[];
+    delivery_mode_preference?: 'agent_collab' | 'human_expert' | 'hybrid';
+    custom_requirements?: SolutionCustomRequirements;
+    failure_context?: SolutionFailureContext;
+    profile_share_consent?: ProfileShareConsentState;
+    digital_twin_snapshot?: LixDigitalTwinSnapshot;
+    status: SolutionIntentStatus;
+    created_at: string;
+    updated_at: string;
+    offers: AgentSolutionOffer[];
+    accepted_offer_id?: string;
+    delivery_manifest?: DeliveredAgentManifest;
+    review?: ReviewDecision;
 }
 
 // ============================================================================

@@ -14,6 +14,7 @@ import {
 } from '../services/dtoe/destinyEngine';
 import { isEvidenceFresh } from '../services/dtoe/schemaValidators';
 import type { EvidencePack } from '../services/dtoe/coreSchemas';
+import { getLatestDigitalTwinBootstrapSnapshot } from '../services/digitalSoulService';
 
 // ============================================================================
 // Types
@@ -70,11 +71,16 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
         try {
             setLoading(true);
             const engine = getDestinyEngine();
+            const bootstrapSnapshot = getLatestDigitalTwinBootstrapSnapshot(entityId);
+            if (bootstrapSnapshot) {
+                engine.registerBootstrapSnapshot(bootstrapSnapshot);
+            }
 
             const result = await engine.getRecommendation({
                 entity_id: entityId,
                 evidence_pack: evidencePack ?? null,
                 needs_live_data: evidencePack !== undefined,
+                bootstrap_snapshot_id: bootstrapSnapshot?.snapshot_id,
             });
 
             setRecommendation(result);

@@ -173,16 +173,34 @@ interface LiveSearchResultCardProps {
     data: {
         success: boolean;
         is_live?: boolean;
-        fetched_at?: string;
+        fetched_at?: string | number;
         ttl_seconds?: number;
         items?: Array<{ title: string; snippet: string; url: string; source_name: string }>;
         sources?: Array<{ title: string; url: string; source_name: string }>;
         action_links?: Array<{ title: string; url: string; provider: string; supports_time_filter: boolean }>;
+        quote_cards?: Array<{
+            quote_id: string;
+            provider: string;
+            dep_time: string;
+            arr_time: string;
+            price_text: string;
+            transfers_text: string;
+            source_url: string;
+            fetched_at: string;
+            objective_score?: number;
+        }>;
         fallback?: {
             failure_reason: string;
             missing_constraints: string[];
             cta_buttons: Array<{ label: string; action: string; constraint_key?: string }>;
         };
+        normalized?: {
+            kind?: string;
+            local_results?: Array<any>;
+            shopping_results?: Array<any>;
+        };
+        local_results?: Array<any>;
+        shopping_results?: Array<any>;
         error?: { code: string; message: string };
         route_decision?: { intent_domain: string; needs_live_data: boolean };
     };
@@ -190,11 +208,39 @@ interface LiveSearchResultCardProps {
     onConstraintClick?: (constraint: string) => void;
 }
 
+function isSafeExternalUrl(url?: string): boolean {
+    if (!url || !/^https?:\/\//i.test(url)) return false;
+    try {
+        const parsed = new URL(url);
+        const host = parsed.hostname.toLowerCase();
+        const path = parsed.pathname.toLowerCase();
+        if (host.includes('serpapi.com')) return false;
+        if (path.includes('/search.json')) return false;
+        if (parsed.searchParams.has('api_key')) return false;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data, onRefresh, onConstraintClick }) => {
-    const { success, is_live, fetched_at, items, sources, action_links, fallback, error, route_decision } = data;
+    const { success, is_live, fetched_at, items, sources, action_links, quote_cards, fallback, error, route_decision } = data;
     const actionLinks = Array.isArray(action_links)
-        ? action_links.filter((link) => typeof link.url === 'string' && link.url.startsWith('http'))
+        ? action_links.filter((link) => typeof link.url === 'string' && isSafeExternalUrl(link.url))
         : [];
+    const quoteCards = Array.isArray(quote_cards)
+        ? quote_cards.filter((item) => typeof item.source_url === 'string' && isSafeExternalUrl(item.source_url))
+        : [];
+    const localResults = Array.isArray(data.local_results)
+        ? data.local_results
+        : Array.isArray(data.normalized?.local_results)
+            ? data.normalized.local_results
+            : [];
+    const shoppingResults = Array.isArray(data.shopping_results)
+        ? data.shopping_results
+        : Array.isArray(data.normalized?.shopping_results)
+            ? data.normalized.shopping_results
+            : [];
 
     // Calculate if stale (> TTL)
     const isStale = fetched_at && data.ttl_seconds
@@ -251,6 +297,135 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
         );
     };
 
+    const renderQuoteCards = () => {
+        if (quoteCards.length === 0) return null;
+        return (
+            <div style={{ marginBottom: 12 }}>
+                <div style={{ color: '#E2E8F0', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+                    比价候选
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {quoteCards.slice(0, 5).map((quote, idx) => (
+                        <a
+                            key={`${quote.quote_id}_${idx}`}
+                            href={quote.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 10,
+                                textDecoration: 'none',
+                                background: 'rgba(15, 23, 42, 0.55)',
+                                border: '1px solid rgba(16, 185, 129, 0.28)',
+                                borderRadius: 10,
+                                padding: '10px 12px',
+                            }}
+                        >
+                            <div style={{ minWidth: 0 }}>
+                                <div style={{
+                                    color: '#E2E8F0',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                }}>
+                                    {quote.price_text}
+                                </div>
+                                <div style={{ color: '#94A3B8', fontSize: 11 }}>
+                                    {quote.dep_time || '--:--'} → {quote.arr_time || '--:--'} · {quote.transfers_text} · {quote.provider}
+                                </div>
+                            </div>
+                            <ExternalLink size={14} color="#34D399" />
+                        </a>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    const renderLocalResults = () => {
+        if (localResults.length === 0) return null;
+        return (
+            <div style={{ marginBottom: 12 }}>
+                <div style={{ color: '#E2E8F0', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+                    本地服务候选
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {localResults.slice(0, 5).map((item, idx) => {
+                        const url = isSafeExternalUrl(item?.map_url) ? item.map_url : (isSafeExternalUrl(item?.website) ? item.website : '');
+                        return (
+                        <a
+                            key={`${item?.id || idx}_local`}
+                            href={url || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: 'block',
+                                background: 'rgba(15, 23, 42, 0.55)',
+                                border: '1px solid rgba(14, 165, 233, 0.28)',
+                                borderRadius: 10,
+                                padding: '10px 12px',
+                                textDecoration: 'none',
+                            }}
+                        >
+                            <div style={{ color: '#E2E8F0', fontSize: 13, fontWeight: 600 }}>
+                                {item?.name || '本地商家'}
+                            </div>
+                            <div style={{ color: '#94A3B8', fontSize: 11, marginTop: 2 }}>
+                                {item?.address || item?.category || item?.status || '信息待补充'}
+                                {item?.rating ? ` · ${item.rating}⭐` : ''}
+                            </div>
+                        </a>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+    const renderShoppingResults = () => {
+        if (shoppingResults.length === 0) return null;
+        return (
+            <div style={{ marginBottom: 12 }}>
+                <div style={{ color: '#E2E8F0', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+                    商品比价候选
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {shoppingResults.slice(0, 5).map((item, idx) => {
+                        const url = isSafeExternalUrl(item?.url) ? item.url : '';
+                        return (
+                        <a
+                            key={`${item?.id || idx}_shopping`}
+                            href={url || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: 'block',
+                                background: 'rgba(15, 23, 42, 0.55)',
+                                border: '1px solid rgba(16, 185, 129, 0.28)',
+                                borderRadius: 10,
+                                padding: '10px 12px',
+                                textDecoration: 'none',
+                            }}
+                        >
+                            <div style={{ color: '#E2E8F0', fontSize: 13, fontWeight: 600 }}>
+                                {item?.title || '商品'}
+                            </div>
+                            <div style={{ color: '#94A3B8', fontSize: 11, marginTop: 2 }}>
+                                {item?.source || item?.merchant || '平台待确认'}
+                                {(item?.price_text || item?.price) ? ` · ${item.price_text || item.price}` : ''}
+                            </div>
+                        </a>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
     // Failure case: show structured fallback
     if (!success && fallback) {
         return (
@@ -296,6 +471,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
                 )}
 
                 {renderActionLinks()}
+                {renderQuoteCards()}
 
                 <button
                     onClick={onRefresh}
@@ -319,7 +495,8 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
     }
 
     // Success case: show sources with freshness badge
-    const displayItems = items || sources?.map(s => ({ ...s, snippet: '' })) || [];
+    const displayItems = (items || sources?.map(s => ({ ...s, snippet: '' })) || [])
+        .filter((item) => isSafeExternalUrl(item?.url));
 
     if (displayItems.length === 0) {
         return null;
@@ -343,6 +520,9 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
             </div>
 
             {renderActionLinks()}
+            {renderQuoteCards()}
+            {renderLocalResults()}
+            {renderShoppingResults()}
 
             {/* Sources list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1211,6 +1391,363 @@ const SearchResultCard: React.FC<{ data: any }> = ({ data }) => {
     );
 };
 
+// ============================================================================
+// Hotel Result Card - 酒店搜索结果卡片
+// ============================================================================
+
+const HotelResultCard: React.FC<{ data: any }> = ({ data }) => {
+    const hotels = data?.data?.hotels || data?.hotels || [];
+    const destination = data?.data?.destination || data?.destination || '';
+    const comparisonLinks = data?.data?.comparisonLinks || data?.comparisonLinks || [];
+    const personalizedNote = data?.personalizedNote || '';
+
+    return (
+        <div style={{
+            background: colors.bg2,
+            borderRadius: 12,
+            border: `1px solid ${colors.border}`,
+            overflow: 'hidden',
+            marginBottom: 12,
+        }}>
+            {/* Header */}
+            <div style={{
+                padding: '12px 14px',
+                background: `linear-gradient(135deg, #2563EB15, #7C3AED10)`,
+                borderBottom: `1px solid ${colors.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 18 }}>🏨</span>
+                    <span style={{ color: colors.text1, fontWeight: 600, fontSize: 14 }}>
+                        {destination} 酒店推荐
+                    </span>
+                    <span style={{
+                        background: colors.positiveMuted,
+                        color: colors.positive,
+                        padding: '2px 8px',
+                        borderRadius: 10,
+                        fontSize: 11,
+                        fontWeight: 500,
+                    }}>
+                        实时数据
+                    </span>
+                </div>
+                <span style={{ color: colors.text3, fontSize: 12 }}>{hotels.length} 家</span>
+            </div>
+
+            {/* Hotel List */}
+            <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {hotels.slice(0, 4).map((hotel: any, i: number) => (
+                    <div key={i} style={{
+                        display: 'flex',
+                        gap: 10,
+                        padding: 10,
+                        background: colors.bg3,
+                        borderRadius: 10,
+                        border: `1px solid ${colors.border}`,
+                    }}>
+                        {/* Thumbnail */}
+                        {hotel.thumbnail && (
+                            <img
+                                src={hotel.thumbnail}
+                                alt={hotel.name}
+                                style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: 8,
+                                    objectFit: 'cover',
+                                    flexShrink: 0,
+                                }}
+                            />
+                        )}
+                        {/* Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                                color: colors.text1,
+                                fontWeight: 600,
+                                fontSize: 13,
+                                marginBottom: 4,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}>
+                                {hotel.name}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                {hotel.stars && (
+                                    <span style={{ fontSize: 11, color: '#F59E0B' }}>
+                                        {'★'.repeat(hotel.stars)}
+                                    </span>
+                                )}
+                                {hotel.rating && (
+                                    <span style={{
+                                        background: '#2563EB20',
+                                        color: '#2563EB',
+                                        padding: '1px 5px',
+                                        borderRadius: 4,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                    }}>
+                                        {hotel.rating}
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ color: colors.text3, fontSize: 11 }}>
+                                    {hotel.location || hotel.address || ''}
+                                </span>
+                                <span style={{
+                                    color: colors.positive,
+                                    fontWeight: 700,
+                                    fontSize: 14,
+                                }}>
+                                    ¥{hotel.pricePerNight || hotel.price || '—'}<span style={{ fontSize: 11, fontWeight: 400 }}>/晚</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Comparison Links */}
+            {comparisonLinks.length > 0 && (
+                <div style={{
+                    padding: '8px 10px 10px',
+                    borderTop: `1px solid ${colors.border}`,
+                }}>
+                    <div style={{ color: colors.text3, fontSize: 11, marginBottom: 6 }}>对比预订 →</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {comparisonLinks.slice(0, 4).map((link: any, i: number) => (
+                            <a
+                                key={i}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    background: colors.bg3,
+                                    border: `1px solid ${colors.border}`,
+                                    borderRadius: 8,
+                                    padding: '4px 10px',
+                                    fontSize: 11,
+                                    color: colors.primary,
+                                    textDecoration: 'none',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                }}
+                            >
+                                {link.provider || link.title}
+                                <ExternalLink size={10} />
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Personalized Note */}
+            {personalizedNote && (
+                <div style={{
+                    padding: '6px 14px 10px',
+                    color: colors.text3,
+                    fontSize: 11,
+                    fontStyle: 'italic',
+                }}>
+                    💡 {personalizedNote}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ============================================================================
+// Flight Result Card - 航班搜索结果卡片
+// ============================================================================
+
+const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
+    const flights = data?.data?.flights || data?.flights || [];
+    const rawComparisonLinks =
+        data?.data?.comparisonLinks ||
+        data?.comparisonLinks ||
+        data?.data?.comparison_links ||
+        data?.data?.priceComparisonLinks ||
+        data?.priceComparisonLinks ||
+        [];
+    const comparisonLinks = Array.isArray(rawComparisonLinks)
+        ? rawComparisonLinks
+        : (rawComparisonLinks && typeof rawComparisonLinks === 'object'
+            ? Object.values(rawComparisonLinks)
+            : []);
+    const personalizedNote = data?.personalizedNote || '';
+
+    return (
+        <div style={{
+            background: colors.bg2,
+            borderRadius: 12,
+            border: `1px solid ${colors.border}`,
+            overflow: 'hidden',
+            marginBottom: 12,
+        }}>
+            {/* Header */}
+            <div style={{
+                padding: '12px 14px',
+                background: `linear-gradient(135deg, #0EA5E915, #06B6D410)`,
+                borderBottom: `1px solid ${colors.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 18 }}>🛫</span>
+                    <span style={{ color: colors.text1, fontWeight: 600, fontSize: 14 }}>
+                        航班推荐
+                    </span>
+                    <span style={{
+                        background: colors.positiveMuted,
+                        color: colors.positive,
+                        padding: '2px 8px',
+                        borderRadius: 10,
+                        fontSize: 11,
+                        fontWeight: 500,
+                    }}>
+                        实时数据
+                    </span>
+                </div>
+                <span style={{ color: colors.text3, fontSize: 12 }}>{flights.length} 个航班</span>
+            </div>
+
+            {/* Flight List */}
+            <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {flights.length === 0 && (
+                    <div style={{
+                        padding: 12,
+                        background: colors.bg3,
+                        borderRadius: 10,
+                        border: `1px solid ${colors.border}`,
+                        color: colors.text2,
+                        fontSize: 12,
+                    }}>
+                        暂未返回可展示的航班详情，请使用下方比价入口继续查看。
+                    </div>
+                )}
+                {flights.slice(0, 4).map((flight: any, i: number) => (
+                    <div key={i} style={{
+                        padding: 10,
+                        background: colors.bg3,
+                        borderRadius: 10,
+                        border: `1px solid ${colors.border}`,
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ color: colors.text1, fontWeight: 600, fontSize: 13 }}>
+                                    {flight.airline || flight.carrier || '航班'}
+                                </span>
+                                {(flight.flightNumber || flight.flightNo) && (
+                                    <span style={{ color: colors.text3, fontSize: 11 }}>
+                                        {flight.flightNumber || flight.flightNo}
+                                    </span>
+                                )}
+                            </div>
+                            <span style={{
+                                color: colors.positive,
+                                fontWeight: 700,
+                                fontSize: 14,
+                            }}>
+                                ¥{flight.price || flight.totalPrice || '—'}
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.text2, fontSize: 12 }}>
+                            <span>{flight.departure_time || flight.departureTime || flight.departure || '时刻待确认'}</span>
+                            <span style={{ color: colors.text3 }}>→</span>
+                            <span>{flight.arrival_time || flight.arrivalTime || flight.arrival || '时刻待确认'}</span>
+                            {flight.duration && (
+                                <span style={{ color: colors.text3, marginLeft: 'auto', fontSize: 11 }}>
+                                    {flight.duration}
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
+                            <span style={{ color: colors.text3, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>
+                                {flight.source || '实时来源'}
+                            </span>
+                            {flight.bookingUrl && (
+                                <a
+                                    href={flight.bookingUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        color: colors.primary,
+                                        fontSize: 11,
+                                        textDecoration: 'none',
+                                        border: `1px solid ${colors.primary}55`,
+                                        borderRadius: 8,
+                                        padding: '3px 8px',
+                                        background: colors.primaryMuted,
+                                    }}
+                                >
+                                    去预订
+                                    <ExternalLink size={10} />
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Comparison Links */}
+            {comparisonLinks.length > 0 && (
+                <div style={{
+                    padding: '8px 10px 10px',
+                    borderTop: `1px solid ${colors.border}`,
+                }}>
+                    <div style={{ color: colors.text3, fontSize: 11, marginBottom: 6 }}>对比预订 →</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {comparisonLinks.slice(0, 4).map((link: any, i: number) => (
+                            <a
+                                key={i}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    background: colors.bg3,
+                                    border: `1px solid ${colors.border}`,
+                                    borderRadius: 8,
+                                    padding: '4px 10px',
+                                    fontSize: 11,
+                                    color: colors.primary,
+                                    textDecoration: 'none',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                }}
+                            >
+                                {link.provider || link.name || link.title || '比价入口'}
+                                <ExternalLink size={10} />
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Personalized Note */}
+            {personalizedNote && (
+                <div style={{
+                    padding: '6px 14px 10px',
+                    color: colors.text3,
+                    fontSize: 11,
+                    fontStyle: 'italic',
+                }}>
+                    💡 {personalizedNote}
+                </div>
+            )}
+        </div>
+    );
+};
+
 // 通用技能结果卡片 - 智能格式化
 const GenericSkillCard: React.FC<{ skillName: string; data: any; icon: any }> = ({
     skillName, data, icon: Icon
@@ -1969,6 +2506,28 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
         // 如果是记忆相关且没有找到结果，跳过
         if (skillId === 'memory' && data.found === 0) {
             return null;
+        }
+
+        // 🏨 Marketplace Hotel Agent Result
+        const isHotelResult =
+            skillId.includes('hotel_booking') ||
+            (data?.data?.hotels && Array.isArray(data.data.hotels)) ||
+            (data?.hotels && Array.isArray(data.hotels));
+
+        if (isHotelResult && data) {
+            console.log('[SuperAgentResultPanel] Using HotelResultCard for:', skillId);
+            return <HotelResultCard key={resultKey} data={data} />;
+        }
+
+        // 🛫 Marketplace Flight Agent Result
+        const isFlightResult =
+            skillId.includes('flight_booking') ||
+            (data?.data?.flights && Array.isArray(data.data.flights)) ||
+            (data?.flights && Array.isArray(data.flights));
+
+        if (isFlightResult && data) {
+            console.log('[SuperAgentResultPanel] Using FlightResultCard for:', skillId);
+            return <FlightResultCard key={resultKey} data={data} />;
         }
 
         // 其他技能通用展示

@@ -65,6 +65,7 @@ export interface ParallelScenarioOptions {
     batch_size?: number;
     max_concurrency?: number;
     worker_mode?: 'auto' | 'force' | 'off';
+    parallel_threshold?: number;
     on_progress?: ProgressCallback;
 }
 
@@ -842,9 +843,15 @@ export async function generateScenariosParallel(
     const seed = opts.seed ?? DEFAULT_SCENARIO_CONFIG.seed;
     const batchSize = Math.max(1, opts.batch_size ?? 500);
     const maxConcurrency = Math.max(1, opts.max_concurrency ?? 4);
+    const workerMode = opts.worker_mode ?? 'auto';
+    const complexity = n * horizon;
+    const parallelThreshold = Math.max(1, opts.parallel_threshold ?? 1800);
+    const shouldParallelize =
+        opts.enable_parallel_scenarios === true &&
+        (workerMode === 'force' || (workerMode !== 'off' && maxConcurrency > 1 && complexity >= parallelThreshold));
 
-    // Feature flag default: off (use serial generator path).
-    if (!opts.enable_parallel_scenarios) {
+    // Feature flag default: off. In auto mode we also avoid parallel overhead for small workloads.
+    if (!shouldParallelize) {
         const generator = createScenarioGenerator(seed, opts.config);
         return generator.generateScenarios(n, horizon);
     }
@@ -852,9 +859,8 @@ export async function generateScenariosParallel(
     const plans = createBatchPlans(n, batchSize);
     const totalBatches = plans.length;
     const mergedConfig = mergeScenarioConfig(seed, opts.config);
-    const workerMode = opts.worker_mode ?? 'auto';
 
-    if (maxConcurrency > 1 && workerMode !== 'off') {
+    if (maxConcurrency > 1) {
         try {
             const nodeResult = await runNodeWorkerParallel(
                 plans,

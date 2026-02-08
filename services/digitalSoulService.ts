@@ -1,5 +1,6 @@
 import type { SoulMatrix, EnhancedDigitalAvatar } from '../types';
 import { loadData, saveData, StorageKeys, getEnhancedDigitalAvatar, saveEnhancedDigitalAvatar } from './localStorageService';
+import type { DigitalTwinBootstrapSnapshot, DigitalSoulBootstrapSource } from './dtoe/bootstrapTypes';
 
 export type DigitalSoulStats = {
     styleWeights: Record<SoulMatrix['communicationStyle'], number>;
@@ -17,7 +18,7 @@ export type PassiveLearningEvent =
     | { type: 'query_refine' }
     | { type: 'confirm_send' };
 
-export type DigitalSoulBootstrapSource = 'questionnaire' | 'import' | 'skip' | 'passive';
+export type { DigitalSoulBootstrapSource, DigitalTwinBootstrapSnapshot };
 
 const DEFAULT_SOUL: SoulMatrix = {
     communicationStyle: 'Professional',
@@ -42,6 +43,7 @@ const DEFAULT_STATS: DigitalSoulStats = {
 const EMA_ALPHA = 0.12;
 
 const DIGITAL_SOUL_BOOTSTRAPPED_KEY = 'lumi_digital_soul_bootstrapped';
+const DIGITAL_TWIN_BOOTSTRAP_SNAPSHOTS_KEY = 'lumi_digital_twin_bootstrap_snapshots';
 
 export function getDigitalSoul(): SoulMatrix {
     return loadData<SoulMatrix>(StorageKeys.DIGITAL_SOUL) || DEFAULT_SOUL;
@@ -59,6 +61,79 @@ export function isDigitalSoulBootstrapped(): boolean {
 export function markDigitalSoulBootstrapped(): void {
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem(DIGITAL_SOUL_BOOTSTRAPPED_KEY, 'true');
+}
+
+function deriveBootstrapPriors(soul: SoulMatrix): DigitalTwinBootstrapSnapshot['inferred_priors'] {
+    const risk_aversion =
+        soul.riskTolerance === 'Low' ? 3.8 :
+            soul.riskTolerance === 'High' ? 1.4 : 2.6;
+    const time_discount =
+        soul.communicationStyle === 'Concise' ? 0.08 :
+            soul.communicationStyle === 'Casual' ? 0.06 : 0.05;
+    const execution_reliability =
+        soul.communicationStyle === 'Professional' ? 0.78 :
+            soul.communicationStyle === 'Friendly' ? 0.72 :
+                soul.communicationStyle === 'Concise' ? 0.74 : 0.68;
+    const spending_bias =
+        soul.spendingPreference === 'PriceFirst' ? 'price_first' :
+            soul.spendingPreference === 'QualityFirst' ? 'quality_first' : 'balanced';
+
+    return {
+        risk_aversion,
+        time_discount,
+        execution_reliability,
+        spending_bias,
+    };
+}
+
+export function getDigitalTwinBootstrapSnapshots(): DigitalTwinBootstrapSnapshot[] {
+    return loadData<DigitalTwinBootstrapSnapshot[]>(DIGITAL_TWIN_BOOTSTRAP_SNAPSHOTS_KEY) || [];
+}
+
+export function saveDigitalTwinBootstrapSnapshot(snapshot: DigitalTwinBootstrapSnapshot): void {
+    const existing = getDigitalTwinBootstrapSnapshots();
+    const next = [snapshot, ...existing]
+        .filter((item, index, arr) =>
+            arr.findIndex((x) => x.snapshot_id === item.snapshot_id) === index
+        )
+        .slice(0, 20);
+    saveData(DIGITAL_TWIN_BOOTSTRAP_SNAPSHOTS_KEY, next);
+}
+
+export function createDigitalTwinBootstrapSnapshot(
+    soul: SoulMatrix,
+    options: {
+        entity_id?: string;
+        source?: DigitalSoulBootstrapSource;
+    } = {}
+): DigitalTwinBootstrapSnapshot {
+    const source = options.source || 'questionnaire';
+    const entity_id = options.entity_id || 'default_user';
+    const now = Date.now();
+
+    const missing_fields: string[] = [];
+    if (!soul.riskTolerance) missing_fields.push('risk_preference');
+    if (!soul.spendingPreference) missing_fields.push('budget_preference');
+    if (!soul.communicationStyle) missing_fields.push('time_preference');
+
+    const snapshot: DigitalTwinBootstrapSnapshot = {
+        snapshot_id: `bootstrap_${now}_${Math.random().toString(36).slice(2, 8)}`,
+        entity_id,
+        source,
+        created_at_ms: now,
+        soul,
+        inferred_priors: deriveBootstrapPriors(soul),
+        missing_fields,
+    };
+
+    saveDigitalTwinBootstrapSnapshot(snapshot);
+    return snapshot;
+}
+
+export function getLatestDigitalTwinBootstrapSnapshot(entity_id?: string): DigitalTwinBootstrapSnapshot | null {
+    const snapshots = getDigitalTwinBootstrapSnapshots();
+    if (!entity_id) return snapshots[0] || null;
+    return snapshots.find((item) => item.entity_id === entity_id) || null;
 }
 
 export function initializeDigitalSoul(options: {

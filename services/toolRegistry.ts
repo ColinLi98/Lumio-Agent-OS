@@ -7,6 +7,8 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { getTavilyClient } from './tavilyClient';
+import type { AgentDomain, EvidenceLevel, CostTier } from './agentMarketplaceTypes';
+import { buildApiUrl } from './apiBaseUrl';
 
 // ============================================================================
 // Types
@@ -41,6 +43,26 @@ export interface Tool {
         target_dimension: 'consumption' | 'knowledge' | 'personality';
         instruction: string;
     };
+    // Agent Marketplace metadata
+    marketplace?: {
+        domains: AgentDomain[];
+        capabilities: string[];
+        supports_realtime: boolean;
+        evidence_level: EvidenceLevel;
+        supports_parallel: boolean;
+        avg_latency_ms?: number;
+        success_rate?: number;
+        cost_tier?: CostTier;
+    };
+}
+
+export interface ToolRuntimeStats {
+    invocations: number;
+    success_count: number;
+    failure_count: number;
+    avg_latency_ms: number;
+    success_rate: number;
+    last_updated_at: number;
 }
 
 /**
@@ -161,6 +183,16 @@ const priceCompareTool: Tool = {
     profiling: {
         target_dimension: 'consumption',
         instruction: 'Analyze price sensitivity (Budget vs Premium) and platform preference.'
+    },
+    marketplace: {
+        domains: ['shopping', 'general'],
+        capabilities: ['price_compare', 'web_search'],
+        supports_realtime: false,
+        evidence_level: 'weak',
+        supports_parallel: true,
+        avg_latency_ms: 3000,
+        success_rate: 0.85,
+        cost_tier: 'mid',
     }
 };
 
@@ -229,6 +261,16 @@ const webSearchTool: Tool = {
     profiling: {
         target_dimension: 'knowledge',
         instruction: 'Analyze curiosity depth and topic interests.'
+    },
+    marketplace: {
+        domains: ['general', 'finance', 'education', 'shopping', 'health', 'legal'],
+        capabilities: ['web_search', 'live_search', 'knowledge_qa'],
+        supports_realtime: true,
+        evidence_level: 'strong',
+        supports_parallel: true,
+        avg_latency_ms: 2000,
+        success_rate: 0.90,
+        cost_tier: 'low',
     }
 };
 
@@ -313,6 +355,16 @@ const knowledgeQATool: Tool = {
     profiling: {
         target_dimension: 'personality',
         instruction: 'Analyze communication style preferences and social interaction patterns.'
+    },
+    marketplace: {
+        domains: ['general', 'productivity'],
+        capabilities: ['knowledge_qa'],
+        supports_realtime: false,
+        evidence_level: 'none',
+        supports_parallel: true,
+        avg_latency_ms: 2500,
+        success_rate: 0.92,
+        cost_tier: 'low',
     }
 };
 
@@ -328,14 +380,53 @@ import { buildFlightActionLinks, parseFlightConstraints } from './flightConstrai
 interface LiveSearchAPIResponse {
     success: boolean;
     action_links?: Array<{ title: string; url: string; provider: string; supports_time_filter: boolean }>;
+    quote_cards?: Array<{
+        quote_id: string;
+        provider: string;
+        dep_time: string;
+        arr_time: string;
+        price_text: string;
+        transfers_text: string;
+        source_url: string;
+        fetched_at: string;
+        objective_score?: number;
+    }>;
+    normalized_quotes?: Array<{
+        quote_id: string;
+        provider: string;
+        dep_time: string;
+        arr_time: string;
+        price: number;
+        currency: string;
+        transfers: number;
+        source_url: string;
+        fetched_at: string;
+        objective_score?: number;
+    }>;
+    optimizer?: {
+        objective: string;
+        selected_quote_id: string;
+        alternatives_count: number;
+    };
+    normalized?: {
+        kind?: string;
+        items?: any[];
+        links?: Array<{ title: string; url: string; source?: string }>;
+        local_results?: any[];
+        shopping_results?: any[];
+        review_results?: any[];
+    };
+    local_results?: any[];
+    shopping_results?: any[];
     evidence?: {
         provider: string;
-        fetched_at: string;
+        fetched_at: string | number;
         ttl_seconds: number;
-        query_normalized: string;
-        intent_domain: string;
+        query_normalized?: string;
+        intent_domain?: string;
+        confidence?: number;
         items: Array<{ title: string; snippet: string; url: string; source_name: string }>;
-        notes: { confidence: number; warnings: string[]; cache_hit?: boolean };
+        notes?: { confidence: number; warnings: string[]; cache_hit?: boolean };
     };
     error?: {
         code: string;
@@ -420,12 +511,24 @@ const liveSearchTool: Tool = {
         const domain = (intent_domain || routeDecision.intent_domain) as IntentDomain;
         const parsedConstraints = parseFlightConstraints(query);
         const generatedActionLinks = buildFlightActionLinks(parsedConstraints);
+        const normalizedConstraints = (parsedConstraints.origin || parsedConstraints.destination || parsedConstraints.departureDate)
+            ? {
+                origin: parsedConstraints.origin,
+                destination: parsedConstraints.destination,
+                date: parsedConstraints.departureDate,
+                time_window: parsedConstraints.departureWindow,
+                cabin: parsedConstraints.travelClass,
+                passengers: parsedConstraints.passengers,
+                time_priority_mode: parsedConstraints.timePriorityMode,
+                departure_time_preference: parsedConstraints.departureTimePreference,
+            }
+            : undefined;
 
         console.log(`[LiveSearchTool] Query: "${query}", Domain: ${domain}, NeedsLive: ${routeDecision.needs_live_data}`);
 
         try {
             // Call the API endpoint via fetch (browser-compatible)
-            const response = await fetch('/api/live-search', {
+            const response = await fetch(buildApiUrl('/api/live-search'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -433,10 +536,38 @@ const liveSearchTool: Tool = {
                     locale,
                     intent_domain: domain,
                     max_items: 5,
+                    constraints: normalizedConstraints,
                 }),
             });
 
-            const result: LiveSearchAPIResponse = await response.json();
+            const rawText = await response.text();
+            let result: LiveSearchAPIResponse;
+            try {
+                result = rawText ? JSON.parse(rawText) : { success: false } as LiveSearchAPIResponse;
+            } catch {
+                result = {
+                    success: false,
+                    error: {
+                        code: 'UPSTREAM_NON_JSON',
+                        message: 'live-search 返回了非 JSON 响应',
+                        retryable: true,
+                        reason_code: 'parse_error',
+                    },
+                } as LiveSearchAPIResponse;
+            }
+
+            if (!response.ok) {
+                result = {
+                    ...result,
+                    success: false,
+                    error: {
+                        code: result?.error?.code || `HTTP_${response.status}`,
+                        message: result?.error?.message || `live-search 服务异常（${response.status}）`,
+                        retryable: true,
+                        reason_code: result?.error?.reason_code || 'provider_error',
+                    },
+                };
+            }
 
             if (result.success && result.evidence) {
                 const evidence = result.evidence;
@@ -444,6 +575,25 @@ const liveSearchTool: Tool = {
                 const actionLinks = result.action_links?.length
                     ? result.action_links
                     : generatedActionLinks;
+                const fallbackQuoteCards = Array.isArray(result.normalized_quotes)
+                    ? result.normalized_quotes.slice(0, 5).map((quote) => ({
+                        quote_id: quote.quote_id,
+                        provider: quote.provider,
+                        dep_time: quote.dep_time,
+                        arr_time: quote.arr_time,
+                        price_text: `${quote.currency} ${quote.price}`,
+                        transfers_text: quote.transfers > 0 ? `${quote.transfers} 次中转` : '直飞',
+                        source_url: quote.source_url,
+                        fetched_at: quote.fetched_at,
+                        objective_score: quote.objective_score,
+                    }))
+                    : [];
+                const quoteCards = Array.isArray(result.quote_cards) && result.quote_cards.length > 0
+                    ? result.quote_cards.slice(0, 5)
+                    : fallbackQuoteCards;
+                const confidence = typeof evidence.confidence === 'number'
+                    ? evidence.confidence
+                    : evidence.notes?.confidence ?? 0.8;
                 // Format fetched_at for display
                 const fetchedAtDate = new Date(evidence.fetched_at);
                 const fetchedAtDisplay = fetchedAtDate.toLocaleTimeString('zh-CN', {
@@ -460,17 +610,31 @@ const liveSearchTool: Tool = {
                     fetched_at_display: fetchedAtDisplay,
                     ttl_seconds: evidence.ttl_seconds,
                     is_live: true,
-                    confidence: evidence.notes?.confidence ?? 0.8,
+                    confidence,
                     items: evidence.items,
                     sources: evidence.items.map(item => ({
                         title: item.title,
                         url: item.url,
                         source_name: item.source_name,
                     })),
-                    action_links: isWeakFlightEvidence ? actionLinks.map((link) => ({
+                    quote_cards: quoteCards,
+                    normalized_quotes: result.normalized_quotes || [],
+                    optimizer: result.optimizer,
+                    normalized: result.normalized,
+                    local_results: Array.isArray(result.local_results)
+                        ? result.local_results
+                        : Array.isArray(result.normalized?.local_results)
+                            ? result.normalized?.local_results
+                            : [],
+                    shopping_results: Array.isArray(result.shopping_results)
+                        ? result.shopping_results
+                        : Array.isArray(result.normalized?.shopping_results)
+                            ? result.normalized?.shopping_results
+                            : [],
+                    action_links: actionLinks.map((link) => ({
                         ...link,
-                        supports_time_filter: false,
-                    })) : undefined,
+                        supports_time_filter: isWeakFlightEvidence ? false : Boolean(link.supports_time_filter),
+                    })),
                     cache_hit: evidence.notes?.cache_hit ?? false,
                     route_decision: result.route_decision || routeDecision,
                 };
@@ -525,6 +689,16 @@ const liveSearchTool: Tool = {
                 instruction: '网络错误，请不要编造价格或链接。'
             };
         }
+    },
+    marketplace: {
+        domains: ['travel', 'finance', 'shopping', 'local_service', 'general'],
+        capabilities: ['live_search', 'flight_search', 'hotel_search', 'price_compare', 'local_search', 'shopping_search'],
+        supports_realtime: true,
+        evidence_level: 'strong',
+        supports_parallel: true,
+        avg_latency_ms: 4000,
+        success_rate: 0.80,
+        cost_tier: 'mid',
     }
 };
 
@@ -610,7 +784,7 @@ const webExecTool: Tool = {
         console.log(`[WebExecTool] Task: "${task_description}", URL: ${target_url}`);
 
         try {
-            const response = await fetch('/api/web-exec', {
+            const response = await fetch(buildApiUrl('/api/web-exec'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -668,6 +842,16 @@ const webExecTool: Tool = {
                 instruction: '网络错误，请不要编造数据。'
             };
         }
+    },
+    marketplace: {
+        domains: ['travel', 'shopping', 'general'],
+        capabilities: ['web_search', 'live_search'],
+        supports_realtime: true,
+        evidence_level: 'strong',
+        supports_parallel: false,
+        avg_latency_ms: 8000,
+        success_rate: 0.70,
+        cost_tier: 'high',
     }
 };
 
@@ -793,7 +977,133 @@ const broadcastIntentTool: Tool = {
     profiling: {
         target_dimension: 'consumption',
         instruction: 'Analyze the trade intent. If purchase: estimate spending power and brand preferences. If collaboration: log professional needs and skill gaps.'
+    },
+    marketplace: {
+        domains: ['shopping', 'recruitment', 'general'],
+        capabilities: ['price_compare', 'job_sourcing'],
+        supports_realtime: true,
+        evidence_level: 'strong',
+        supports_parallel: true,
+        avg_latency_ms: 5000,
+        success_rate: 0.75,
+        cost_tier: 'mid',
     }
+};
+
+const broadcastAgentRequirementTool: Tool = {
+    name: 'broadcast_agent_requirement',
+    description: `当 Agent Marketplace 没有足够可用 agent 时，将需求发布到 LIX 专家市场，寻求“可交付的新 agent 方案”。`,
+    parameters: {
+        type: 'object',
+        properties: {
+            query: {
+                type: 'string',
+                description: '用户原始需求描述',
+            },
+            domain: {
+                type: 'string',
+                description: '需求领域（可选）',
+                enum: ['recruitment', 'travel', 'finance', 'health', 'legal', 'education', 'shopping', 'productivity', 'local_service', 'general'],
+            },
+            required_capabilities: {
+                type: 'array',
+                description: '希望新 agent 覆盖的能力标签',
+                items: {
+                    type: 'string',
+                    description: 'capability',
+                },
+            },
+            requester_agent_id: {
+                type: 'string',
+                description: '触发发布需求的 agent_id（可选）',
+            },
+            requester_agent_name: {
+                type: 'string',
+                description: '触发发布需求的 agent 名称（可选）',
+            },
+        },
+        required: ['query'],
+    },
+    execute: async (args) => {
+        const query = String(args.query || '').trim();
+        if (!query) {
+            return {
+                success: false,
+                skillId: 'broadcast_agent_requirement',
+                skillName: 'LIX 专家交付',
+                error: {
+                    code: 'INVALID_ARGS',
+                    message: 'query 不能为空',
+                },
+            };
+        }
+
+        const domain = typeof args.domain === 'string' ? args.domain : 'general';
+        const requiredCapabilities = Array.isArray(args.required_capabilities)
+            ? args.required_capabilities.map((item: unknown) => String(item || '').trim()).filter(Boolean)
+            : [];
+        const requesterAgentId = String(args.requester_agent_id || '').trim();
+        const requesterAgentName = String(args.requester_agent_name || '').trim();
+
+        try {
+            const response = await fetch(buildApiUrl('/api/lix/solution/broadcast'), {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    requester_id: 'demo_user',
+                    requester_type: 'agent',
+                    requester_agent_id: requesterAgentId || undefined,
+                    requester_agent_name: requesterAgentName || undefined,
+                    query,
+                    domain,
+                    required_capabilities: requiredCapabilities,
+                }),
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || !payload?.success) {
+                return {
+                    success: false,
+                    skillId: 'broadcast_agent_requirement',
+                    skillName: 'LIX 专家交付',
+                    error: {
+                        code: `HTTP_${response.status}`,
+                        message: payload?.error || 'broadcast_failed',
+                    },
+                };
+            }
+
+            return {
+                success: true,
+                skillId: 'broadcast_agent_requirement',
+                skillName: 'LIX 专家交付',
+                intentId: payload.intent_id,
+                offersCount: payload.offers_count || 0,
+                status: payload.status,
+                intent: payload.intent,
+                message: '需求已发布到 LIX 专家市场，可选择方案并交付新 agent',
+            };
+        } catch (error) {
+            return {
+                success: false,
+                skillId: 'broadcast_agent_requirement',
+                skillName: 'LIX 专家交付',
+                error: {
+                    code: 'NETWORK_ERROR',
+                    message: error instanceof Error ? error.message : 'network_error',
+                },
+            };
+        }
+    },
+    marketplace: {
+        domains: ['recruitment', 'travel', 'finance', 'health', 'legal', 'education', 'shopping', 'productivity', 'local_service', 'general'],
+        capabilities: ['agent_requirement_broadcast', 'expert_matching'],
+        supports_realtime: true,
+        evidence_level: 'weak',
+        supports_parallel: true,
+        avg_latency_ms: 2000,
+        success_rate: 0.95,
+        cost_tier: 'low',
+    },
 };
 
 // ============================================================================
@@ -802,6 +1112,13 @@ const broadcastIntentTool: Tool = {
 
 class ToolRegistry {
     private tools: Map<string, Tool> = new Map();
+    private runtimeStats: Map<string, {
+        invocations: number;
+        success_count: number;
+        failure_count: number;
+        total_latency_ms: number;
+        last_updated_at: number;
+    }> = new Map();
 
     constructor() {
         // Register default tools
@@ -811,13 +1128,31 @@ class ToolRegistry {
         this.register(liveSearchTool);  // Phase 3.4: Live search for travel/local
         this.register(webExecTool);     // 4.1: Browser automation fallback
         this.register(broadcastIntentTool);  // LIX Market Tool
+        this.register(broadcastAgentRequirementTool); // LIX expert solution channel
     }
 
     /**
      * Register a new tool
      */
     register(tool: Tool): void {
-        this.tools.set(tool.name, tool);
+        const originalExecute = tool.execute;
+        const wrappedTool: Tool = {
+            ...tool,
+            execute: async (args: Record<string, any>) => {
+                const start = Date.now();
+                try {
+                    const result = await originalExecute(args);
+                    const success = result?.success !== false;
+                    this.recordRuntimeStats(tool.name, success, Date.now() - start);
+                    return result;
+                } catch (error) {
+                    this.recordRuntimeStats(tool.name, false, Date.now() - start);
+                    throw error;
+                }
+            }
+        };
+
+        this.tools.set(tool.name, wrappedTool);
         console.log(`[ToolRegistry] Registered tool: ${tool.name}`);
     }
 
@@ -851,16 +1186,94 @@ class ToolRegistry {
     }
 
     /**
+     * Get all tools with their marketplace metadata (for Agent Marketplace discovery)
+     */
+    getAllToolsWithMeta(): Tool[] {
+        return Array.from(this.tools.values()).map((tool) => {
+            if (!tool.marketplace) return tool;
+            const stats = this.getToolRuntimeStats(tool.name);
+            if (!stats || stats.invocations === 0) return tool;
+
+            return {
+                ...tool,
+                marketplace: {
+                    ...tool.marketplace,
+                    avg_latency_ms: stats.avg_latency_ms,
+                    success_rate: stats.success_rate,
+                },
+            };
+        });
+    }
+
+    getToolRuntimeStats(name: string): ToolRuntimeStats | undefined {
+        const stat = this.runtimeStats.get(name);
+        if (!stat || stat.invocations === 0) return undefined;
+        return {
+            invocations: stat.invocations,
+            success_count: stat.success_count,
+            failure_count: stat.failure_count,
+            avg_latency_ms: Math.round(stat.total_latency_ms / stat.invocations),
+            success_rate: Number((stat.success_count / stat.invocations).toFixed(4)),
+            last_updated_at: stat.last_updated_at,
+        };
+    }
+
+    getAllToolRuntimeStats(): Record<string, ToolRuntimeStats> {
+        const out: Record<string, ToolRuntimeStats> = {};
+        for (const name of this.runtimeStats.keys()) {
+            const stats = this.getToolRuntimeStats(name);
+            if (stats) out[name] = stats;
+        }
+        return out;
+    }
+
+    private recordRuntimeStats(name: string, success: boolean, latencyMs: number): void {
+        const prev = this.runtimeStats.get(name) || {
+            invocations: 0,
+            success_count: 0,
+            failure_count: 0,
+            total_latency_ms: 0,
+            last_updated_at: Date.now(),
+        };
+
+        prev.invocations += 1;
+        if (success) {
+            prev.success_count += 1;
+        } else {
+            prev.failure_count += 1;
+        }
+        prev.total_latency_ms += Math.max(0, latencyMs);
+        prev.last_updated_at = Date.now();
+        this.runtimeStats.set(name, prev);
+    }
+
+    /**
      * Convert our parameter schema to Gemini's format
      */
     private convertParameters(props: Record<string, ToolParameterSchema>): Record<string, any> {
         const result: Record<string, any> = {};
         for (const [key, value] of Object.entries(props)) {
-            result[key] = {
+            const param: any = {
                 type: this.getGeminiType(value.type),
                 description: value.description,
                 ...(value.enum && { enum: value.enum })
             };
+            // Array types require an `items` descriptor
+            if (value.type === 'array' && value.items) {
+                param.items = {
+                    type: this.getGeminiType(value.items.type),
+                    ...(value.items.description && { description: value.items.description }),
+                    ...(value.items.enum && { enum: value.items.enum }),
+                };
+            }
+            // Nested object types need `properties` + optional `required`
+            if (value.type === 'object' && value.properties) {
+                param.properties = this.convertParameters(value.properties);
+                if (value.required) {
+                    param.required = value.required;
+                }
+            }
+            result[key] = param;
         }
         return result;
     }

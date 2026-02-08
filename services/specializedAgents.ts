@@ -12,7 +12,6 @@ import {
     SpecializedAgentType
 } from '../types';
 import { searchFlights, FlightSearchParams } from './flightSearchService';
-import { getSerpApiKey } from './apiKeyManager';
 import { getEnhancedDigitalAvatar } from './localStorageService';
 import { getUserPreferences } from './personalizationService';
 
@@ -89,6 +88,12 @@ function normalizeDepartureTimePreference(value: any): FlightSearchParams['depar
     if (lower === 'evening' || /晚上|傍晚/.test(value)) return 'evening';
     if (lower === 'night' || /夜间|深夜/.test(value)) return 'night';
     return undefined;
+}
+
+function looksLikeSerpApiKey(value: unknown): value is string {
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    return /^[a-f0-9]{32,}$/i.test(trimmed);
 }
 
 function shiftTime(time?: string, offsetMinutes: number = 0): string | null {
@@ -483,9 +488,7 @@ const flightBookingAgent: SpecializedAgentImpl = {
 
         console.log('[FlightBookingAgent] Search params:', searchParams);
 
-        // Try to get SerpApi key from environment or use Gemini API key as fallback identifier
-        // Note: In production, you would have a separate SERPAPI_KEY
-        const serpApiKey = getSerpApiKey();
+        const serpApiKey = looksLikeSerpApiKey(apiKey) ? apiKey : undefined;
 
         try {
             // Call real flight search API (fail-closed realtime policy)
@@ -638,12 +641,13 @@ const flightBookingAgent: SpecializedAgentImpl = {
 };
 
 // =============================================================================
-// 酒店Agent - 搜索和推荐住宿
+// 酒店Agent - 搜索和推荐住宿 (Real-time via SerpApi Google Hotels)
 // =============================================================================
 
 const hotelBookingAgent: SpecializedAgentImpl = {
     name: 'hotel_booking',
     execute: async (task, apiKey) => {
+        const { searchHotels } = await import('./hotelSearchService');
         const destination = normalizeDestinationLabel(task.params.destination);
         const preferences = getTravelPreferences();
         const preferredStars = preferences.priceVsQuality > 30
@@ -654,148 +658,56 @@ const hotelBookingAgent: SpecializedAgentImpl = {
         const starLevel = task.params.starLevel || preferredStars;
         const location = task.params.location || 'city_center';
 
-        const hotels = isTokyoDestination(destination)
-            ? [
-                {
-                    id: 'hotel_1',
-                    name: '东京安缦酒店',
-                    nameEn: 'Aman Tokyo',
-                    star: 5,
-                    rating: 4.9,
-                    reviewCount: 1256,
-                    pricePerNight: 4500,
-                    location: '大手町',
-                    locationType: 'city_center',
-                    locationNote: '距离皇居步行5分钟',
-                    amenities: ['温泉SPA', '米其林餐厅', '24小时健身房', '管家服务'],
-                    image: '🏨',
-                },
-                {
-                    id: 'hotel_2',
-                    name: '东京帝国酒店',
-                    nameEn: 'Imperial Hotel Tokyo',
-                    star: 5,
-                    rating: 4.7,
-                    reviewCount: 3420,
-                    pricePerNight: 2800,
-                    location: '日比谷',
-                    locationType: 'city_center',
-                    locationNote: '银座商圈核心',
-                    amenities: ['室内泳池', '多国料理', '健身房', '商务中心'],
-                    image: '🏨',
-                },
-                {
-                    id: 'hotel_3',
-                    name: '新宿格兰贝尔酒店',
-                    nameEn: 'Shinjuku Granbell Hotel',
-                    star: 4,
-                    rating: 4.5,
-                    reviewCount: 2180,
-                    pricePerNight: 1200,
-                    location: '新宿',
-                    locationType: 'city_center',
-                    locationNote: '新宿站步行3分钟',
-                    amenities: ['餐厅', '健身房', '会议室'],
-                    image: '🏨',
-                }
-            ]
-            : isDalianDestination(destination)
-                ? [
-                    {
-                        id: 'hotel_dl_1',
-                        name: '大连香格里拉大酒店',
-                        nameEn: 'Shangri-La Dalian',
-                        star: 5,
-                        rating: 4.8,
-                        reviewCount: 2160,
-                        pricePerNight: 1200,
-                        location: '中山区',
-                        locationType: 'city_center',
-                        locationNote: '近中山广场与海边',
-                        amenities: ['海景房', '室内泳池', '健身房', '行政酒廊'],
-                        image: '🏨',
-                    },
-                    {
-                        id: 'hotel_dl_2',
-                        name: '大连凯宾斯基饭店',
-                        nameEn: 'Kempinski Dalian',
-                        star: 5,
-                        rating: 4.7,
-                        reviewCount: 1800,
-                        pricePerNight: 1100,
-                        location: '青泥洼桥',
-                        locationType: 'city_center',
-                        locationNote: '交通便利，适合商务出行',
-                        amenities: ['健身房', '会议室', '中西餐厅'],
-                        image: '🏨',
-                    },
-                    {
-                        id: 'hotel_dl_3',
-                        name: '大连星海广场精品酒店',
-                        nameEn: 'Xinghai Boutique Hotel',
-                        star: 4,
-                        rating: 4.5,
-                        reviewCount: 950,
-                        pricePerNight: 760,
-                        location: '星海广场',
-                        locationType: 'city_center',
-                        locationNote: '步行可达海边与广场',
-                        amenities: ['海景房', '早餐', '健身房'],
-                        image: '🏨',
-                    }
-                ]
-                : [
-                    {
-                        id: 'hotel_generic_1',
-                        name: `${destination}城市中心酒店`,
-                        nameEn: `${destination} City Center Hotel`,
-                        star: 4,
-                        rating: 4.5,
-                        reviewCount: 980,
-                        pricePerNight: 900,
-                        location: '市中心',
-                        locationType: 'city_center',
-                        locationNote: '交通便利，靠近主要商圈',
-                        amenities: ['早餐', '健身房', '商务区'],
-                        image: '🏨',
-                    },
-                    {
-                        id: 'hotel_generic_2',
-                        name: `${destination}海景度假酒店`,
-                        nameEn: `${destination} Seaview Resort`,
-                        star: 5,
-                        rating: 4.7,
-                        reviewCount: 1320,
-                        pricePerNight: 1300,
-                        location: '海滨',
-                        locationType: 'scenic',
-                        locationNote: '适合度假与休闲',
-                        amenities: ['海景房', '泳池', 'SPA'],
-                        image: '🏨',
-                    },
-                    {
-                        id: 'hotel_generic_3',
-                        name: `${destination}精品商务酒店`,
-                        nameEn: `${destination} Business Boutique`,
-                        star: 4,
-                        rating: 4.4,
-                        reviewCount: 760,
-                        pricePerNight: 700,
-                        location: '核心区',
-                        locationType: 'city_center',
-                        locationNote: '适合短住与差旅',
-                        amenities: ['自助入住', '会议室', '咖啡吧'],
-                        image: '🏨',
-                    }
-                ];
+        // Calculate dates: default to tomorrow + 3 nights
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const checkOut = new Date(tomorrow);
+        checkOut.setDate(checkOut.getDate() + (task.params.nights || 3));
 
-        // 根据星级筛选
-        const filtered = hotels.filter(h => starLevel.includes(h.star));
-        const scored = scoreHotels(filtered, preferences);
-        const sorted = scored.sort((a, b) => b.matchScore - a.matchScore);
+        const checkInDate = task.params.checkInDate
+            || tomorrow.toISOString().split('T')[0];
+        const checkOutDate = task.params.checkOutDate
+            || checkOut.toISOString().split('T')[0];
 
-        // 计算总费用（假设5晚）
-        const nights = 5;
+        console.log(`[HotelBookingAgent] Searching real hotels in ${destination} (${checkInDate} → ${checkOutDate})`);
+
+        const resolvedSerpApiKey = looksLikeSerpApiKey(apiKey) ? apiKey : undefined;
+
+        const searchResult = await searchHotels(
+            {
+                destination,
+                checkInDate,
+                checkOutDate,
+                adults: task.params.adults || 2,
+                currency: task.params.currency || 'CNY',
+                starLevel,
+            },
+            resolvedSerpApiKey,
+            { requireLiveData: true }
+        );
+
+        if (!searchResult.success || searchResult.hotels.length === 0) {
+            console.warn('[HotelBookingAgent] No real hotel results, returning error with comparison links');
+            return {
+                success: false,
+                data: {
+                    destination,
+                    hotels: [],
+                    estimatedCost: 0,
+                    comparisonLinks: searchResult.comparisonLinks,
+                },
+                suggestions: [],
+                personalizedNote: searchResult.error || '未找到实时酒店数据，请通过以下链接手动搜索',
+                appliedFilters: task.appliedPreferences,
+            };
+        }
+
+        // Score with user preferences
+        const scored = scoreHotels(searchResult.hotels, preferences);
+        const sorted = scored.sort((a: any, b: any) => b.matchScore - a.matchScore);
+
+        // Calculate estimated total cost
+        const nights = task.params.nights || 3;
         const estimatedCost = sorted.length > 0 ? sorted[0].pricePerNight * nights : 0;
 
         return {
@@ -803,11 +715,13 @@ const hotelBookingAgent: SpecializedAgentImpl = {
             data: {
                 destination,
                 hotels: sorted,
-                estimatedCost
+                estimatedCost,
+                comparisonLinks: searchResult.comparisonLinks,
+                realtime: searchResult.realtime,
             },
             suggestions: sorted,
-            personalizedNote: `已根据偏好筛选${starLevel.join('/')}星级酒店，优先${location === 'city_center' ? '市中心' : '安静'}位置`,
-            appliedFilters: task.appliedPreferences
+            personalizedNote: `已从 Google Hotels 获取 ${sorted.length} 家实时酒店数据，筛选${starLevel.join('/')}星级，优先${location === 'city_center' ? '市中心' : '安静'}位置`,
+            appliedFilters: task.appliedPreferences,
         };
     }
 };
@@ -1313,6 +1227,28 @@ const getWeatherCondition = (code: number): { condition: string; icon: string } 
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
+function buildWeatherActionLinks(location: string, lat?: number, lon?: number): Array<{ title: string; url: string; provider: string }> {
+    const links: Array<{ title: string; url: string; provider: string }> = [];
+    const loc = String(location || '').trim();
+    if (loc) {
+        links.push({
+            title: `${loc} 天气`,
+            url: `https://www.google.com/search?q=${encodeURIComponent(`${loc} 天气`)}`,
+            provider: 'google_weather',
+        });
+    }
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        const latFixed = Number(lat).toFixed(4);
+        const lonFixed = Number(lon).toFixed(4);
+        links.push({
+            title: '天气雷达',
+            url: `https://www.windy.com/${latFixed}/${lonFixed}?${latFixed},${lonFixed},7`,
+            provider: 'windy',
+        });
+    }
+    return links;
+}
+
 const weatherAgent: SpecializedAgentImpl = {
     name: 'weather',
     execute: async (task, apiKey) => {
@@ -1330,13 +1266,15 @@ const weatherAgent: SpecializedAgentImpl = {
                 success: true,
                 data: {
                     location: destination,
+                    locationCN: destination,
                     forecast: [
                         { day: '今天', temp: '15-22°C', condition: '多云', icon: '⛅' },
                         { day: '明天', temp: '14-21°C', condition: '晴', icon: '☀️' },
                         { day: '后天', temp: '13-20°C', condition: '晴', icon: '☀️' }
                     ],
                     tips: ['请添加该城市坐标以获取实时天气'],
-                    dataSource: 'Mock (city not in database)'
+                    dataSource: 'Mock (city not in database)',
+                    action_links: buildWeatherActionLinks(destination),
                 },
                 suggestions: [],
                 personalizedNote: `${destination}天气预报 (模拟数据)`,
@@ -1397,10 +1335,15 @@ const weatherAgent: SpecializedAgentImpl = {
                 data: {
                     location: cityInfo.name,
                     locationCN: destination,
+                    coordinates: {
+                        lat: cityInfo.lat,
+                        lon: cityInfo.lon,
+                    },
                     forecast,
                     tips,
                     dataSource: 'Open-Meteo API (实时数据)',
-                    lastUpdated: new Date().toISOString()
+                    lastUpdated: new Date().toISOString(),
+                    action_links: buildWeatherActionLinks(destination, cityInfo.lat, cityInfo.lon),
                 },
                 suggestions: forecast,
                 personalizedNote: `✅ ${cityInfo.name} 实时天气预报`,
@@ -1414,6 +1357,7 @@ const weatherAgent: SpecializedAgentImpl = {
                 success: true,
                 data: {
                     location: destination,
+                    locationCN: destination,
                     forecast: [
                         { day: '今天', temp: '15-22°C', condition: '多云', icon: '⛅' },
                         { day: '明天', temp: '14-21°C', condition: '晴', icon: '☀️' },
@@ -1421,7 +1365,8 @@ const weatherAgent: SpecializedAgentImpl = {
                     ],
                     tips: ['天气数据获取失败，显示预估数据'],
                     dataSource: 'Mock (API error)',
-                    error: error instanceof Error ? error.message : 'Unknown error'
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                    action_links: buildWeatherActionLinks(destination),
                 },
                 suggestions: [],
                 personalizedNote: `${destination}天气预报 (预估)`,
@@ -1600,6 +1545,56 @@ export const SPECIALIZED_AGENTS: Record<SpecializedAgentType, SpecializedAgentIm
     }
 };
 
+type SpecializedRuntimeStat = {
+    invocations: number;
+    success_count: number;
+    failure_count: number;
+    total_latency_ms: number;
+    last_updated_at: number;
+};
+
+const specializedRuntimeStats = new Map<SpecializedAgentType, SpecializedRuntimeStat>();
+
+function recordSpecializedRuntimeStats(agentType: SpecializedAgentType, success: boolean, latencyMs: number): void {
+    const prev = specializedRuntimeStats.get(agentType) || {
+        invocations: 0,
+        success_count: 0,
+        failure_count: 0,
+        total_latency_ms: 0,
+        last_updated_at: Date.now(),
+    };
+
+    prev.invocations += 1;
+    if (success) {
+        prev.success_count += 1;
+    } else {
+        prev.failure_count += 1;
+    }
+    prev.total_latency_ms += Math.max(0, latencyMs);
+    prev.last_updated_at = Date.now();
+    specializedRuntimeStats.set(agentType, prev);
+}
+
+export function getSpecializedAgentRuntimeStats(agentType: SpecializedAgentType): {
+    invocations: number;
+    success_count: number;
+    failure_count: number;
+    avg_latency_ms: number;
+    success_rate: number;
+    last_updated_at: number;
+} | undefined {
+    const stat = specializedRuntimeStats.get(agentType);
+    if (!stat || stat.invocations === 0) return undefined;
+    return {
+        invocations: stat.invocations,
+        success_count: stat.success_count,
+        failure_count: stat.failure_count,
+        avg_latency_ms: Math.round(stat.total_latency_ms / stat.invocations),
+        success_rate: Number((stat.success_count / stat.invocations).toFixed(4)),
+        last_updated_at: stat.last_updated_at,
+    };
+}
+
 /**
  * 执行专业Agent
  */
@@ -1607,8 +1602,10 @@ export async function executeSpecializedAgent(
     task: AgentTask,
     apiKey: string
 ): Promise<AgentTaskResult> {
+    const start = Date.now();
     const agent = SPECIALIZED_AGENTS[task.agentType];
     if (!agent) {
+        recordSpecializedRuntimeStats(task.agentType, false, Date.now() - start);
         return {
             success: false,
             data: null,
@@ -1618,5 +1615,12 @@ export async function executeSpecializedAgent(
         };
     }
 
-    return agent.execute(task, apiKey);
+    try {
+        const result = await agent.execute(task, apiKey);
+        recordSpecializedRuntimeStats(task.agentType, result?.success !== false, Date.now() - start);
+        return result;
+    } catch (error) {
+        recordSpecializedRuntimeStats(task.agentType, false, Date.now() - start);
+        throw error;
+    }
 }

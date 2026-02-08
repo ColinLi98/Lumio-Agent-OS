@@ -33,4 +33,18 @@ describe('flightConstraintParser', () => {
         expect(ctripLink?.url).toContain('depdate=2026-02-07');
         expect(ctripLink?.supports_time_filter).toBe(false);
     });
+
+    it('parses route tokens cleanly when query contains trailing "的机票"', () => {
+        const constraints = parseFlightConstraints('伦敦到大连的机票');
+        expect(constraints.origin).toBe('伦敦');
+        expect(constraints.destination).toBe('大连');
+    });
+
+    it('still builds action links without departure date', () => {
+        const constraints = parseFlightConstraints('伦敦到大连的机票');
+        const links = buildFlightActionLinks(constraints);
+        expect(links.length).toBeGreaterThan(0);
+        expect(links[0].url).toContain('dcity=');
+        expect(links[0].url).toContain('acity=');
+    });
 });

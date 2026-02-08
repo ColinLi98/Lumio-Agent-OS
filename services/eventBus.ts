@@ -26,6 +26,17 @@ export type LixEventType =
     | 'offer.rejected.semantic_mismatch'  // NEW: Semantic consistency failure
     // Provider lifecycle
     | 'provider.fanout.filtered'      // NEW: Provider filtering by vertical
+    | 'provider.router.filtered'
+    | 'provider.search.start'
+    | 'provider.search.end'
+    | 'provider.detail.start'
+    | 'provider.detail.end'
+    | 'provider.fetch.start'
+    | 'provider.parse_failed'
+    | 'provider.ban_detected'
+    | 'provider.circuit_open'
+    | 'provider.request.success'
+    | 'provider.request.failed'
     // Conversion lifecycle
     | 'conversion.callback'
     | 'conversion.timeout'
@@ -88,6 +99,23 @@ export interface OfferAcceptedEvent extends LixEventBase {
     token_id: string;
     offer_amount: number;
     currency: string;
+}
+
+export interface ProviderLifecycleEvent extends LixEventBase {
+    event_type:
+        | 'provider.fanout.filtered'
+        | 'provider.router.filtered'
+        | 'provider.search.start'
+        | 'provider.search.end'
+        | 'provider.detail.start'
+        | 'provider.detail.end'
+        | 'provider.fetch.start'
+        | 'provider.parse_failed'
+        | 'provider.ban_detected'
+        | 'provider.circuit_open'
+        | 'provider.request.success'
+        | 'provider.request.failed';
+    [key: string]: unknown;
 }
 
 export interface ConversionCallbackEvent extends LixEventBase {
@@ -155,6 +183,7 @@ export type LixEvent =
     | OfferValidatedEvent
     | OfferRankedEvent
     | OfferAcceptedEvent
+    | ProviderLifecycleEvent
     | ConversionCallbackEvent
     | ConversionTimeoutEvent
     | ConversionDisputeEvent
