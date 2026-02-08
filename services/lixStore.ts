@@ -212,7 +212,7 @@ function createMockSolutionOffers(
         intent_id: intentId,
         expert_id: expert.id,
         expert_name: expert.name,
-        offer_type: expert.type || 'human_expert',
+        offer_type: (expert.type || 'human_expert') as AgentSolutionOffer['offer_type'],
         summary: expert.type === 'agent_collab'
             ? `由 Agent 网络自动协同交付，覆盖能力：${offerCaps.slice(0, 4).join('、')}`
             : `交付可上架 agent，覆盖能力：${offerCaps.slice(0, 3).join('、')}`,
@@ -226,7 +226,7 @@ function createMockSolutionOffers(
         estimated_delivery_hours: expert.eta,
         quote_amount: expert.quote + (index * 100),
         currency: 'CNY',
-        status: 'open',
+        status: 'open' as AgentSolutionOffer['status'],
         created_at: now.toISOString(),
     }));
 
