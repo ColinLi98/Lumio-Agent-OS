@@ -337,19 +337,29 @@ export class SuperAgentService {
         track.queryReceived(query, traceId);
 
         // ====================================================================
+        // Context Enrichment: Build a context-aware query from conversation
+        // history so short follow-ups (e.g. "15000") get proper context.
+        // ====================================================================
+        const conversationHistory = context.conversationHistory || [];
+        const contextEnrichedQuery = this.buildContextEnrichedQuery(query, conversationHistory);
+        if (contextEnrichedQuery !== query) {
+            console.log(`[SuperAgent] 📝 Context-enriched query: "${contextEnrichedQuery}"`);
+        }
+
+        // ====================================================================
         // Marketplace Pre-Routing: Complex multi-task queries go through
         // the marketplace pipeline for agent discovery + DAG execution.
         // Simple queries continue to the standard ReAct loop below.
         // ====================================================================
-        const detectedCaps = detectCapabilities(query);
-        const detectedDomain = detectDomain(query);
+        const detectedCaps = detectCapabilities(contextEnrichedQuery);
+        const detectedDomain = detectDomain(contextEnrichedQuery);
         const marketplace = await ensureMarketplaceCatalogReady(true);
         const isComplexQuery = detectedCaps.length >= 2
             && !detectedCaps.every(c => c === 'general')
             && marketplace.getRegisteredAgents().length > 0;
 
         // Parse travel context once, share across all agents
-        const travelCtx = parseTravelContext(query);
+        const travelCtx = parseTravelContext(contextEnrichedQuery);
         if (travelCtx.destination) {
             console.log(`[SuperAgent] 🗺️ Travel context parsed:`, JSON.stringify(travelCtx));
         }
@@ -661,17 +671,25 @@ export class SuperAgentService {
                     try {
                         const client = await getGeminiClient(this.apiKey);
                         const synthesisModel = client.getGenerativeModel({ model: 'gemini-3-pro-preview' });
-                        const synthesisPrompt = `你是Lumi AI助手。用户问了"${query}"。
+
+                        // Build conversation context for synthesis
+                        const recentConversation = conversationHistory.slice(-6);
+                        const conversationCtxText = recentConversation.length > 0
+                            ? `\n\n对话历史（最近 ${recentConversation.length} 条）：\n${recentConversation.map(m => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content}`).join('\n')}`
+                            : '';
+
+                        const synthesisPrompt = `你是Lumi AI助手。用户当前问了"${query}"。${conversationCtxText}
 
 以下是各专业Agent返回的原始数据：
 ${toolDataSummaries.join('\n\n')}
 
-请根据以上数据，用中文为用户提供一个完整、有用的回答。要求：
+请根据以上数据和对话上下文，用中文为用户提供一个完整、有用的回答。要求：
 1. 直接回答用户问题，不要提及"Agent"或"工具"等技术细节
 2. 使用Markdown格式（加粗、列表、链接等）增强可读性
 3. 如果有具体数据（价格、名称、评分等），务必包含
 4. 语气自然、亲切
-5. 如果数据有限，基于已有信息给出最佳建议`;
+5. 如果数据有限，基于已有信息给出最佳建议
+6. 如果用户的消息引用了之前的对话（如补充预算、日期等），要结合上下文理解用户意图`;
 
                         console.log('[SuperAgent] 🧠 Marketplace: synthesizing final answer with LLM...');
                         const synthesisResult = await synthesisModel.generateContent(synthesisPrompt);
@@ -1293,6 +1311,51 @@ ${toolDataSummaries.join('\n\n')}
             '建议操作：可在下方多平台入口中任选其一，再在页面顶部将「起飞时间」切到「早-午 / 上午」筛选。',
             linkLines,
         ].join('\n');
+    }
+
+    /**
+     * Build a context-enriched query from conversation history.
+     * Short/ambiguous follow-ups (e.g. "15000", "明天", "商务舱") get
+     * the relevant prior context prepended so downstream routing and
+     * tools can understand the user's intent.
+     */
+    private buildContextEnrichedQuery(
+        query: string,
+        conversationHistory: { role: string; content: string }[]
+    ): string {
+        // Only enrich if the query is short/ambiguous AND there's prior context
+        if (conversationHistory.length === 0) return query;
+
+        // If the query is already sufficiently descriptive (> 15 chars with CJK
+        // or > 30 chars), don't enrich — the user has given enough context.
+        const cjkCount = (query.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/g) || []).length;
+        const isDescriptive = cjkCount > 10 || query.length > 30;
+        if (isDescriptive) return query;
+
+        // Find the last user-assistant exchange for context
+        const recent = conversationHistory.slice(-4);
+        const lastUserMsg = [...recent].reverse().find(m => m.role === 'user');
+        const lastAssistantMsg = [...recent].reverse().find(m => m.role === 'assistant');
+
+        if (!lastUserMsg) return query;
+
+        // Build enriched query: prepend the prior question context
+        const priorContext = lastUserMsg.content.length > 100
+            ? lastUserMsg.content.slice(0, 100) + '…'
+            : lastUserMsg.content;
+
+        // Include a brief summary of the assistant's response if available
+        const assistantContext = lastAssistantMsg
+            ? (lastAssistantMsg.content.length > 100
+                ? lastAssistantMsg.content.slice(0, 100) + '…'
+                : lastAssistantMsg.content)
+            : '';
+
+        const contextPrefix = assistantContext
+            ? `(上文: 用户问"${priorContext}", AI回答了"${assistantContext}") `
+            : `(上文: 用户问"${priorContext}") `;
+
+        return contextPrefix + query;
     }
 
     /**
