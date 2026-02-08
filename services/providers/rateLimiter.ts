@@ -6,8 +6,8 @@
  * Prevents ban by limiting request frequency.
  */
 
-import type { ProviderId, RateLimitResult } from './providerTypes';
-import { incCounter } from '../metricsCollector';
+import type { ProviderId, RateLimitResult } from './providerTypes.js';
+import { incCounter } from '../metricsCollector.js';
 
 // ============================================================================
 // Configuration

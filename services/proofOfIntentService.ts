@@ -8,7 +8,7 @@
  * - TTL enforcement
  */
 
-import { IntentRequest } from './lixTypes';
+import { IntentRequest } from './lixTypes.js';
 
 // ============================================================================
 // Types

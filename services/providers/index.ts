@@ -6,24 +6,24 @@
  */
 
 // Types
-export * from './providerTypes';
+export * from './providerTypes.js';
 
 // Core Infrastructure
-export { scrapeGet, scrapeSet, getCachedSearch, setCachedSearch, getCachedDetail, setCachedDetail } from './scrapeCache';
-export { canMakeRequest, getRateLimitStatus, getAllRateLimitStatuses } from './rateLimiter';
-export { generateFingerprint, getAlternateFingerprint, buildHeaders } from './fingerprintPolicy';
-export { getProviderConfig, getDomainAllowlist, buildSearchUrl, trySelectors, trySelectorsAll } from './selectorPolicy';
+export { scrapeGet, scrapeSet, getCachedSearch, setCachedSearch, getCachedDetail, setCachedDetail } from './scrapeCache.js';
+export { canMakeRequest, getRateLimitStatus, getAllRateLimitStatuses } from './rateLimiter.js';
+export { generateFingerprint, getAlternateFingerprint, buildHeaders } from './fingerprintPolicy.js';
+export { getProviderConfig, getDomainAllowlist, buildSearchUrl, trySelectors, trySelectorsAll } from './selectorPolicy.js';
 
 // Anti-Ban Layer
-export { checkStatusCode, checkResponseUrl, checkHtmlContent, checkDomEmpty, checkRedirects, detectBan } from './banDetector';
-export { isCircuitOpen, getCircuitStatus, recordBanSignal, recordSuccess, getAllCircuitStatuses, resetCircuit } from './banBudget';
-export { withRetry, fetchWithRetry, isRetryable, calculateDelay, DEFAULT_RETRY_CONFIG } from './retryPolicy';
-export { headlessFetch, getPoolStats } from './headlessPool';
+export { checkStatusCode, checkResponseUrl, checkHtmlContent, checkDomEmpty, checkRedirects, detectBan } from './banDetector.js';
+export { isCircuitOpen, getCircuitStatus, recordBanSignal, recordSuccess, getAllCircuitStatuses, resetCircuit } from './banBudget.js';
+export { withRetry, fetchWithRetry, isRetryable, calculateDelay, DEFAULT_RETRY_CONFIG } from './retryPolicy.js';
+export { headlessFetch, getPoolStats } from './headlessPool.js';
 
 // Provider Adapters
-export { jdAdapter } from './jdAdapter';
-export { pddAdapter } from './pddAdapter';
-export { taobaoAdapter } from './taobaoAdapter';
+export { jdAdapter } from './jdAdapter.js';
+export { pddAdapter } from './pddAdapter.js';
+export { taobaoAdapter } from './taobaoAdapter.js';
 
 // Registry
-export { getAdapter, getAllAdapters, fanoutSearch, PROVIDER_IDS, ADAPTERS } from './providerRegistry';
+export { getAdapter, getAllAdapters, fanoutSearch, PROVIDER_IDS, ADAPTERS } from './providerRegistry.js';

@@ -6,7 +6,7 @@
  * Fee model: 1% of transaction amount (instead of flat fee).
  */
 
-import { generateId } from './lixTypes';
+import { generateId } from './lixTypes.js';
 
 // ============================================================================
 // Types

@@ -18,13 +18,13 @@ import {
     CurrentContext,
     stateToKey,
     extractCurrentState
-} from './stateExtractor';
+} from './stateExtractor.js';
 import {
     EnhancedDigitalAvatar,
     PersonalityTraits,
     ValuesProfile
-} from '../types';
-import { getEnhancedDigitalAvatar } from './localStorageService';
+} from '../types.js';
+import { getEnhancedDigitalAvatar } from './localStorageService.js';
 
 // ============================================================================
 // Action Definitions

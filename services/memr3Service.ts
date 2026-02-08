@@ -10,7 +10,7 @@
  * - Memory Store: Persistent storage backend (localStorage)
  */
 
-import { loadData, saveData, StorageKeys } from './localStorageService';
+import { loadData, saveData, StorageKeys } from './localStorageService.js';
 
 // ============================================================================
 // Types

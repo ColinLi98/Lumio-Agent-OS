@@ -1,4 +1,4 @@
-import { BellmanDecisionAction, BellmanDecisionState, BellmanPolicyTrace, SoulMatrix } from '../types';
+import { BellmanDecisionAction, BellmanDecisionState, BellmanPolicyTrace, SoulMatrix } from '../types.js';
 
 export type BellmanContext = {
     hasCandidates: boolean;

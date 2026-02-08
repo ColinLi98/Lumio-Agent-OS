@@ -8,10 +8,10 @@
  * - Alternative approaches
  */
 
-import { getSoulMatrixStore } from './soulMatrixStore';
-import { SoulTrait, TRAIT_METADATA } from './soulTraitTypes';
-import { Task, Plan, PlanStep, DimensionScores } from './taskTypes';
-import { getTaskService } from './taskService';
+import { getSoulMatrixStore } from './soulMatrixStore.js';
+import { SoulTrait, TRAIT_METADATA } from './soulTraitTypes.js';
+import { Task, Plan, PlanStep, DimensionScores } from './taskTypes.js';
+import { getTaskService } from './taskService.js';
 
 // ============================================================================
 // Types

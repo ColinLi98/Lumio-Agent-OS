@@ -7,8 +7,8 @@
  * - Estimated/mock data can only be enabled explicitly (debug/testing).
  */
 
-import { getApiBaseUrl } from './apiBaseUrl';
-import { executeSerpApi } from './serpApiClient';
+import { getApiBaseUrl } from './apiBaseUrl.js';
+import { executeSerpApi } from './serpApiClient.js';
 
 export interface FlightSearchParams {
     origin: string;       // City name or IATA code

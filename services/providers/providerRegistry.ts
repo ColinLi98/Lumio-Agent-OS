@@ -8,15 +8,15 @@
 import type {
     ProviderId, ProviderAdapter, ProviderSearchInput,
     CandidateItem, ProviderFanoutResult, MarketFanoutResult, OfferBuildInput
-} from './providerTypes';
-import type { IntentRequest, Offer, IntentVertical } from '../lixTypes';
-import { classifyVertical, isEcommerceCompatible } from '../verticalClassifier';
-import { jdAdapter } from './jdAdapter';
-import { pddAdapter } from './pddAdapter';
-import { taobaoAdapter } from './taobaoAdapter';
-import { isCircuitOpen, getAllCircuitStatuses } from './banBudget';
-import { eventBus } from '../eventBus';
-import { observeHistogram, incCounter, setGauge } from '../metricsCollector';
+} from './providerTypes.js';
+import type { IntentRequest, Offer, IntentVertical } from '../lixTypes.js';
+import { classifyVertical, isEcommerceCompatible } from '../verticalClassifier.js';
+import { jdAdapter } from './jdAdapter.js';
+import { pddAdapter } from './pddAdapter.js';
+import { taobaoAdapter } from './taobaoAdapter.js';
+import { isCircuitOpen, getAllCircuitStatuses } from './banBudget.js';
+import { eventBus } from '../eventBus.js';
+import { observeHistogram, incCounter, setGauge } from '../metricsCollector.js';
 
 // ============================================================================
 // Registry

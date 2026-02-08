@@ -15,7 +15,7 @@ import type {
     FailureCode,
     IntentDomain,
     StageTrace,
-} from './liveSearchVertexGrounding';
+} from './liveSearchVertexGrounding.js';
 
 // ============================================================================
 // Types

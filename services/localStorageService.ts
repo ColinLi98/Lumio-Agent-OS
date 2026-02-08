@@ -25,7 +25,7 @@ import {
     LifeStateSnapshot,
     LifeTransition,
     DecisionHistory
-} from '../types';
+} from '../types.js';
 
 // ============================================================================
 // Storage Keys - 所有本地存储键的统一管理

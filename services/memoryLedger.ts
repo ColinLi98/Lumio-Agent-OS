@@ -16,9 +16,9 @@ import {
     generateEvidenceId,
     hashContent,
     generateSummary,
-} from './evidenceTypes';
-import { getSoulMatrixStore } from './soulMatrixStore';
-import { eventBus, LumiEvent } from './eventBus';
+} from './evidenceTypes.js';
+import { getSoulMatrixStore } from './soulMatrixStore.js';
+import { eventBus, LumiEvent } from './eventBus.js';
 
 // ============================================================================
 // Storage Keys
@@ -399,4 +399,4 @@ export function getMemoryLedger(): MemoryLedger {
 // ============================================================================
 
 export { MemoryLedger };
-export type { Evidence, EvidenceInput, EvidenceWithTraits } from './evidenceTypes';
+export type { Evidence, EvidenceInput, EvidenceWithTraits } from './evidenceTypes.js';

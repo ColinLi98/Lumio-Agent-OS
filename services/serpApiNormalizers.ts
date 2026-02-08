@@ -5,7 +5,7 @@ import type {
     SerpApiNormalizedPayload,
     SerpApiReviewItem,
     SerpApiShoppingItem,
-} from './serpApiTypes';
+} from './serpApiTypes.js';
 
 function asNumber(value: unknown): number | undefined {
     if (typeof value === 'number' && Number.isFinite(value)) return value;

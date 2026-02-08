@@ -12,14 +12,14 @@ import type {
     ActionType,
     GoalStack,
     ActionCost,
-} from './coreSchemas';
-import { generateId } from './coreSchemas';
+} from './coreSchemas.js';
+import { generateId } from './coreSchemas.js';
 import {
     transition,
     deriveExecutionFlag,
     generateShockBundle,
     type ExogenousShock,
-} from './transitionModel';
+} from './transitionModel.js';
 
 // ============================================================================
 // Configuration

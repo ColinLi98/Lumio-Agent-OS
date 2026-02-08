@@ -16,9 +16,9 @@ import {
     ParamKey,
     DEFAULT_STATE,
     DEFAULT_PARAMS,
-} from './twinTypes';
-import type { TwinEvidence, OutcomeLoggedPayload, WeeklyReviewPayload } from './twinEvidenceTypes';
-import { eventBus } from './eventBus';
+} from './twinTypes.js';
+import type { TwinEvidence, OutcomeLoggedPayload, WeeklyReviewPayload } from './twinEvidenceTypes.js';
+import { eventBus } from './eventBus.js';
 
 // ============================================================================
 // Storage Keys

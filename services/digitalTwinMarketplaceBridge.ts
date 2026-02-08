@@ -1,6 +1,6 @@
-import type { AgentDomain, DigitalTwinContext, EvidenceLevel } from './agentMarketplaceTypes';
-import type { LixDigitalTwinSnapshot, ProfileShareConsentState } from './lixTypes';
-import { getEnhancedDigitalAvatar } from './localStorageService';
+import type { AgentDomain, DigitalTwinContext, EvidenceLevel } from './agentMarketplaceTypes.js';
+import type { LixDigitalTwinSnapshot, ProfileShareConsentState } from './lixTypes.js';
+import { getEnhancedDigitalAvatar } from './localStorageService.js';
 
 export type { ProfileShareConsentState };
 

@@ -15,8 +15,8 @@ import type {
     CompiledObjective,
     StateKey,
     TwinState,
-} from './twinTypes';
-import { interpretRiskLevel } from './riskModels';
+} from './twinTypes.js';
+import { interpretRiskLevel } from './riskModels.js';
 
 // ============================================================================
 // Types
@@ -223,8 +223,8 @@ export function generateDetailedExplanation(
 // P2: Belief-Aware Explanation Generation
 // ============================================================================
 
-import type { BeliefState } from './twinTypes';
-import { getMeanParams, getStateStd } from './twinBeliefStore';
+import type { BeliefState } from './twinTypes.js';
+import { getMeanParams, getStateStd } from './twinBeliefStore.js';
 
 /**
  * P2: Generate belief-aware explanation with posterior summary

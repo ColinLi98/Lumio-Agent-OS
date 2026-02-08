@@ -6,7 +6,7 @@
  * Outputs allowlist/blocklist for fanout filtering.
  */
 
-import type { IntentRequest } from './lixTypes';
+import type { IntentRequest } from './lixTypes.js';
 import {
     IntentDomain,
     IntentSubtype,
@@ -18,8 +18,8 @@ import {
     OfferType,
     TICKETING_FALLBACK_OPTIONS,
     FALLBACK_MESSAGES,
-} from './intentRouterTypes';
-import { eventBus } from './eventBus';
+} from './intentRouterTypes.js';
+import { eventBus } from './eventBus.js';
 
 // ============================================================================
 // Classification Patterns
@@ -452,4 +452,4 @@ export function testRouting(queries: string[]): Array<{
 
 // Types are exported from intentRouterTypes.ts
 // Re-export for convenience:
-export type { IntentDomain, IntentSubtype, ProviderGroup, RouteResult, FallbackResponse } from './intentRouterTypes';
+export type { IntentDomain, IntentSubtype, ProviderGroup, RouteResult, FallbackResponse } from './intentRouterTypes.js';

@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import type { AgentDomain, MarketVisibility, PricingModel } from './agentMarketplaceTypes';
+import type { AgentDomain, MarketVisibility, PricingModel } from './agentMarketplaceTypes.js';
 
 export interface MarketUsageEvent {
   event_id: string;

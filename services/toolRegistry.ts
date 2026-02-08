@@ -6,9 +6,9 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import { getTavilyClient } from './tavilyClient';
-import type { AgentDomain, EvidenceLevel, CostTier } from './agentMarketplaceTypes';
-import { buildApiUrl } from './apiBaseUrl';
+import { getTavilyClient } from './tavilyClient.js';
+import type { AgentDomain, EvidenceLevel, CostTier } from './agentMarketplaceTypes.js';
+import { buildApiUrl } from './apiBaseUrl.js';
 
 // ============================================================================
 // Types
@@ -373,8 +373,8 @@ const knowledgeQATool: Tool = {
 // ============================================================================
 
 // Import only client-safe modules (no server-side code like liveSearchService)
-import { classifyFreshness, createStructuredFallback, type IntentDomain, type StructuredFallback } from './freshnessClassifier';
-import { buildFlightActionLinks, parseFlightConstraints } from './flightConstraintParser';
+import { classifyFreshness, createStructuredFallback, type IntentDomain, type StructuredFallback } from './freshnessClassifier.js';
+import { buildFlightActionLinks, parseFlightConstraints } from './flightConstraintParser.js';
 
 // Type definitions for API response
 interface LiveSearchAPIResponse {
@@ -859,8 +859,8 @@ const webExecTool: Tool = {
 // Broadcast Intent Tool (LIX - Intent Exchange)
 // ============================================================================
 
-import { lixMarketService } from './marketService';
-import type { IntentCategory } from './lixTypes';
+import { lixMarketService } from './marketService.js';
+import type { IntentCategory } from './lixTypes.js';
 
 const broadcastIntentTool: Tool = {
     name: 'broadcast_intent',

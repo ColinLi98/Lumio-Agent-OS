@@ -6,20 +6,20 @@
  */
 
 // Note: @google/generative-ai is imported dynamically in getGeminiClient()
-import { getToolRegistry, setToolRegistryApiKey, GeminiFunctionDeclaration } from './toolRegistry';
-import { runShadowProfiling, setProfilingApiKey, ProfilingResult, onProfileUpdate } from './profilingService';
-import { getMemR3Router } from './memr3Service';
-import { SkillResult, getSkillRegistry } from './skillRegistry';
-import { getPlanGenerator } from './planGenerator';
-import { ThreeStagePlan } from './planTypes';
-import { track } from './telemetryService';
-import { classifyFreshness, createStructuredFallback, type StructuredFallback, type IntentDomain } from './freshnessClassifier';
-import { buildFlightActionLinks, parseFlightConstraints, type FlightConstraints } from './flightConstraintParser';
-import { ensureMarketplaceCatalogReady, detectDomain, detectCapabilities } from './agentMarketplaceService';
-import type { MarketplaceTask, AgentExecutionResult } from './agentMarketplaceTypes';
-import { executeSpecializedAgent } from './specializedAgents';
-import type { SpecializedAgentType } from '../types';
-import { buildApiUrl } from './apiBaseUrl';
+import { getToolRegistry, setToolRegistryApiKey, GeminiFunctionDeclaration } from './toolRegistry.js';
+import { runShadowProfiling, setProfilingApiKey, ProfilingResult, onProfileUpdate } from './profilingService.js';
+import { getMemR3Router } from './memr3Service.js';
+import { SkillResult, getSkillRegistry } from './skillRegistry.js';
+import { getPlanGenerator } from './planGenerator.js';
+import { ThreeStagePlan } from './planTypes.js';
+import { track } from './telemetryService.js';
+import { classifyFreshness, createStructuredFallback, type StructuredFallback, type IntentDomain } from './freshnessClassifier.js';
+import { buildFlightActionLinks, parseFlightConstraints, type FlightConstraints } from './flightConstraintParser.js';
+import { ensureMarketplaceCatalogReady, detectDomain, detectCapabilities } from './agentMarketplaceService.js';
+import type { MarketplaceTask, AgentExecutionResult } from './agentMarketplaceTypes.js';
+import { executeSpecializedAgent } from './specializedAgents.js';
+import type { SpecializedAgentType } from '../types.js';
+import { buildApiUrl } from './apiBaseUrl.js';
 
 // ============================================================================
 // Travel Context Extraction (for multi-agent param sharing)

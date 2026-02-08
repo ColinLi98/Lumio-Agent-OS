@@ -11,7 +11,7 @@ import type {
     Action,
     StrategyFallback,
     MetricDistribution,
-} from './coreSchemas';
+} from './coreSchemas.js';
 
 // ============================================================================
 // StrategyCard Builder

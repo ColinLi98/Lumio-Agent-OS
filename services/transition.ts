@@ -14,7 +14,7 @@ import type {
     ExogenousShock,
     TransitionInput,
     StateKey,
-} from './twinTypes';
+} from './twinTypes.js';
 
 // ============================================================================
 // Transition Function

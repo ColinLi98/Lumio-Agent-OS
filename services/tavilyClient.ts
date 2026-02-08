@@ -4,7 +4,7 @@
  * Uses a Vercel serverless function proxy to bypass CORS restrictions.
  * The proxy is at /api/tavily-search
  */
-import { buildApiUrl } from './apiBaseUrl';
+import { buildApiUrl } from './apiBaseUrl.js';
 
 const TAVILY_PROXY_URL = buildApiUrl('/api/tavily-search');
 const DEFAULT_TAVILY_TIMEOUT_MS = 6000;

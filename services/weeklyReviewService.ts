@@ -5,9 +5,9 @@
  * satisfaction trends, and Soul Matrix changes.
  */
 
-import { getOutcomeService, TaskOutcome, OutcomeSummary } from './outcomeService';
-import { getSoulMatrixStore, SoulTrait } from './soulMatrixStore';
-import { getTaskService, Task } from './taskService';
+import { getOutcomeService, TaskOutcome, OutcomeSummary } from './outcomeService.js';
+import { getSoulMatrixStore, SoulTrait } from './soulMatrixStore.js';
+import { getTaskService, Task } from './taskService.js';
 
 // ============================================================================
 // Types

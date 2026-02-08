@@ -11,7 +11,7 @@
 import type {
     EvidenceItem as DtoeEvidenceItem,
     EvidencePack as DtoeEvidencePack,
-} from './dtoe/coreSchemas';
+} from './dtoe/coreSchemas.js';
 
 // ============================================================================
 // Types

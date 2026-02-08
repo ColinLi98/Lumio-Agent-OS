@@ -6,12 +6,12 @@
  * Graceful degradation to fetch when headless fails.
  */
 
-import type { ProviderId, BrowserFingerprint, BanSignal, CandidateItem, DetailExtractionResult } from './providerTypes';
-import { generateFingerprint, buildHeaders } from './fingerprintPolicy';
-import { detectBan } from './banDetector';
-import { getDomainAllowlist } from './selectorPolicy';
-import { observeHistogram } from '../metricsCollector';
-import { eventBus } from '../eventBus';
+import type { ProviderId, BrowserFingerprint, BanSignal, CandidateItem, DetailExtractionResult } from './providerTypes.js';
+import { generateFingerprint, buildHeaders } from './fingerprintPolicy.js';
+import { detectBan } from './banDetector.js';
+import { getDomainAllowlist } from './selectorPolicy.js';
+import { observeHistogram } from '../metricsCollector.js';
+import { eventBus } from '../eventBus.js';
 
 // ============================================================================
 // Configuration

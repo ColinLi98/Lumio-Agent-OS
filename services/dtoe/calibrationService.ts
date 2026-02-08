@@ -9,8 +9,8 @@
  * - Bayes-lite: Conjugate prior updates for key parameters
  */
 
-import type { TwinState } from './coreSchemas';
-import type { BeliefState, ParticleParams } from './twinBeliefStore';
+import type { TwinState } from './coreSchemas.js';
+import type { BeliefState, ParticleParams } from './twinBeliefStore.js';
 
 // ============================================================================
 // Types

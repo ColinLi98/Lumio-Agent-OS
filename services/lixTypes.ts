@@ -3,8 +3,8 @@
  * Version: 0.2.1
  */
 
-import type { EnhancedDigitalAvatar } from '../types';
-import type { DigitalTwinContext } from './agentMarketplaceTypes';
+import type { EnhancedDigitalAvatar } from '../types.js';
+import type { DigitalTwinContext } from './agentMarketplaceTypes.js';
 
 // ============================================================================
 // Trace Context (End-to-End Observability)

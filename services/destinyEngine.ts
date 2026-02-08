@@ -15,7 +15,7 @@ import type {
     StateKey,
     Action,
     TwinState,
-} from './twinTypes';
+} from './twinTypes.js';
 import {
     loadOrCreateBeliefState,
     saveBeliefState,
@@ -23,12 +23,12 @@ import {
     getMeanState,
     getMeanParams,
     getDefaultSubject,
-} from './twinBeliefStore';
-import type { TwinEvidence } from './twinEvidenceTypes';
-import { createOutcomeTwinEvidence, createWeeklyReviewTwinEvidence } from './twinEvidenceTypes';
-import { solve, getActionTemplates } from './bellmanSolver';
-import { generateExplanationCard, generateNarrative, type ExplanationCard } from './decisionExplainer';
-import { eventBus } from './eventBus';
+} from './twinBeliefStore.js';
+import type { TwinEvidence } from './twinEvidenceTypes.js';
+import { createOutcomeTwinEvidence, createWeeklyReviewTwinEvidence } from './twinEvidenceTypes.js';
+import { solve, getActionTemplates } from './bellmanSolver.js';
+import { generateExplanationCard, generateNarrative, type ExplanationCard } from './decisionExplainer.js';
+import { eventBus } from './eventBus.js';
 
 // ============================================================================
 // Types

@@ -6,9 +6,9 @@
  * All reasons must be traceable to: metrics, evidence_refs, constraints.
  */
 
-import type { Action, GoalStack, EvidencePack, StrategyCard } from './coreSchemas';
-import type { ActionScore, SolveResult } from './bellmanSolver';
-import { buildStrategyCard } from './strategyCard';
+import type { Action, GoalStack, EvidencePack, StrategyCard } from './coreSchemas.js';
+import type { ActionScore, SolveResult } from './bellmanSolver.js';
+import { buildStrategyCard } from './strategyCard.js';
 
 // ============================================================================
 // Types

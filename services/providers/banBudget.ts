@@ -6,9 +6,9 @@
  * Opens circuit after ban_score >= 10, cooldown for 10 minutes.
  */
 
-import type { ProviderId, CircuitState, CircuitStatus, BanSignal } from './providerTypes';
-import { eventBus } from '../eventBus';
-import { incCounter, setGauge } from '../metricsCollector';
+import type { ProviderId, CircuitState, CircuitStatus, BanSignal } from './providerTypes.js';
+import { eventBus } from '../eventBus.js';
+import { incCounter, setGauge } from '../metricsCollector.js';
 
 // ============================================================================
 // Configuration

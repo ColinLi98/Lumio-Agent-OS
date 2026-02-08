@@ -1,6 +1,6 @@
-import type { SoulMatrix, EnhancedDigitalAvatar } from '../types';
-import { loadData, saveData, StorageKeys, getEnhancedDigitalAvatar, saveEnhancedDigitalAvatar } from './localStorageService';
-import type { DigitalTwinBootstrapSnapshot, DigitalSoulBootstrapSource } from './dtoe/bootstrapTypes';
+import type { SoulMatrix, EnhancedDigitalAvatar } from '../types.js';
+import { loadData, saveData, StorageKeys, getEnhancedDigitalAvatar, saveEnhancedDigitalAvatar } from './localStorageService.js';
+import type { DigitalTwinBootstrapSnapshot, DigitalSoulBootstrapSource } from './dtoe/bootstrapTypes.js';
 
 export type DigitalSoulStats = {
     styleWeights: Record<SoulMatrix['communicationStyle'], number>;

@@ -1,5 +1,5 @@
-import { buildApiUrl } from './apiBaseUrl';
-import { buildSerpApiEvidenceItems, normalizeSerpApiPayload } from './serpApiNormalizers';
+import { buildApiUrl } from './apiBaseUrl.js';
+import { buildSerpApiEvidenceItems, normalizeSerpApiPayload } from './serpApiNormalizers.js';
 import type {
     SerpApiDomain,
     SerpApiEngine,
@@ -7,7 +7,7 @@ import type {
     SerpApiExecuteRequest,
     SerpApiExecuteResponse,
     SerpApiFallbackMeta,
-} from './serpApiTypes';
+} from './serpApiTypes.js';
 
 const SERPAPI_ENDPOINT = 'https://serpapi.com/search.json';
 const DEFAULT_TTL_SECONDS = 180;

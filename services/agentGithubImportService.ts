@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { resetAgentMarketplace } from './agentMarketplaceService';
+import { resetAgentMarketplace } from './agentMarketplaceService.js';
 import type {
   AgentDescriptor,
   AgentDomain,
@@ -7,10 +7,10 @@ import type {
   EvidenceLevel,
   MarketVisibility,
   PricingModel,
-} from './agentMarketplaceTypes';
-import { githubAppService } from './githubAppService';
-import { lixAgentRegistryService } from './lixAgentRegistryService';
-import type { DeliveredAgentManifest, ReviewDecision } from './lixTypes';
+} from './agentMarketplaceTypes.js';
+import { githubAppService } from './githubAppService.js';
+import { lixAgentRegistryService } from './lixAgentRegistryService.js';
+import type { DeliveredAgentManifest, ReviewDecision } from './lixTypes.js';
 
 export interface GithubAgentManifestInput {
   name: string;

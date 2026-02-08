@@ -16,9 +16,9 @@ import {
   DestinySimulation,
   buildRewardFunction,
   calculateGamma
-} from '../prompts/destinyEngine';
-import { soulArchitect } from './soulArchitectService';
-import { tavilyService, TavilySearchResult } from './tavilyService';
+} from '../prompts/destinyEngine.js';
+import { soulArchitect } from './soulArchitectService.js';
+import { tavilyService, TavilySearchResult } from './tavilyService.js';
 
 // 实时数据增强接口
 interface RealTimeInsight {

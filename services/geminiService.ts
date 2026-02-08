@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { IntentCategory, IntentResult, ServiceCard, SoulMatrix, TextDraft, ToolResultData, TaskPlan, TaskStep, IntentContext } from "../types";
-import { AGENT_TOOLS, getToolByName, getGeminiFunctionDeclarations } from "./agentTools";
-import { selectModel, MODELS, analyzeTaskComplexity, logModelUsage, ModelSelectionConfig } from "./modelSelector";
+import { IntentCategory, IntentResult, ServiceCard, SoulMatrix, TextDraft, ToolResultData, TaskPlan, TaskStep, IntentContext } from "../types.js";
+import { AGENT_TOOLS, getToolByName, getGeminiFunctionDeclarations } from "./agentTools.js";
+import { selectModel, MODELS, analyzeTaskComplexity, logModelUsage, ModelSelectionConfig } from "./modelSelector.js";
 
 // Create AI instance dynamically with provided API key
 const getAI = (apiKey: string) => new GoogleGenAI({ apiKey });

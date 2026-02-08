@@ -6,9 +6,9 @@
  * Differentiates between hard bans (no retry) and soft failures (retry once).
  */
 
-import type { BanSignal, BanSeverity, RetryConfig, RetryResult, ProviderId } from './providerTypes';
-import { getAlternateFingerprint, generateFingerprint } from './fingerprintPolicy';
-import { incCounter } from '../metricsCollector';
+import type { BanSignal, BanSeverity, RetryConfig, RetryResult, ProviderId } from './providerTypes.js';
+import { getAlternateFingerprint, generateFingerprint } from './fingerprintPolicy.js';
+import { incCounter } from '../metricsCollector.js';
 
 // ============================================================================
 // Default Configuration

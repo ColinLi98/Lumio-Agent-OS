@@ -5,7 +5,7 @@
  * Standardizes different input formats into a unified signal structure.
  */
 
-import type { EvidencePack, EvidenceItem } from './coreSchemas';
+import type { EvidencePack, EvidenceItem } from './coreSchemas.js';
 
 // ============================================================================
 // Types

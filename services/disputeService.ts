@@ -5,8 +5,8 @@
  * Handles dispute opening, investigation, resolution, and penalties.
  */
 
-import { generateId } from './lixTypes';
-import { updateFeeStatus, getFeeByAcceptToken } from './acceptFeeService';
+import { generateId } from './lixTypes.js';
+import { updateFeeStatus, getFeeByAcceptToken } from './acceptFeeService.js';
 
 // ============================================================================
 // Types

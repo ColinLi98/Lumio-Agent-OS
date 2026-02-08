@@ -14,12 +14,12 @@ import {
     Severity,
     PENALTY_WEIGHTS,
     createChildSpan
-} from './lixTypes';
-import { reputationService } from './reputationService';
-import { checkUrlSafety, countRedirectHops } from './urlSafetyService';
-import { matchSKU } from './auctionEngine';
-import { classifyVertical, isEcommerceCompatible, getExpectedKind } from './verticalClassifier';
-import { eventBus } from './eventBus';
+} from './lixTypes.js';
+import { reputationService } from './reputationService.js';
+import { checkUrlSafety, countRedirectHops } from './urlSafetyService.js';
+import { matchSKU } from './auctionEngine.js';
+import { classifyVertical, isEcommerceCompatible, getExpectedKind } from './verticalClassifier.js';
+import { eventBus } from './eventBus.js';
 
 // ============================================================================
 // Provider Domain Configuration

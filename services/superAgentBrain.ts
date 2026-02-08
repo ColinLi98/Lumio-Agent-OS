@@ -8,9 +8,9 @@
  * 4. Synthesizes results into global optimal solutions
  */
 
-import { SpecializedAgentType } from '../types';
-import { SPECIALIZED_AGENTS, executeSpecializedAgent } from './specializedAgents';
-import { getEnhancedDigitalAvatar } from './localStorageService';
+import { SpecializedAgentType } from '../types.js';
+import { SPECIALIZED_AGENTS, executeSpecializedAgent } from './specializedAgents.js';
+import { getEnhancedDigitalAvatar } from './localStorageService.js';
 
 // ============================================================================
 // Types

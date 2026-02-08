@@ -8,12 +8,12 @@
  * Scores actions by: E[Utility] - ρ * CVaR(α)
  */
 
-import type { TwinState, GoalStack, Action } from './coreSchemas';
-import type { BeliefState, Particle } from './twinBeliefStore';
-import type { Scenario, ExogenousShock } from './scenarioEngine';
-import { sampleParticle, getPosteriorMeanState } from './twinBeliefStore';
-import { createScenarioGenerator, generateScenariosParallel } from './scenarioEngine';
-import { transition } from './transitionModel';
+import type { TwinState, GoalStack, Action } from './coreSchemas.js';
+import type { BeliefState, Particle } from './twinBeliefStore.js';
+import type { Scenario, ExogenousShock } from './scenarioEngine.js';
+import { sampleParticle, getPosteriorMeanState } from './twinBeliefStore.js';
+import { createScenarioGenerator, generateScenariosParallel } from './scenarioEngine.js';
+import { transition } from './transitionModel.js';
 
 // ============================================================================
 // Types

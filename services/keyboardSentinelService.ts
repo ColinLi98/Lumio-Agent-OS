@@ -3,9 +3,9 @@
  * Layer 1 本地实时意图检测与隐私保护
  */
 
-import { IntentType, PrivacyRiskType } from '../prompts/keyboardSentinel';
-import type { SentinelOutput } from '../prompts/keyboardSentinel';
-export type { SentinelOutput } from '../prompts/keyboardSentinel';
+import { IntentType, PrivacyRiskType } from '../prompts/keyboardSentinel.js';
+import type { SentinelOutput } from '../prompts/keyboardSentinel.js';
+export type { SentinelOutput } from '../prompts/keyboardSentinel.js';
 
 // ============================================================================
 // 隐私检测正则表达式

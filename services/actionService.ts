@@ -9,12 +9,12 @@
  * - execute_purchase: Trigger purchase flow
  */
 
-import { getTaskService } from './taskService';
-import { Task, TaskStatus, ActionType } from './taskTypes';
-import { getReminderStore } from './reminderStore';
-import { eventBus } from './eventBus';
-import { generateTraceId } from './traceContext';
-import { track } from './telemetryService';
+import { getTaskService } from './taskService.js';
+import { Task, TaskStatus, ActionType } from './taskTypes.js';
+import { getReminderStore } from './reminderStore.js';
+import { eventBus } from './eventBus.js';
+import { generateTraceId } from './traceContext.js';
+import { track } from './telemetryService.js';
 
 // ============================================================================
 // Types

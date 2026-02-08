@@ -16,14 +16,14 @@ import {
     generateNonce,
     createTraceContext,
     createChildSpan
-} from './lixTypes';
-import { validateOffer } from './offerValidator';
-import { rankOffers, canonicalizeSKU } from './auctionEngine';
-import { fanoutSearch, getAllCircuitStatuses } from './providers/providerRegistry';
-import type { MarketFanoutResult } from './providers/providerTypes';
-import { classifyVertical } from './verticalClassifier';
-import { routeIntent, generateFallback } from './intentRouterService';
-import type { RouteResult, FallbackResponse } from './intentRouterTypes';
+} from './lixTypes.js';
+import { validateOffer } from './offerValidator.js';
+import { rankOffers, canonicalizeSKU } from './auctionEngine.js';
+import { fanoutSearch, getAllCircuitStatuses } from './providers/providerRegistry.js';
+import type { MarketFanoutResult } from './providers/providerTypes.js';
+import { classifyVertical } from './verticalClassifier.js';
+import { routeIntent, generateFallback } from './intentRouterService.js';
+import type { RouteResult, FallbackResponse } from './intentRouterTypes.js';
 
 
 // ============================================================================

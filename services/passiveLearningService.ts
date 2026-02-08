@@ -10,8 +10,8 @@
  * - 不收集原始内容
  */
 
-import { getTypingObserver, TypingObserver, TypingMetrics } from './typingObserver';
-import { rememberThis, getMemR3Router } from './memr3Service';
+import { getTypingObserver, TypingObserver, TypingMetrics } from './typingObserver.js';
+import { rememberThis, getMemR3Router } from './memr3Service.js';
 
 // ============================================================================
 // Types
@@ -336,5 +336,5 @@ export function getPassiveLearningService(): PassiveLearningService {
 // Convenience Exports
 // ============================================================================
 
-export { TypingObserver, getTypingObserver } from './typingObserver';
-export type { TypingMetrics, TypingSession, TypingEvent } from './typingObserver';
+export { TypingObserver, getTypingObserver } from './typingObserver.js';
+export type { TypingMetrics, TypingSession, TypingEvent } from './typingObserver.js';

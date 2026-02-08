@@ -21,10 +21,10 @@ import {
     LIXEvent,
     generateId,
     createTraceContext
-} from './lixTypes';
-import { lixMarketService } from './marketService';
-import { settlementService, AcceptTokenRecord } from './settlementService';
-import { proofOfIntentService, ProofOfIntent } from './proofOfIntentService';
+} from './lixTypes.js';
+import { lixMarketService } from './marketService.js';
+import { settlementService, AcceptTokenRecord } from './settlementService.js';
+import { proofOfIntentService, ProofOfIntent } from './proofOfIntentService.js';
 
 // ============================================================================
 // Store Types

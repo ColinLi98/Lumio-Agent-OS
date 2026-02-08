@@ -6,7 +6,7 @@
  * Config-driven, not hardcoded - update here when sites change.
  */
 
-import type { ProviderId, SearchSelectors, DetailSelectors, ProviderConfig } from './providerTypes';
+import type { ProviderId, SearchSelectors, DetailSelectors, ProviderConfig } from './providerTypes.js';
 
 // ============================================================================
 // JD.com Selectors

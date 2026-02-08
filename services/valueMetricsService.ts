@@ -3,9 +3,9 @@
  * 聚合各服务的价值指标，用于展示 Lumi 学习进度
  */
 
-import { getMemR3Router, MemoryEntry } from './memr3Service';
-import { getPassiveLearningService, UserInsight } from './passiveLearningService';
-import { loadData, saveData } from './localStorageService';
+import { getMemR3Router, MemoryEntry } from './memr3Service.js';
+import { getPassiveLearningService, UserInsight } from './passiveLearningService.js';
+import { loadData, saveData } from './localStorageService.js';
 
 // ============================================================================
 // Types

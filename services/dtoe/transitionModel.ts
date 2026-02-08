@@ -9,7 +9,7 @@ import type {
     TwinState,
     Action,
     UncertaintyVariable,
-} from './coreSchemas';
+} from './coreSchemas.js';
 
 // ============================================================================
 // Exogenous Shocks

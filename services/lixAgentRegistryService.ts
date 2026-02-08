@@ -1,6 +1,6 @@
-import type { AgentDescriptor } from './agentMarketplaceTypes';
-import type { DeliveredAgentManifest, ReviewDecision } from './lixTypes';
-import { marketAnalyticsStore } from './marketAnalyticsStore';
+import type { AgentDescriptor } from './agentMarketplaceTypes.js';
+import type { DeliveredAgentManifest, ReviewDecision } from './lixTypes.js';
+import { marketAnalyticsStore } from './marketAnalyticsStore.js';
 
 interface ApprovedAgentRecord {
     manifest: DeliveredAgentManifest;

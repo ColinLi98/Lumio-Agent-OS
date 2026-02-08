@@ -18,8 +18,8 @@ import {
     PlanGenerationRequest,
     PlanGenerationResult,
     PlanMetadata,
-} from './planTypes';
-import { getSoulMatrixStore } from './soulMatrixStore';
+} from './planTypes.js';
+import { getSoulMatrixStore } from './soulMatrixStore.js';
 
 // ============================================================================
 // Constants

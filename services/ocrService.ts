@@ -4,7 +4,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import { MODELS, selectModel } from './modelSelector';
+import { MODELS, selectModel } from './modelSelector.js';
 
 // ============================================================================
 // Types

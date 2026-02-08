@@ -1,7 +1,7 @@
-import type { StoredSolutionIntent } from './lixStore';
-import type { DeliveredAgentManifest } from './lixTypes';
-import { recordInteraction } from './localStorageService';
-import { getDigitalSoulManager } from './digitalSoulManager';
+import type { StoredSolutionIntent } from './lixStore.js';
+import type { DeliveredAgentManifest } from './lixTypes.js';
+import { recordInteraction } from './localStorageService.js';
+import { getDigitalSoulManager } from './digitalSoulManager.js';
 
 const SYNC_MARKER_PREFIX = 'lix_agent_synced_';
 

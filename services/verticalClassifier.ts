@@ -6,8 +6,8 @@
  * Ensures ticketing intents don't get routed to e-commerce providers.
  */
 
-import type { IntentVertical, IntentKind } from './lixTypes';
-import { eventBus } from './eventBus';
+import type { IntentVertical, IntentKind } from './lixTypes.js';
+import { eventBus } from './eventBus.js';
 
 // ============================================================================
 // Classification Patterns (P0 - Rule-First)

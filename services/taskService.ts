@@ -19,8 +19,8 @@ import {
     generatePlanId,
     generateStepId,
     generateTraceId,
-} from './taskTypes';
-import { eventBus, LumiEvent } from './eventBus';
+} from './taskTypes.js';
+import { eventBus, LumiEvent } from './eventBus.js';
 
 // ============================================================================
 // Storage Keys
@@ -480,4 +480,4 @@ export type {
     TaskStatus,
     TaskCategory,
     TaskConstraints,
-} from './taskTypes';
+} from './taskTypes.js';

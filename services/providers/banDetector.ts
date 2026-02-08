@@ -6,9 +6,9 @@
  * Returns BanSignal with severity and recommended action.
  */
 
-import type { BanSignal, BanReason, BanSeverity, ProviderId } from './providerTypes';
-import { eventBus } from '../eventBus';
-import { incCounter } from '../metricsCollector';
+import type { BanSignal, BanReason, BanSeverity, ProviderId } from './providerTypes.js';
+import { eventBus } from '../eventBus.js';
+import { incCounter } from '../metricsCollector.js';
 
 // ============================================================================
 // Ban Detection Keywords

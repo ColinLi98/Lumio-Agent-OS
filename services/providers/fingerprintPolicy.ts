@@ -6,7 +6,7 @@
  * Config-driven fingerprint selection.
  */
 
-import type { BrowserFingerprint, ProviderId } from './providerTypes';
+import type { BrowserFingerprint, ProviderId } from './providerTypes.js';
 
 // ============================================================================
 // User Agent Pools

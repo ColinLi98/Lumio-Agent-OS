@@ -19,12 +19,12 @@ import type {
     PlanBuildResult,
     EvidenceLevel,
     CostTier,
-} from './agentMarketplaceTypes';
-import { getToolRegistry } from './toolRegistry';
-import { getSkillRegistry, type Skill } from './skillRegistry';
-import { SPECIALIZED_AGENTS, getSpecializedAgentRuntimeStats } from './specializedAgents';
-import type { SpecializedAgentType } from '../types';
-import { lixAgentRegistryService } from './lixAgentRegistryService';
+} from './agentMarketplaceTypes.js';
+import { getToolRegistry } from './toolRegistry.js';
+import { getSkillRegistry, type Skill } from './skillRegistry.js';
+import { SPECIALIZED_AGENTS, getSpecializedAgentRuntimeStats } from './specializedAgents.js';
+import type { SpecializedAgentType } from '../types.js';
+import { lixAgentRegistryService } from './lixAgentRegistryService.js';
 
 // ============================================================================
 // Constants & Defaults

@@ -6,7 +6,7 @@
  * Generates exogenous shocks and execution flags.
  */
 
-import type { ExogenousShock, TwinParams, ParamKey } from './twinTypes';
+import type { ExogenousShock, TwinParams, ParamKey } from './twinTypes.js';
 
 // ============================================================================
 // Types

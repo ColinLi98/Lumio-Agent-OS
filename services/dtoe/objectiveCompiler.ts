@@ -14,7 +14,7 @@ import type {
     MetricType,
     ValuesWeights,
     HardConstraints,
-} from './coreSchemas';
+} from './coreSchemas.js';
 
 // ============================================================================
 // Types

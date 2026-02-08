@@ -9,13 +9,13 @@
  * - PII redaction before external calls
  */
 
-import { sanitizeForExternalSearch, redactPII } from './piiRedactor';
-import { classifyFreshness } from './freshnessClassifier';
+import { sanitizeForExternalSearch, redactPII } from './piiRedactor.js';
+import { classifyFreshness } from './freshnessClassifier.js';
 import type {
     EvidencePack as DtoeEvidencePack,
     EvidenceItem as DtoeEvidenceItem,
     EvidenceProvider as DtoeEvidenceProvider,
-} from './dtoe/coreSchemas';
+} from './dtoe/coreSchemas.js';
 
 // ============================================================================
 // Types

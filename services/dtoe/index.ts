@@ -38,13 +38,13 @@ export type {
     HardConstraints,
     TrustMetadata,
     GoalStackConstraints,
-} from './coreSchemas';
+} from './coreSchemas.js';
 
 export {
     generateId,
     createDefaultTwinState,
     createDefaultGoalStack,
-} from './coreSchemas';
+} from './coreSchemas.js';
 
 // ============================================================================
 // Schema Validators
@@ -59,9 +59,9 @@ export {
     validateStrategyCard,
     validateEvidenceGate,
     isEvidenceFresh,
-} from './schemaValidators';
+} from './schemaValidators.js';
 
-export type { ValidationResult } from './schemaValidators';
+export type { ValidationResult } from './schemaValidators.js';
 
 // ============================================================================
 // Transition Model
@@ -73,9 +73,9 @@ export {
     generateShockBundle,
     sampleVariable,
     sampleShockBundle,
-} from './transitionModel';
+} from './transitionModel.js';
 
-export type { ExogenousShock } from './transitionModel';
+export type { ExogenousShock } from './transitionModel.js';
 
 // ============================================================================
 // Belief Store (v0.2)
@@ -92,14 +92,14 @@ export {
     sampleParticle,
     verifyNormalized,
     SeededRNG,
-} from './twinBeliefStore';
+} from './twinBeliefStore.js';
 
 export type {
     Particle,
     ParticleParams,
     BeliefState,
     PosteriorSummary,
-} from './twinBeliefStore';
+} from './twinBeliefStore.js';
 
 // ============================================================================
 // Scenario Engine (v0.2)
@@ -116,7 +116,7 @@ export {
     getShocksByCategory,
     DEFAULT_SCENARIO_CONFIG,
     SHOCK_LIBRARY,
-} from './scenarioEngine';
+} from './scenarioEngine.js';
 
 export type {
     ExogenousShock as ScenarioShock,
@@ -128,7 +128,7 @@ export type {
     ShockEvent,
     MarketRegime,
     ImportanceSampling,
-} from './scenarioEngine';
+} from './scenarioEngine.js';
 
 // ============================================================================
 // Bellman Solver (v0.2)
@@ -144,7 +144,7 @@ export {
     DEFAULT_SOLVER_CONFIG,
     clearSolverCache,
     getCacheStats,
-} from './bellmanSolver';
+} from './bellmanSolver.js';
 
 export type {
     ActionTemplate,
@@ -153,7 +153,7 @@ export type {
     SolveResult,
     SolverConfig,
     SolveOptions,
-} from './bellmanSolver';
+} from './bellmanSolver.js';
 
 // ============================================================================
 // Monte Carlo Evaluator (v0.1 - legacy)
@@ -162,13 +162,13 @@ export type {
 export {
     evaluateActions,
     generateCandidateActions as generateCandidateActionsV1,
-} from './monteCarloEvaluator';
+} from './monteCarloEvaluator.js';
 
 export type {
     ActionScore as ActionScoreV1,
     EvaluatorOptions,
     EvaluatorResult,
-} from './monteCarloEvaluator';
+} from './monteCarloEvaluator.js';
 
 // ============================================================================
 // Decision Explainer (v0.2)
@@ -181,7 +181,7 @@ export {
     analyzeSensitivity,
     generateAuditTrail,
     validateExplanationCard,
-} from './decisionExplainer';
+} from './decisionExplainer.js';
 
 export type {
     ExplanationCard,
@@ -195,7 +195,7 @@ export type {
     WhyNotDifference,
     SensitivityResult,
     DecisionAuditTrail,
-} from './decisionExplainer';
+} from './decisionExplainer.js';
 
 // ============================================================================
 // Strategy Card
@@ -206,9 +206,9 @@ export {
     createFallback,
     serializeStrategyCard,
     formatStrategyCardForUI,
-} from './strategyCard';
+} from './strategyCard.js';
 
-export type { BuildStrategyCardInput, FallbackInput } from './strategyCard';
+export type { BuildStrategyCardInput, FallbackInput } from './strategyCard.js';
 
 // ============================================================================
 // Destiny Engine (v0.2)
@@ -218,7 +218,7 @@ export {
     DestinyEngine,
     getDestinyEngine,
     resetDestinyEngine,
-} from './destinyEngine';
+} from './destinyEngine.js';
 
 export type {
     RecommendationInput,
@@ -226,7 +226,7 @@ export type {
     RecommendationDiagnostics,
     OutcomeRecord,
     StateSummary,
-} from './destinyEngine';
+} from './destinyEngine.js';
 
 // ============================================================================
 // Vertex Grounding Parser
@@ -236,9 +236,9 @@ export {
     parseVertexGrounding,
     filterEcommerceForTicketing,
     mergeEvidencePacks,
-} from './vertexGroundingParser';
+} from './vertexGroundingParser.js';
 
-export type { ParseOptions } from './vertexGroundingParser';
+export type { ParseOptions } from './vertexGroundingParser.js';
 
 // ============================================================================
 // DTOE Events (v0.2)
@@ -254,10 +254,10 @@ export {
     getDebugPanelData,
     recordPerformance,
     getPerformanceSummary,
-} from './dtoeEvents';
+} from './dtoeEvents.js';
 
 export type {
     DtoeEvent,
     DtoeEventType,
     DebugPanelData,
-} from './dtoeEvents';
+} from './dtoeEvents.js';

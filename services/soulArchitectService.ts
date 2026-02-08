@@ -3,9 +3,9 @@
  * 基于行为数据构建和更新用户数字孪生画像
  */
 
-import { SoulMatrix, ValueType, createDefaultSoulMatrix } from '../prompts/soulArchitect';
-import { SentinelOutput } from './keyboardSentinelService';
-import { IntentType } from '../prompts/keyboardSentinel';
+import { SoulMatrix, ValueType, createDefaultSoulMatrix } from '../prompts/soulArchitect.js';
+import { SentinelOutput } from './keyboardSentinelService.js';
+import { IntentType } from '../prompts/keyboardSentinel.js';
 
 // ============================================================================
 // 类型定义

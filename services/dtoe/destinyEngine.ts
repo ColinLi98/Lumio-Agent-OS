@@ -7,25 +7,25 @@
  * Supports closed-loop learning via recordOutcome.
  */
 
-import type { TwinState, GoalStack, Observation, EvidencePack, StrategyCard, Action } from './coreSchemas';
-import { createDefaultGoalStack } from './coreSchemas';
-import type { BeliefState } from './twinBeliefStore';
+import type { TwinState, GoalStack, Observation, EvidencePack, StrategyCard, Action } from './coreSchemas.js';
+import { createDefaultGoalStack } from './coreSchemas.js';
+import type { BeliefState } from './twinBeliefStore.js';
 import {
     createBeliefState,
     createBeliefStateFromBootstrap,
     updateBeliefWithEvidence,
     getPosteriorSummary,
     computeESS,
-} from './twinBeliefStore';
-import type { SolveResult } from './bellmanSolver';
-import { solveBellmanWithOptionsAsync } from './bellmanSolver';
-import type { ExplainerOutput } from './decisionExplainer';
-import { generateExplanation, validateExplanationCard } from './decisionExplainer';
-import { validateEvidenceGate, isEvidenceFresh } from './schemaValidators';
-import { logDtoeEvent } from './dtoeEvents';
-import { calibrateAndApply } from './calibrationService';
-import { mapEvidencePackToObservation } from './observationMapper';
-import type { DigitalTwinBootstrapSnapshot } from './bootstrapTypes';
+} from './twinBeliefStore.js';
+import type { SolveResult } from './bellmanSolver.js';
+import { solveBellmanWithOptionsAsync } from './bellmanSolver.js';
+import type { ExplainerOutput } from './decisionExplainer.js';
+import { generateExplanation, validateExplanationCard } from './decisionExplainer.js';
+import { validateEvidenceGate, isEvidenceFresh } from './schemaValidators.js';
+import { logDtoeEvent } from './dtoeEvents.js';
+import { calibrateAndApply } from './calibrationService.js';
+import { mapEvidencePackToObservation } from './observationMapper.js';
+import type { DigitalTwinBootstrapSnapshot } from './bootstrapTypes.js';
 
 // ============================================================================
 // Types

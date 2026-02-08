@@ -18,7 +18,7 @@ import type {
     DistributionType,
     EvidenceProvider,
     TailRiskMetric,
-} from './coreSchemas';
+} from './coreSchemas.js';
 
 // ============================================================================
 // Validation Result

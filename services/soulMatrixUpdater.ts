@@ -10,10 +10,10 @@ import {
     TRAIT_KEYS,
     TRAIT_METADATA,
     TraitCategory,
-} from './soulTraitTypes';
-import { getSoulMatrixStore } from './soulMatrixStore';
-import { Evidence, EvidenceType } from './evidenceTypes';
-import { getMemoryLedger } from './memoryLedger';
+} from './soulTraitTypes.js';
+import { getSoulMatrixStore } from './soulMatrixStore.js';
+import { Evidence, EvidenceType } from './evidenceTypes.js';
+import { getMemoryLedger } from './memoryLedger.js';
 
 // ============================================================================
 // Types

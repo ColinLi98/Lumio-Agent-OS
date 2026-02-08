@@ -6,7 +6,7 @@
  * anti-fingerprinting, rate limiting, and reliability patterns.
  */
 
-import { eventBus } from '../eventBus';
+import { eventBus } from '../eventBus.js';
 
 // ============================================================================
 // Types

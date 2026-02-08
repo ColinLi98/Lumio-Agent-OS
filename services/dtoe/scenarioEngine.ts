@@ -6,7 +6,7 @@
  * Uses seeded PRNG for regression test stability.
  */
 
-import { SeededRNG } from './twinBeliefStore';
+import { SeededRNG } from './twinBeliefStore.js';
 
 // ============================================================================
 // Types

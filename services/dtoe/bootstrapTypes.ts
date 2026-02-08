@@ -1,4 +1,4 @@
-import type { SoulMatrix } from '../../types';
+import type { SoulMatrix } from '../../types.js';
 
 export type DigitalSoulBootstrapSource = 'questionnaire' | 'import' | 'skip' | 'passive';
 

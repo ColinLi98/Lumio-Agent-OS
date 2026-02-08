@@ -10,8 +10,8 @@
  * - Accept Fee integration (1% of transaction)
  */
 
-import { reputationService } from './reputationService';
-import { recordAcceptFee } from './acceptFeeService';
+import { reputationService } from './reputationService.js';
+import { recordAcceptFee } from './acceptFeeService.js';
 
 // ============================================================================
 // Types

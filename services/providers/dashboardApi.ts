@@ -5,10 +5,10 @@
  * For beta: exposes provider health, circuit status, and fee metrics.
  */
 
-import { getAllCircuitStatuses } from './providerRegistry';
-import { getProxyStats } from './proxyPolicy';
-import { getAcceptFeeStats, getProviderBalance } from '../acceptFeeService';
-import { getDisputeStats, getProviderPenalties, isProviderBanned } from '../disputeService';
+import { getAllCircuitStatuses } from './providerRegistry.js';
+import { getProxyStats } from './proxyPolicy.js';
+import { getAcceptFeeStats, getProviderBalance } from '../acceptFeeService.js';
+import { getDisputeStats, getProviderPenalties, isProviderBanned } from '../disputeService.js';
 
 // ============================================================================
 // Types

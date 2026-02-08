@@ -8,9 +8,9 @@
  * P(state | obs) ∝ P(obs | state) × P(state)
  */
 
-import type { TwinState } from './coreSchemas';
-import type { Particle } from './twinBeliefStore';
-import type { TwinObservation, ObservationSignal } from './observationMapper';
+import type { TwinState } from './coreSchemas.js';
+import type { Particle } from './twinBeliefStore.js';
+import type { TwinObservation, ObservationSignal } from './observationMapper.js';
 
 // ============================================================================
 // Types

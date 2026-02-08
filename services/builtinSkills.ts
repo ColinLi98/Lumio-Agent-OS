@@ -9,8 +9,8 @@ import {
     Skill,
     SkillResult,
     ExecutionContext
-} from './skillRegistry';
-import { getMemR3Router } from './memr3Service';
+} from './skillRegistry.js';
+import { getMemR3Router } from './memr3Service.js';
 import { GoogleGenAI, Type } from '@google/genai';
 
 // ============================================================================

@@ -16,12 +16,12 @@ import {
     ConsolidatedResult,
     OrchestrationSection,
     SpecializedAgentType
-} from '../types';
-import { getUserPreferences } from './personalizationService';
-import { getEnhancedDigitalAvatar } from './localStorageService';
-import { executeSpecializedAgent, SPECIALIZED_AGENTS } from './specializedAgents';
-import { getAgentMarketplace, detectDomain } from './agentMarketplaceService';
-import type { AgentDomain } from './agentMarketplaceTypes';
+} from '../types.js';
+import { getUserPreferences } from './personalizationService.js';
+import { getEnhancedDigitalAvatar } from './localStorageService.js';
+import { executeSpecializedAgent, SPECIALIZED_AGENTS } from './specializedAgents.js';
+import { getAgentMarketplace, detectDomain } from './agentMarketplaceService.js';
+import type { AgentDomain } from './agentMarketplaceTypes.js';
 
 /**
  * Agent Orchestrator - 协调多个专业Agent完成复杂任务

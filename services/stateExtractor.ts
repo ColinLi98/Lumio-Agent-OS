@@ -12,8 +12,8 @@ import {
     BehaviorPatterns,
     ValuesProfile,
     AppContext
-} from '../types';
-import { getEnhancedDigitalAvatar } from './localStorageService';
+} from '../types.js';
+import { getEnhancedDigitalAvatar } from './localStorageService.js';
 
 // ============================================================================
 // Life State Definition

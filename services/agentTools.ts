@@ -1,4 +1,4 @@
-import { DecisionMeta } from '../types';
+import { DecisionMeta } from '../types.js';
 
 /**
  * Agent Tools - Define callable tools for Super Agent

@@ -6,8 +6,8 @@
  * Used for belief state updates.
  */
 
-import type { EvidenceType as BaseEvidenceType } from './evidenceTypes';
-import type { StateKey, ParamKey } from './twinTypes';
+import type { EvidenceType as BaseEvidenceType } from './evidenceTypes.js';
+import type { StateKey, ParamKey } from './twinTypes.js';
 
 // ============================================================================
 // DTOE Evidence Types (extends base)

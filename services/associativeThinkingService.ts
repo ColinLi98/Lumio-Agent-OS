@@ -5,7 +5,7 @@
  * Generates intelligent associative suggestions for all types of user queries
  */
 
-import { AssociatedSuggestion } from '../types';
+import { AssociatedSuggestion } from '../types.js';
 
 // 场景关键词映射
 const SCENARIO_KEYWORDS = {

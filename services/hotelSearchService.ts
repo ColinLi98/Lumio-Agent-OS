@@ -9,7 +9,7 @@
  * Uses the same SerpApi proxy (/api/serpapi) as flightSearchService.ts.
  */
 
-import { executeSerpApi } from './serpApiClient';
+import { executeSerpApi } from './serpApiClient.js';
 
 // ============================================================================
 // Types

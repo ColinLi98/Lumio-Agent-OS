@@ -6,7 +6,7 @@
  * These types do NOT modify the v0.2 frozen contract.
  */
 
-import type { IntentRequest, Offer, PriceInfo, FulfillmentInfo } from '../lixTypes';
+import type { IntentRequest, Offer, PriceInfo, FulfillmentInfo } from '../lixTypes.js';
 
 // ============================================================================
 // Provider Identifiers

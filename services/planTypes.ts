@@ -7,7 +7,7 @@
  * 3. Follow-up: Monitoring conditions
  */
 
-import { ActionType } from './taskTypes';
+import { ActionType } from './taskTypes.js';
 
 // ============================================================================
 // Three-Stage Plan Schema

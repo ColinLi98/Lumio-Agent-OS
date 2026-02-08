@@ -11,9 +11,9 @@ import {
   NavigatorRecommendation,
   DestinyReportSummary,
   UserPersonaSummary
-} from '../prompts/personalNavigator';
-import { DecisionImpactReport } from '../prompts/destinyEngine';
-import { soulArchitect } from './soulArchitectService';
+} from '../prompts/personalNavigator.js';
+import { DecisionImpactReport } from '../prompts/destinyEngine.js';
+import { soulArchitect } from './soulArchitectService.js';
 
 // ============================================================================
 // 回复模板

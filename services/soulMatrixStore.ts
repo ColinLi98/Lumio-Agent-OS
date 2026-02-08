@@ -13,8 +13,8 @@ import {
     TRAIT_METADATA,
     generateTraitId,
     generateActionId,
-} from './soulTraitTypes';
-import { eventBus } from './eventBus';
+} from './soulTraitTypes.js';
+import { eventBus } from './eventBus.js';
 
 // ============================================================================
 // Objective Weights (W3-3)
@@ -582,4 +582,4 @@ export function getSoulMatrixStore(): SoulMatrixStore {
 // ============================================================================
 
 export { SoulMatrixStore };
-export type { SoulTrait, SoulTraitAction } from './soulTraitTypes';
+export type { SoulTrait, SoulTraitAction } from './soulTraitTypes.js';

@@ -10,10 +10,10 @@ import {
     AgentTask,
     AgentTaskResult,
     SpecializedAgentType
-} from '../types';
-import { searchFlights, FlightSearchParams } from './flightSearchService';
-import { getEnhancedDigitalAvatar } from './localStorageService';
-import { getUserPreferences } from './personalizationService';
+} from '../types.js';
+import { searchFlights, FlightSearchParams } from './flightSearchService.js';
+import { getEnhancedDigitalAvatar } from './localStorageService.js';
+import { getUserPreferences } from './personalizationService.js';
 
 type TravelPreferenceSnapshot = {
     priceVsQuality: number;

@@ -6,16 +6,16 @@
 import type {
     ProviderAdapter, ProviderSearchInput, CandidateItem,
     DetailExtractionResult, OfferBuildInput, ProviderId, InventorySignal
-} from './providerTypes';
-import { generateOfferId, extractKeywords } from './providerTypes';
-import type { Offer } from '../lixTypes';
-import { getCachedSearch, setCachedSearch, getCachedDetail, setCachedDetail } from './scrapeCache';
-import { canMakeRequest } from './rateLimiter';
-import { isCircuitOpen, recordBanSignal, recordSuccess } from './banBudget';
-import { headlessFetch } from './headlessPool';
-import { getProviderConfig, buildSearchUrl } from './selectorPolicy';
-import { eventBus } from '../eventBus';
-import { incCounter, observeHistogram } from '../metricsCollector';
+} from './providerTypes.js';
+import { generateOfferId, extractKeywords } from './providerTypes.js';
+import type { Offer } from '../lixTypes.js';
+import { getCachedSearch, setCachedSearch, getCachedDetail, setCachedDetail } from './scrapeCache.js';
+import { canMakeRequest } from './rateLimiter.js';
+import { isCircuitOpen, recordBanSignal, recordSuccess } from './banBudget.js';
+import { headlessFetch } from './headlessPool.js';
+import { getProviderConfig, buildSearchUrl } from './selectorPolicy.js';
+import { eventBus } from '../eventBus.js';
+import { incCounter, observeHistogram } from '../metricsCollector.js';
 
 const PROVIDER_ID: ProviderId = 'taobao';
 const MAX_CANDIDATES = 10;

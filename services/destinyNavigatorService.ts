@@ -16,10 +16,10 @@
  * - 折扣因子 γ：远见程度 (0.95 = 极度远见)
  */
 
-import { SoulMatrix, EnhancedDigitalAvatar, ValuesProfile, PersonalityTraits, LifeStateSnapshot } from '../types';
-import { getEnhancedDigitalAvatar } from './localStorageService';
-import { inferGamma } from './bellmanLifeService';
-import { getDigitalSoulManager, DEFAULT_LIFE_STATE } from './digitalSoulManager';
+import { SoulMatrix, EnhancedDigitalAvatar, ValuesProfile, PersonalityTraits, LifeStateSnapshot } from '../types.js';
+import { getEnhancedDigitalAvatar } from './localStorageService.js';
+import { inferGamma } from './bellmanLifeService.js';
+import { getDigitalSoulManager, DEFAULT_LIFE_STATE } from './digitalSoulManager.js';
 
 // ============================================================================
 // 人生状态空间定义 (Life State Space)

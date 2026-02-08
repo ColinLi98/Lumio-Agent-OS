@@ -17,7 +17,7 @@ export type {
     GoalStack,
     Observation,
     ObservationType,
-} from './dtoe/coreSchemas';
+} from './dtoe/coreSchemas.js';
 
 // ============================================================================
 // Subject Types

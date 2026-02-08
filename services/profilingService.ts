@@ -6,7 +6,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import { Tool } from './toolRegistry';
+import { Tool } from './toolRegistry.js';
 
 // ============================================================================
 // Types

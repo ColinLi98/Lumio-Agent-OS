@@ -1,12 +1,12 @@
-import { DecisionMeta, SoulMatrix, ServiceCard, TextDraft, OrchestrationPlan, SuperAgentSolution } from '../types';
-import { getUserPreferences } from './personalizationService';
-import { extractRoute } from './superAgentBrain';
-import { getEnhancedDigitalAvatar } from './localStorageService';
-import { BellmanContext, runBellmanPolicy } from './bellmanPolicyService';
-import { soulArchitect } from './soulArchitectService';
-import { createBeliefState } from './dtoe/twinBeliefStore';
-import { createDefaultGoalStack } from './dtoe/coreSchemas';
-import { solveBellmanWithOptions } from './dtoe/bellmanSolver';
+import { DecisionMeta, SoulMatrix, ServiceCard, TextDraft, OrchestrationPlan, SuperAgentSolution } from '../types.js';
+import { getUserPreferences } from './personalizationService.js';
+import { extractRoute } from './superAgentBrain.js';
+import { getEnhancedDigitalAvatar } from './localStorageService.js';
+import { BellmanContext, runBellmanPolicy } from './bellmanPolicyService.js';
+import { soulArchitect } from './soulArchitectService.js';
+import { createBeliefState } from './dtoe/twinBeliefStore.js';
+import { createDefaultGoalStack } from './dtoe/coreSchemas.js';
+import { solveBellmanWithOptions } from './dtoe/bellmanSolver.js';
 
 // 职业决策关键词
 const CAREER_KEYWORDS = ['辞职', '跳槽', '离职', '创业', '换工作', '找工作', '转行', '裸辞', '面试', '简历', 'offer', '加薪', '升职'];

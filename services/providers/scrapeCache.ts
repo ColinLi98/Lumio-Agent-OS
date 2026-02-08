@@ -6,9 +6,9 @@
  * The #1 anti-ban lever - prefer cached data to avoid repeated requests.
  */
 
-import type { ProviderId, CandidateItem, DetailExtractionResult, ScrapeLayer } from './providerTypes';
-import { buildSearchCacheKey, buildDetailCacheKey } from './providerTypes';
-import { incCounter } from '../metricsCollector';
+import type { ProviderId, CandidateItem, DetailExtractionResult, ScrapeLayer } from './providerTypes.js';
+import { buildSearchCacheKey, buildDetailCacheKey } from './providerTypes.js';
+import { incCounter } from '../metricsCollector.js';
 
 // ============================================================================
 // Configuration

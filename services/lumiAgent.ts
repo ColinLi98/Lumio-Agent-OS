@@ -11,22 +11,22 @@ import {
   TaskPlan,
   TaskStep,
   OrchestrationPlan
-} from "../types";
-import * as GeminiService from "./geminiService";
-import { ConversationMessage } from "./geminiService";
-import { getToolByName, enrichWithSuggestions } from "./agentTools";
-import { trackAiCall } from "../components/PrivacyPanel";
-import { recordInteraction, addInterestTag } from "./localStorageService";
-import { checkAgentBoundary, InteractionLevel, BoundaryCheckResult } from "./agentBoundary";
-import { recordTrustAction } from "./trustScoreService";
-import { createOrchestrator } from "./agentOrchestrator";
-import { superAgentOrchestrate, analyzeAndDecompose, extractDepartureDate, extractRoute } from "./superAgentBrain";
-import { buildDecisionForAgentOutput } from "./optimalAnswerService";
-import { quickAssociate } from "./associativeThinkingService";
-import { getRecommendationForQuery, inferGamma, ActionRecommendation } from "./bellmanLifeService";
-import { extractCurrentState } from "./stateExtractor";
-import { getEnhancedDigitalAvatar } from "./localStorageService";
-import { tavilyService, TavilySearchResult } from "./tavilyService";
+} from "../types.js";
+import * as GeminiService from "./geminiService.js";
+import { ConversationMessage } from "./geminiService.js";
+import { getToolByName, enrichWithSuggestions } from "./agentTools.js";
+import { trackAiCall } from "../components/PrivacyPanel.js";
+import { recordInteraction, addInterestTag } from "./localStorageService.js";
+import { checkAgentBoundary, InteractionLevel, BoundaryCheckResult } from "./agentBoundary.js";
+import { recordTrustAction } from "./trustScoreService.js";
+import { createOrchestrator } from "./agentOrchestrator.js";
+import { superAgentOrchestrate, analyzeAndDecompose, extractDepartureDate, extractRoute } from "./superAgentBrain.js";
+import { buildDecisionForAgentOutput } from "./optimalAnswerService.js";
+import { quickAssociate } from "./associativeThinkingService.js";
+import { getRecommendationForQuery, inferGamma, ActionRecommendation } from "./bellmanLifeService.js";
+import { extractCurrentState } from "./stateExtractor.js";
+import { getEnhancedDigitalAvatar } from "./localStorageService.js";
+import { tavilyService, TavilySearchResult } from "./tavilyService.js";
 
 // 需要实时数据的关键词
 const REALTIME_DATA_KEYWORDS = [

@@ -1,10 +1,10 @@
-import type { AgentDomain, MarketVisibility, PricingModel } from './agentMarketplaceTypes';
+import type { AgentDomain, MarketVisibility, PricingModel } from './agentMarketplaceTypes.js';
 import {
   marketAnalyticsStore,
   type MarketAgentProfile,
   type MarketUsageEvent,
   type UsageWindowAggregate,
-} from './marketAnalyticsStore';
+} from './marketAnalyticsStore.js';
 
 export type LeaderboardWindow = '7d' | '30d';
 export type TrendWindow = '7d' | '30d' | '90d';

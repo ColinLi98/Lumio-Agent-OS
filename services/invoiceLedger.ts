@@ -11,7 +11,7 @@
  * Production: PostgreSQL or Redis
  */
 
-import { generateId } from './lixTypes';
+import { generateId } from './lixTypes.js';
 
 // ============================================================================
 // Types

@@ -7,7 +7,7 @@
  * - 生成个性化推荐理由
  */
 
-import { getEnhancedDigitalAvatar, getDigitalAvatar, getInteractions } from './localStorageService';
+import { getEnhancedDigitalAvatar, getDigitalAvatar, getInteractions } from './localStorageService.js';
 
 // 用户偏好配置文件
 export interface UserPreferences {

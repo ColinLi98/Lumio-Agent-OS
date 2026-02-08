@@ -17,7 +17,7 @@ import type {
     TwinState,
     TwinParams,
     Particle,
-} from './twinTypes';
+} from './twinTypes.js';
 import {
     generateScenarios,
     generateShockBundle,
@@ -26,15 +26,15 @@ import {
     type ScenarioSpec,
     type ScenarioBundle,
     type ShockBundle,
-} from './scenarioEngine';
-import { transition, checkFeasibility } from './transition';
+} from './scenarioEngine.js';
+import { transition, checkFeasibility } from './transition.js';
 import {
     computeRiskMetrics,
     computeRiskMetricsWeighted,
     computeRiskAdjustedScore,
     type RiskMetrics
-} from './riskModels';
-import { getMeanState, getMeanParams } from './twinBeliefStore';
+} from './riskModels.js';
+import { getMeanState, getMeanParams } from './twinBeliefStore.js';
 
 // ============================================================================
 // Configuration
@@ -480,7 +480,7 @@ function rolloutScenarioWithSample(
 // Explanation Generation
 // ============================================================================
 
-import type { DecisionExplanation, ObjectiveWeights } from './twinTypes';
+import type { DecisionExplanation, ObjectiveWeights } from './twinTypes.js';
 
 /**
  * Generate human-readable explanation

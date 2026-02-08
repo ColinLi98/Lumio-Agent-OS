@@ -5,7 +5,7 @@
  * Grounding: Connects model outputs to verifiable sources
  */
 
-import type { EvidencePack, EvidenceItem, EvidenceProvider } from './coreSchemas';
+import type { EvidencePack, EvidenceItem, EvidenceProvider } from './coreSchemas.js';
 
 // ============================================================================
 // Vertex AI Grounding Response Types

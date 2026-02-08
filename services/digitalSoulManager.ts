@@ -23,7 +23,7 @@ import {
     ValuesProfile,
     UserInteraction,
     Milestone
-} from '../types';
+} from '../types.js';
 
 import {
     getEnhancedDigitalAvatar,
@@ -31,19 +31,19 @@ import {
     StorageKeys,
     loadData,
     saveData
-} from './localStorageService';
+} from './localStorageService.js';
 
 import {
     getDigitalSoul,
     saveDigitalSoul,
     getDigitalSoulStats
-} from './digitalSoulService';
+} from './digitalSoulService.js';
 
 import {
     LifeSnapshot as NavigatorLifeSnapshot,
     LifeMilestone,
     updateLifeState
-} from './destinyNavigatorService';
+} from './destinyNavigatorService.js';
 
 // ============================================================================
 // 常量与默认值

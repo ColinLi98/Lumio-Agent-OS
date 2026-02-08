@@ -6,9 +6,9 @@
  * enabling uncertainty quantification and Bayesian updates.
  */
 
-import type { TwinState, Observation, UncertaintyVariable } from './coreSchemas';
-import { createDefaultTwinState } from './coreSchemas';
-import type { DigitalTwinBootstrapSnapshot } from './bootstrapTypes';
+import type { TwinState, Observation, UncertaintyVariable } from './coreSchemas.js';
+import { createDefaultTwinState } from './coreSchemas.js';
+import type { DigitalTwinBootstrapSnapshot } from './bootstrapTypes.js';
 
 // ============================================================================
 // Types

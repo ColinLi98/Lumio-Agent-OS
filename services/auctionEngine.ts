@@ -9,8 +9,8 @@ import {
     RankedOffer,
     ScoreBreakdown,
     ValidationPipelineResult
-} from './lixTypes';
-import { calculateValidationPenalty } from './offerValidator';
+} from './lixTypes.js';
+import { calculateValidationPenalty } from './offerValidator.js';
 
 // ============================================================================
 // SKU Canonicalization
