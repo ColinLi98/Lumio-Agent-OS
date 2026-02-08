@@ -13,7 +13,7 @@ const ALLOWED_ENGINES: SerpApiEngine[] = [
 
 function withCors(res: VercelResponse): void {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -44,13 +44,45 @@ function sanitizeRequest(body: any): SerpApiExecuteRequest | null {
     };
 }
 
+function resolveServerKeySource(): 'SERPAPI_API_KEY' | 'SERPAPI_KEY' | 'default' | 'none' {
+    if (typeof process !== 'undefined' && process.env?.SERPAPI_API_KEY) return 'SERPAPI_API_KEY';
+    if (typeof process !== 'undefined' && process.env?.SERPAPI_KEY) return 'SERPAPI_KEY';
+    return 'default';
+}
+
+function firstQueryParam(value: string | string[] | undefined): string {
+    if (Array.isArray(value)) return String(value[0] || '');
+    return String(value || '');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
     withCors(res);
-
     if (req.method === 'OPTIONS') {
         res.status(200).end();
         return;
     }
+
+    const action = firstQueryParam(req.query?.action).trim();
+
+    if (action === 'status') {
+        return handleStatus(req, res);
+    }
+    if (action === 'execute') {
+        return handleExecute(req, res);
+    }
+    res.status(404).json({ success: false, error: `Unknown serpapi action: ${action}` });
+}
+
+async function handleStatus(_req: VercelRequest, res: VercelResponse): Promise<void> {
+    const source = resolveServerKeySource();
+    res.status(200).json({
+        success: true,
+        configured: source !== 'none',
+        source,
+    });
+}
+
+async function handleExecute(req: VercelRequest, res: VercelResponse): Promise<void> {
     if (req.method !== 'POST') {
         res.status(405).json({ success: false, error: { code: 'invalid_request', message: 'Method not allowed', retryable: false } });
         return;
@@ -60,11 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     if (!request) {
         res.status(400).json({
             success: false,
-            error: {
-                code: 'invalid_request',
-                message: 'Invalid request body. engine and params are required.',
-                retryable: false,
-            },
+            error: { code: 'invalid_request', message: 'Invalid request body. engine and params are required.', retryable: false },
         });
         return;
     }
@@ -72,28 +100,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const key = getServerSerpApiKey();
     const result = await executeSerpApiWithKey(request, key);
 
-    if (result.success) {
-        res.status(200).json(result);
-        return;
-    }
-
+    if (result.success) { res.status(200).json(result); return; }
     const code = result.error?.code || 'internal_error';
-    if (code === 'invalid_request') {
-        res.status(400).json(result);
-        return;
-    }
-    if (code === 'auth') {
-        res.status(401).json(result);
-        return;
-    }
-    if (code === 'quota') {
-        res.status(429).json(result);
-        return;
-    }
-    if (code === 'no_results') {
-        res.status(200).json(result);
-        return;
-    }
+    if (code === 'invalid_request') { res.status(400).json(result); return; }
+    if (code === 'auth') { res.status(401).json(result); return; }
+    if (code === 'quota') { res.status(429).json(result); return; }
+    if (code === 'no_results') { res.status(200).json(result); return; }
     res.status(502).json(result);
 }
-

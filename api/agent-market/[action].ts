@@ -15,6 +15,7 @@ import { executeSpecializedAgent } from '../../services/specializedAgents';
 import { buildFlightActionLinks, parseFlightConstraints } from '../../services/flightConstraintParser';
 import { lixAgentRegistryService } from '../../services/lixAgentRegistryService';
 import { marketAnalyticsStore } from '../../services/marketAnalyticsStore';
+import { buildLeaderboard, getAgentTrendPoints, type LeaderboardSort, type LeaderboardWindow, type TrendWindow } from '../../services/agentHotnessService';
 import type { SpecializedAgentType } from '../../types';
 import type { AgentDescriptor, AgentDomain, DigitalTwinContext, DiscoveryQuery, DiscoveryResponse } from '../../services/agentMarketplaceTypes';
 
@@ -1172,6 +1173,68 @@ export const __agentMarketTestables = {
     buildSpecializedTaskParams,
 };
 
+// ── Leaderboard handler ──────────────────────────────────────────────────────
+
+const VALID_LB_WINDOWS: LeaderboardWindow[] = ['7d', '30d'];
+const VALID_LB_SORTS: LeaderboardSort[] = ['commercial', 'quality', 'growth'];
+const VALID_LB_DOMAINS: AgentDomain[] = [
+    'recruitment', 'travel', 'finance', 'health', 'legal',
+    'education', 'shopping', 'productivity', 'local_service', 'general',
+];
+
+function firstQueryParam(value: string | string[] | undefined): string {
+    if (Array.isArray(value)) return String(value[0] || '');
+    return String(value || '');
+}
+
+async function handleLeaderboard(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
+    try {
+        const windowRaw = firstQueryParam(req.query?.window).trim() as LeaderboardWindow;
+        const sortRaw = firstQueryParam(req.query?.sort).trim() as LeaderboardSort;
+        const domainRaw = firstQueryParam(req.query?.domain).trim() as AgentDomain;
+        const limitRaw = Number(firstQueryParam(req.query?.limit));
+        const window = VALID_LB_WINDOWS.includes(windowRaw) ? windowRaw : '7d';
+        const sort = VALID_LB_SORTS.includes(sortRaw) ? sortRaw : 'commercial';
+        const domain = VALID_LB_DOMAINS.includes(domainRaw) ? domainRaw : undefined;
+        const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(100, Math.floor(limitRaw)) : 20;
+        const leaderboard = await buildLeaderboard({ window, sort, domain, limit });
+        const status = marketAnalyticsStore.getStatus();
+        return res.status(200).json({ success: true, window, sort, domain: domain || 'all', rankings: leaderboard.rankings, storage_mode: status.storage_mode, storage_backend: status.backend, storage_error: status.error });
+    } catch (error) {
+        return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'internal_error', storage_mode: marketAnalyticsStore.getStatus().storage_mode });
+    }
+}
+
+// ── Trends handler ───────────────────────────────────────────────────────────
+
+const VALID_TREND_WINDOWS: TrendWindow[] = ['7d', '30d', '90d'];
+
+async function handleTrends(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
+    try {
+        const agentId = firstQueryParam(req.query?.agent_id).trim();
+        if (!agentId) {
+            return res.status(400).json({ success: false, error: 'Missing required query param: agent_id' });
+        }
+        const windowRaw = firstQueryParam(req.query?.window).trim() as TrendWindow;
+        const domainRaw = firstQueryParam(req.query?.domain).trim() as AgentDomain;
+        const window = VALID_TREND_WINDOWS.includes(windowRaw) ? windowRaw : '30d';
+        const domain = VALID_LB_DOMAINS.includes(domainRaw) ? domainRaw : undefined;
+        const points = await getAgentTrendPoints(agentId, window, domain);
+        const status = marketAnalyticsStore.getStatus();
+        return res.status(200).json({ success: true, agent_id: agentId, window, domain: domain || 'all', daily_points: points, storage_mode: status.storage_mode, storage_backend: status.backend, storage_error: status.error });
+    } catch (error) {
+        return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'internal_error', storage_mode: marketAnalyticsStore.getStatus().storage_mode });
+    }
+}
+
+// ── Main handler ─────────────────────────────────────────────────────────────
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const action = extractAction(req);
     if (action === 'discover') {
@@ -1182,6 +1245,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (action === 'manual-execute') {
         return handleAgentMarketManualExecute(req, res);
+    }
+    if (action === 'leaderboard') {
+        return handleLeaderboard(req, res);
+    }
+    if (action === 'trends') {
+        return handleTrends(req, res);
     }
     return res.status(404).json({ error: 'Unknown agent-market action' });
 }

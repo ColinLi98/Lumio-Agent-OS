@@ -5,8 +5,7 @@ import type { ServerResponse, IncomingMessage } from 'http';
 import liveSearchApiHandler from './api/live-search';
 import tavilySearchApiHandler from './api/tavily-search';
 import { handleAgentMarketDiscover, handleAgentMarketExecute, handleAgentMarketManualExecute } from './api/agent-market/[action]';
-import serpApiExecuteHandler from './api/serpapi/execute';
-import serpApiStatusHandler from './api/serpapi/status';
+import serpApiHandler from './api/serpapi/[action]';
 import lixSolutionHandler from './api/lix/solution/[action]';
 
 // ============================================================================
@@ -1089,7 +1088,8 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
             };
           }
 
-          await serpApiExecuteHandler(vercelReq, vercelRes);
+          vercelReq.query = { action: 'execute' };
+          await serpApiHandler(vercelReq, vercelRes);
         } catch (error) {
           console.error('[serpapi/execute] local bridge failed', error);
           if (!res.headersSent) {
@@ -1139,7 +1139,8 @@ function apiRoutesPlugin(env: Record<string, string>): Plugin {
             };
           }
 
-          await serpApiStatusHandler(vercelReq, vercelRes);
+          vercelReq.query = { action: 'status' };
+          await serpApiHandler(vercelReq, vercelRes);
         } catch (error) {
           console.error('[serpapi/status] local bridge failed', error);
           if (!res.headersSent) {
