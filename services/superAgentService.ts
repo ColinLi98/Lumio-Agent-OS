@@ -1039,11 +1039,22 @@ ${toolDataSummaries.join('\n\n')}
     }
 
     private hasUsableEvidence(domain: IntentDomain, output: any): boolean {
+        // If tool returned success with any meaningful data, consider it usable
+        if (output?.success !== false) {
+            // Check for any non-empty response data
+            if (output?.answer || output?.text || output?.content) return true;
+            if (output?.data && Object.keys(output.data).length > 0) return true;
+            if (output?.quote_cards?.length > 0) return true;
+        }
+
         const items = this.extractEvidenceItems(output);
+        if (items.length > 0) return true;
+
+        // For travel domains, apply stricter structural check only as fallback
         if (domain.startsWith('travel.')) {
             return this.hasStructuredTravelEvidence(domain, items);
         }
-        return items.length > 0;
+        return false;
     }
 
     private enforceEvidenceFirstAnswer(
@@ -1054,8 +1065,14 @@ ${toolDataSummaries.join('\n\n')}
         const route = classifyFreshness(query);
         if (!route.needs_live_data) return modelAnswer;
 
-        const relevant = toolResults.filter((r) => r.toolName === 'live_search' || r.toolName === 'web_exec');
+        const relevant = toolResults.filter((r) => r.toolName === 'live_search' || r.toolName === 'web_exec' || r.toolName === 'web_search');
         if (relevant.length === 0) {
+            return modelAnswer;
+        }
+
+        // If ANY relevant tool succeeded, trust the LLM's synthesized answer
+        const anySucceeded = relevant.some((r) => r.success);
+        if (anySucceeded) {
             return modelAnswer;
         }
 
