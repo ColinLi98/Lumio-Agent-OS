@@ -30,8 +30,9 @@ import {
     Home, User, Settings, Keyboard, ChevronRight, Key,
     Compass, FlaskConical, Navigation, Activity, ArrowRight, Check,
     Zap, TrendingUp, Clock, UserCheck, X, Target, AlertCircle, CheckCircle2,
-    Store, Bot
+    Store, Bot, MessageSquare
 } from 'lucide-react';
+import { LumiChat } from './LumiChat';
 
 // ============================================================================
 // Design Tokens
@@ -72,9 +73,14 @@ interface LumiAppViewProps {
     latestDecision?: DecisionMeta | null;
     destinyResult?: DestinySimulationResult | null;
     onCloseDestinyResult?: () => void;
+    /** Pending query from keyboard Agent Mode to be sent to LumiChat */
+    pendingAgentQuery?: string | null;
+    onPendingAgentQueryConsumed?: () => void;
+    /** Force-switch to chat tab */
+    forceActiveTab?: string | null;
 }
 
-type AppTab = 'home' | 'avatar' | 'coach' | 'destiny' | 'lix_market' | 'lix_intent' | 'agent_market' | 'test' | 'settings';
+type AppTab = 'home' | 'chat' | 'avatar' | 'coach' | 'destiny' | 'lix_market' | 'lix_intent' | 'agent_market' | 'test' | 'settings';
 
 // ============================================================================
 // Sub Components
@@ -171,9 +177,19 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
     isDark,
     latestDecision,
     destinyResult,
-    onCloseDestinyResult
+    onCloseDestinyResult,
+    pendingAgentQuery,
+    onPendingAgentQueryConsumed,
+    forceActiveTab,
 }) => {
     const [activeTab, setActiveTab] = useState<AppTab>('home');
+
+    // Force-switch to chat tab when a pending agent query arrives
+    useEffect(() => {
+        if (forceActiveTab === 'chat') {
+            setActiveTab('chat');
+        }
+    }, [forceActiveTab, pendingAgentQuery]);
     const [avatarSubTab, setAvatarSubTab] = useState<'profile' | 'editor' | 'matrix'>('profile');
     const [lixIntentId, setLixIntentId] = useState<string | null>(null);
     const [serpStatusLoading, setSerpStatusLoading] = useState(false);
@@ -233,6 +249,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
 
     const tabs: { id: AppTab; icon: React.FC<{ size?: number }>; label: string }[] = [
         { id: 'home', icon: Home, label: '首页' },
+        { id: 'chat', icon: MessageSquare, label: '对话' },
         { id: 'lix_market', icon: Store, label: 'LIX' },
         { id: 'agent_market', icon: Bot, label: 'Agent' },
         { id: 'avatar', icon: User, label: '画像' },
@@ -362,6 +379,17 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                             </div>
                         )}
                     </div>
+                );
+
+            case 'chat':
+                return (
+                    <LumiChat
+                        soul={soul}
+                        apiKey={apiKeyState.key}
+                        onLog={(log) => { /* propagate if needed */ }}
+                        pendingQuery={pendingAgentQuery}
+                        onPendingQueryConsumed={onPendingAgentQueryConsumed}
+                    />
                 );
 
             case 'avatar':
@@ -706,7 +734,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
             {/* Tab Bar */}
             <div
                 className="fixed bottom-0 left-0 right-0"
-                style={{ backgroundColor: colors.bg2, borderTop: `1px solid ${colors.border}` }}
+                style={{ backgroundColor: colors.bg2, borderTop: `1px solid ${colors.border}`, zIndex: 50 }}
             >
                 <div className="max-w-lg mx-auto flex">
                     {tabs.map((tab) => (

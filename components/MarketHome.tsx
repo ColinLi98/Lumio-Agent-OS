@@ -1,5 +1,5 @@
 /**
- * MarketHome - LIX Market Entry Screen
+ * MarketHome - LIX 意图交易所 (Sci-Fi Redesign)
  * Shows intent list, publish button, and recent offers summary
  */
 
@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import {
     Zap, Plus, Package, Briefcase, Users,
     ChevronRight, Clock, CheckCircle, AlertCircle,
-    TrendingUp, Radio, MapPin, Calendar
+    TrendingUp, Radio, MapPin, Calendar, Github, RefreshCw, Upload
 } from 'lucide-react';
 import { useLIXStore, StoredIntent } from '../services/lixStore';
 import type { StoredSolutionIntent } from '../services/lixStore';
@@ -15,184 +15,112 @@ import { buildApiUrl } from '../services/apiBaseUrl';
 import { getCurrentUserId } from '../services/digitalTwinMarketplaceBridge';
 import { MiniLineChart } from './TrendCharts';
 import type { TrendData } from '../types';
+import {
+    techColors, TechKeyframesInjector, HexGridBackground, GradientHeading,
+    GlowCard, NeonBadge, MetricBox, TechProgressBar, TechButton, TechInput,
+    TechSelect, TechSectionHeader, RankBadge, PulseRing, ScanLine,
+} from './TechStyles';
 
 // ============================================================================
-// Design Tokens
+// Status Badge (Neon variant)
 // ============================================================================
 
-const colors = {
-    primary: '#a78bfa',
-    primaryMuted: 'rgba(167, 139, 250, 0.15)',
-    positive: '#34d399',
-    positiveMuted: 'rgba(52, 211, 153, 0.15)',
-    warning: '#fbbf24',
-    warningMuted: 'rgba(251, 191, 36, 0.15)',
-    bg1: '#0F172A',
-    bg2: '#1E293B',
-    bg3: '#334155',
-    text1: '#F8FAFC',
-    text2: '#94A3B8',
-    text3: '#64748B',
-    border: 'rgba(148, 163, 184, 0.1)',
+type BadgeVariant = 'cyan' | 'green' | 'purple' | 'gold' | 'red';
+
+interface StatusBadgeProps { status: string; }
+
+const statusConfig: Record<string, { variant: BadgeVariant; text: string; icon: React.ReactNode }> = {
+    broadcasting: { variant: 'cyan', text: 'LIVE', icon: <Radio size={10} /> },
+    offers_received: { variant: 'green', text: '报价已收', icon: <CheckCircle size={10} /> },
+    accepted: { variant: 'green', text: '已接受', icon: <CheckCircle size={10} /> },
+    offer_accepted: { variant: 'green', text: '方案确认', icon: <CheckCircle size={10} /> },
+    delivery_submitted: { variant: 'purple', text: '审核中', icon: <Clock size={10} /> },
+    approved: { variant: 'green', text: '已上架', icon: <CheckCircle size={10} /> },
+    rejected: { variant: 'red', text: '已拒绝', icon: <AlertCircle size={10} /> },
+    expired: { variant: 'gold', text: '已过期', icon: <AlertCircle size={10} /> },
+    cancelled: { variant: 'red', text: '已取消', icon: <AlertCircle size={10} /> },
+    draft: { variant: 'purple', text: '草稿', icon: <Clock size={10} /> },
 };
-
-// ============================================================================
-// Sub Components
-// ============================================================================
-
-interface StatusBadgeProps {
-    status: string;
-}
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
-    const config: Record<string, { bg: string; color: string; text: string; icon: React.ReactNode }> = {
-        broadcasting: { bg: colors.primaryMuted, color: colors.primary, text: '广播中', icon: <Radio size={12} /> },
-        offers_received: { bg: colors.positiveMuted, color: colors.positive, text: '已收到报价', icon: <CheckCircle size={12} /> },
-        accepted: { bg: colors.positiveMuted, color: colors.positive, text: '已接受', icon: <CheckCircle size={12} /> },
-        offer_accepted: { bg: colors.positiveMuted, color: colors.positive, text: '方案已接受', icon: <CheckCircle size={12} /> },
-        delivery_submitted: { bg: colors.primaryMuted, color: colors.primary, text: '待审核', icon: <Clock size={12} /> },
-        approved: { bg: colors.positiveMuted, color: colors.positive, text: '已上架', icon: <CheckCircle size={12} /> },
-        rejected: { bg: colors.warningMuted, color: colors.warning, text: '已拒绝', icon: <AlertCircle size={12} /> },
-        expired: { bg: colors.warningMuted, color: colors.warning, text: '已过期', icon: <AlertCircle size={12} /> },
-        cancelled: { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', text: '已取消', icon: <AlertCircle size={12} /> },
-        draft: { bg: colors.bg3, color: colors.text3, text: '草稿', icon: <Clock size={12} /> }
-    };
-
-    const c = config[status] || config.draft;
-
-    return (
-        <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '2px 8px',
-            borderRadius: 4,
-            fontSize: 11,
-            fontWeight: 500,
-            backgroundColor: c.bg,
-            color: c.color
-        }}>
-            {c.icon}
-            {c.text}
-        </span>
-    );
+    const c = statusConfig[status] || statusConfig.draft;
+    return <NeonBadge variant={c.variant}>{c.icon} {c.text}</NeonBadge>;
 };
 
-interface IntentCardProps {
-    intent: StoredIntent;
-    onClick: () => void;
-}
+// ============================================================================
+// Intent Card (Glow variant)
+// ============================================================================
+
+interface IntentCardProps { intent: StoredIntent; onClick: () => void; }
+
+const categoryMeta: Record<string, { icon: React.ReactNode; color: string }> = {
+    purchase: { icon: <Package size={18} />, color: techColors.cyan },
+    job: { icon: <Briefcase size={18} />, color: techColors.purple },
+    collaboration: { icon: <Users size={18} />, color: techColors.green },
+};
 
 const IntentCard: React.FC<IntentCardProps> = ({ intent, onClick }) => {
-    const categoryIcons: Record<string, React.ReactNode> = {
-        purchase: <Package size={18} />,
-        job: <Briefcase size={18} />,
-        collaboration: <Users size={18} />
-    };
-
+    const meta = categoryMeta[intent.category] || { icon: <Zap size={18} />, color: techColors.cyan };
     return (
-        <button
+        <GlowCard
+            glowColor={meta.color}
             onClick={onClick}
-            style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: 14,
-                borderRadius: 12,
-                backgroundColor: colors.bg2,
-                border: `1px solid ${colors.border}`,
-                textAlign: 'left',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-            }}
+            style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}
         >
             <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.primaryMuted,
-                color: colors.primary,
-                flexShrink: 0
+                width: 40, height: 40, borderRadius: 10,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: `linear-gradient(135deg, ${meta.color}25, ${meta.color}08)`,
+                color: meta.color,
+                border: `1px solid ${meta.color}30`,
+                flexShrink: 0,
             }}>
-                {categoryIcons[intent.category] || <Zap size={18} />}
+                {meta.icon}
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <span style={{
-                        color: colors.text1,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
+                        color: techColors.text1, fontSize: 14, fontWeight: 600,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>
                         {intent.item_name}
                     </span>
                     <StatusBadge status={intent.status} />
                 </div>
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    fontSize: 12,
-                    color: colors.text3
-                }}>
-                    {intent.budget_max && (
-                        <span>预算: ¥{intent.budget_max}</span>
-                    )}
-                    {intent.total_offers_received > 0 && (
-                        <span>{intent.total_offers_received} 个报价</span>
-                    )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, color: techColors.text3, fontFamily: 'monospace' }}>
+                    {intent.budget_max && <span>¥{intent.budget_max}</span>}
+                    {intent.total_offers_received > 0 && <span>{intent.total_offers_received} offers</span>}
                     {intent.best_price && (
-                        <span style={{ color: colors.positive }}>
-                            最低 ¥{intent.best_price}
-                        </span>
+                        <span style={{ color: techColors.green }}>best ¥{intent.best_price}</span>
                     )}
                 </div>
             </div>
 
-            <ChevronRight size={16} style={{ color: colors.text3, flexShrink: 0 }} />
-        </button>
+            <ChevronRight size={16} style={{ color: techColors.text3, flexShrink: 0 }} />
+        </GlowCard>
     );
 };
 
-interface SolutionIntentCardProps {
-    intent: StoredSolutionIntent;
-    onClick: () => void;
-}
+// ============================================================================
+// Solution Intent Card (Glow variant)
+// ============================================================================
+
+interface SolutionIntentCardProps { intent: StoredSolutionIntent; onClick: () => void; }
 
 const SolutionIntentCard: React.FC<SolutionIntentCardProps> = ({ intent, onClick }) => (
-    <button
+    <GlowCard
+        glowColor={techColors.purple}
         onClick={onClick}
-        style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: 14,
-            borderRadius: 12,
-            backgroundColor: colors.bg2,
-            border: `1px solid ${colors.border}`,
-            textAlign: 'left',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-        }}
+        style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}
     >
         <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: colors.primaryMuted,
-            color: colors.primary,
-            flexShrink: 0
+            width: 40, height: 40, borderRadius: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: `linear-gradient(135deg, ${techColors.purple}25, ${techColors.purple}08)`,
+            color: techColors.purple,
+            border: `1px solid ${techColors.purple}30`,
+            flexShrink: 0,
         }}>
             <Zap size={18} />
         </div>
@@ -200,34 +128,30 @@ const SolutionIntentCard: React.FC<SolutionIntentCardProps> = ({ intent, onClick
         <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span style={{
-                    color: colors.text1,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
+                    color: techColors.text1, fontSize: 14, fontWeight: 600,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                     {intent.title}
                 </span>
                 <StatusBadge status={intent.status} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: colors.text3 }}>
-                <span>domain: {intent.domain}</span>
-                <span>{intent.offers.length} 个专家方案</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, color: techColors.text3, fontFamily: 'monospace' }}>
+                <span>{intent.domain}</span>
+                <span>{intent.offers.length} solutions</span>
                 <span>
                     {intent.requester_type === 'agent'
-                        ? `agent: ${intent.requester_agent_name || intent.requester_agent_id || 'unknown'}`
-                        : 'user'}
+                        ? `⚡ ${intent.requester_agent_name || intent.requester_agent_id || 'agent'}`
+                        : '👤 user'}
                 </span>
             </div>
         </div>
 
-        <ChevronRight size={16} style={{ color: colors.text3, flexShrink: 0 }} />
-    </button>
+        <ChevronRight size={16} style={{ color: techColors.text3, flexShrink: 0 }} />
+    </GlowCard>
 );
 
 // ============================================================================
-// Publish Intent Modal
+// Publish Intent Modal (Glassmorphism)
 // ============================================================================
 
 interface PublishModalProps {
@@ -242,17 +166,16 @@ interface PublishModalProps {
     }) => void;
 }
 
-// Common city codes
 const CITY_CODES = [
-    { code: 'beijing', label: '北京' },
-    { code: 'shanghai', label: '上海' },
-    { code: 'guangzhou', label: '广州' },
-    { code: 'shenzhen', label: '深圳' },
-    { code: 'hangzhou', label: '杭州' },
-    { code: 'chengdu', label: '成都' },
-    { code: 'wuhan', label: '武汉' },
-    { code: 'nanjing', label: '南京' },
-    { code: 'all', label: '全国' },
+    { value: 'beijing', label: '北京' },
+    { value: 'shanghai', label: '上海' },
+    { value: 'guangzhou', label: '广州' },
+    { value: 'shenzhen', label: '深圳' },
+    { value: 'hangzhou', label: '杭州' },
+    { value: 'chengdu', label: '成都' },
+    { value: 'wuhan', label: '武汉' },
+    { value: 'nanjing', label: '南京' },
+    { value: 'all', label: '全国' },
 ];
 
 const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish }) => {
@@ -265,7 +188,6 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
 
     if (!isOpen) return null;
 
-    // Get tomorrow as min date for deadline
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const minDate = tomorrow.toISOString().split('T')[0];
@@ -289,40 +211,36 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
     };
 
     const categories = [
-        { id: 'purchase' as const, icon: <Package size={20} />, label: '购买' },
-        { id: 'job' as const, icon: <Briefcase size={20} />, label: '求职' },
-        { id: 'collaboration' as const, icon: <Users size={20} />, label: '合作' }
+        { id: 'purchase' as const, icon: <Package size={20} />, label: '购买', color: techColors.cyan },
+        { id: 'job' as const, icon: <Briefcase size={20} />, label: '求职', color: techColors.purple },
+        { id: 'collaboration' as const, icon: <Users size={20} />, label: '合作', color: techColors.green },
     ];
 
     return (
         <div style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'flex-end',
-            backgroundColor: 'rgba(0,0,0,0.5)'
+            position: 'fixed', inset: 0, zIndex: 100,
+            display: 'flex', alignItems: 'flex-end',
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            backdropFilter: 'blur(4px)',
         }}>
             <div style={{
                 width: '100%',
-                backgroundColor: colors.bg1,
-                borderRadius: '20px 20px 0 0',
-                padding: 20
+                background: `linear-gradient(180deg, ${techColors.bg1} 0%, ${techColors.bg0} 100%)`,
+                borderRadius: '24px 24px 0 0',
+                padding: 24,
+                border: `1px solid ${techColors.border}`,
+                borderBottom: 'none',
             }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 20
-                }}>
-                    <h2 style={{ color: colors.text1, fontSize: 18, fontWeight: 600 }}>
-                        发布意图
-                    </h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <GradientHeading size={18}>发布意图</GradientHeading>
                     <button
                         onClick={onClose}
-                        style={{ color: colors.text3, background: 'none', border: 'none', cursor: 'pointer' }}
+                        style={{
+                            color: techColors.text3, background: 'none', border: 'none',
+                            cursor: 'pointer', fontSize: 13, fontFamily: 'monospace',
+                        }}
                     >
-                        取消
+                        [ESC]
                     </button>
                 </div>
 
@@ -333,110 +251,52 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
                             key={c.id}
                             onClick={() => setCategory(c.id)}
                             style={{
-                                flex: 1,
-                                padding: '12px 8px',
-                                borderRadius: 12,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                gap: 6,
-                                backgroundColor: category === c.id ? colors.primaryMuted : colors.bg2,
-                                border: `1px solid ${category === c.id ? colors.primary : colors.border}`,
-                                color: category === c.id ? colors.primary : colors.text3,
-                                cursor: 'pointer'
+                                flex: 1, padding: '14px 8px', borderRadius: 12,
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                                background: category === c.id ? `${c.color}15` : techColors.bgCard,
+                                border: `1px solid ${category === c.id ? `${c.color}50` : techColors.border}`,
+                                color: category === c.id ? c.color : techColors.text3,
+                                cursor: 'pointer',
+                                boxShadow: category === c.id ? `0 0 16px ${c.color}20` : 'none',
+                                transition: 'all 0.3s',
                             }}
                         >
                             {c.icon}
-                            <span style={{ fontSize: 12 }}>{c.label}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600 }}>{c.label}</span>
                         </button>
                     ))}
                 </div>
 
-                {/* Item Input */}
-                <input
-                    type="text"
+                <TechInput
                     value={item}
-                    onChange={e => setItem(e.target.value)}
+                    onChange={setItem}
                     placeholder="描述你的需求，例如：iPhone 16 Pro Max 256G"
-                    style={{
-                        width: '100%',
-                        padding: 14,
-                        borderRadius: 12,
-                        backgroundColor: colors.bg2,
-                        border: `1px solid ${colors.border}`,
-                        color: colors.text1,
-                        fontSize: 14,
-                        marginBottom: 12
-                    }}
+                    style={{ marginBottom: 12 }}
                 />
 
-                {/* Budget Input */}
-                <input
-                    type="number"
+                <TechInput
                     value={budget}
-                    onChange={e => setBudget(e.target.value)}
+                    onChange={setBudget}
+                    type="number"
                     placeholder="预算上限（可选）"
-                    style={{
-                        width: '100%',
-                        padding: 14,
-                        borderRadius: 12,
-                        backgroundColor: colors.bg2,
-                        border: `1px solid ${colors.border}`,
-                        color: colors.text1,
-                        fontSize: 14,
-                        marginBottom: 12
-                    }}
+                    style={{ marginBottom: 12 }}
                 />
 
-                {/* Location and Deadline Row */}
                 <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-                    {/* Location Select */}
                     <div style={{ flex: 1 }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            marginBottom: 6,
-                            color: colors.text3,
-                            fontSize: 12
-                        }}>
-                            <MapPin size={12} />
-                            <span>所在地区</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, color: techColors.text3, fontSize: 11, fontFamily: 'monospace' }}>
+                            <MapPin size={11} /> <span>LOCATION</span>
                         </div>
-                        <select
+                        <TechSelect
                             value={locationCode}
-                            onChange={e => setLocationCode(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: 12,
-                                borderRadius: 10,
-                                backgroundColor: colors.bg2,
-                                border: `1px solid ${colors.border}`,
-                                color: colors.text1,
-                                fontSize: 14,
-                                cursor: 'pointer'
-                            }}
-                        >
-                            {CITY_CODES.map(city => (
-                                <option key={city.code} value={city.code}>
-                                    {city.label}
-                                </option>
-                            ))}
-                        </select>
+                            onChange={setLocationCode}
+                            options={CITY_CODES}
+                            style={{ width: '100%' }}
+                        />
                     </div>
-
-                    {/* Deadline Picker */}
                     <div style={{ flex: 1 }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            marginBottom: 6,
-                            color: colors.text3,
-                            fontSize: 12
-                        }}>
-                            <Calendar size={12} />
-                            <span>截止日期</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, color: techColors.text3, fontSize: 11, fontFamily: 'monospace' }}>
+                            <Calendar size={11} /> <span>DEADLINE</span>
                         </div>
                         <input
                             type="date"
@@ -444,48 +304,23 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
                             onChange={e => setDeadline(e.target.value)}
                             min={minDate}
                             style={{
-                                width: '100%',
-                                padding: 12,
-                                borderRadius: 10,
-                                backgroundColor: colors.bg2,
-                                border: `1px solid ${colors.border}`,
-                                color: colors.text1,
-                                fontSize: 14,
-                                cursor: 'pointer'
+                                width: '100%', padding: '10px 14px', borderRadius: 10,
+                                backgroundColor: 'rgba(6,10,20,0.8)',
+                                border: `1px solid ${techColors.border}`,
+                                color: techColors.text1, fontSize: 13, cursor: 'pointer',
                             }}
                         />
                     </div>
                 </div>
 
-                {/* Publish Button */}
-                <button
+                <TechButton
                     onClick={handlePublish}
                     disabled={!item.trim() || isPublishing}
-                    style={{
-                        width: '100%',
-                        padding: 16,
-                        borderRadius: 12,
-                        backgroundColor: item.trim() ? colors.primary : colors.bg3,
-                        color: item.trim() ? '#fff' : colors.text3,
-                        fontSize: 16,
-                        fontWeight: 600,
-                        border: 'none',
-                        cursor: item.trim() ? 'pointer' : 'not-allowed',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8
-                    }}
+                    icon={isPublishing ? undefined : <Radio size={18} />}
+                    fullWidth
                 >
-                    {isPublishing ? (
-                        <>广播中...</>
-                    ) : (
-                        <>
-                            <Radio size={18} />
-                            广播到市场
-                        </>
-                    )}
-                </button>
+                    {isPublishing ? '广播中...' : '广播到市场'}
+                </TechButton>
             </div>
         </div>
     );
@@ -495,9 +330,7 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
 // Main Component
 // ============================================================================
 
-interface MarketHomeProps {
-    onSelectIntent: (intentId: string) => void;
-}
+interface MarketHomeProps { onSelectIntent: (intentId: string) => void; }
 
 interface RevenueSummary {
     owner_id: string;
@@ -576,9 +409,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                     total_usage_count: Number(payload.revenue_summary.total_usage_count || 0),
                     active_agents: Number(payload.revenue_summary.active_agents || 0),
                 });
-            } catch {
-                // Ignore summary fetch failures; main page should remain usable.
-            }
+            } catch { /* ignore */ }
         };
         loadRevenueSummary();
     }, [solutionIntents.length, intents.length, userId]);
@@ -626,9 +457,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
             const response = await fetch(buildApiUrl(`/api/agent-market/github/repos?user_id=${encodeURIComponent(userId)}`));
             const payload = await response.json().catch(() => null);
             if (!response.ok || !payload?.success) {
-                setGithubRepos([]);
-                setGithubConnected(false);
-                return;
+                setGithubRepos([]); setGithubConnected(false); return;
             }
             setGithubConnected(Boolean(payload?.connected));
             const repos = Array.isArray(payload?.repos)
@@ -638,12 +467,9 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                 })).filter((repo: { full_name: string }) => Boolean(repo.full_name))
                 : [];
             setGithubRepos(repos);
-            if (!selectedGithubRepo && repos.length > 0) {
-                setSelectedGithubRepo(repos[0].full_name);
-            }
+            if (!selectedGithubRepo && repos.length > 0) setSelectedGithubRepo(repos[0].full_name);
         } catch {
-            setGithubRepos([]);
-            setGithubConnected(false);
+            setGithubRepos([]); setGithubConnected(false);
         } finally {
             setGithubRepoLoading(false);
         }
@@ -655,17 +481,14 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
             const connectResp = await fetch(buildApiUrl(`/api/agent-market/github/connect?user_id=${encodeURIComponent(userId)}`));
             const connectPayload = await connectResp.json().catch(() => null);
             if (!connectResp.ok || !connectPayload?.success) return;
-
             const connectUrl = String(connectPayload?.connect_url || '');
             const state = String(connectPayload?.state || '');
-
             if (connectUrl.startsWith('mock://')) {
                 await fetch(buildApiUrl(`/api/agent-market/github/callback?user_id=${encodeURIComponent(userId)}&state=${encodeURIComponent(state)}`));
                 setGithubConnected(true);
                 await refreshGithubRepos();
                 return;
             }
-
             if (typeof window !== 'undefined' && /^https?:\/\//i.test(connectUrl)) {
                 window.open(connectUrl, '_blank', 'noopener,noreferrer');
             }
@@ -683,9 +506,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: userId,
-                    owner_id: userId,
-                    repo,
+                    user_id: userId, owner_id: userId, repo,
                     manifest_path: manifestPath.trim() || '.lix/agent.manifest.json',
                     delivery_mode_preference: 'hybrid',
                 }),
@@ -693,9 +514,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
             const payload = await response.json().catch(() => null);
             if (!response.ok || !payload?.success) return;
             await refreshGithubRepos();
-        } finally {
-            setGithubImporting(false);
-        }
+        } finally { setGithubImporting(false); }
     };
 
     useEffect(() => {
@@ -704,86 +523,87 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
     }, [userId]);
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
-            <div style={{
-                padding: 16,
-                background: `linear-gradient(135deg, ${colors.primary}20 0%, ${colors.bg1} 100%)`,
-                borderRadius: 16,
-                marginBottom: 16
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                    <Zap size={24} color={colors.primary} />
-                    <h1 style={{ color: colors.text1, fontSize: 20, fontWeight: 700, margin: 0 }}>
-                        LIX 意图交易
-                    </h1>
-                </div>
-                <p style={{ color: colors.text3, fontSize: 13, margin: 0 }}>
-                    发布需求，获取全网最优报价
-                </p>
+        <HexGridBackground style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            <TechKeyframesInjector />
 
-                {/* Metrics */}
+            {/* ── Hero Header ── */}
+            <div style={{
+                padding: '20px 16px',
+                background: `linear-gradient(135deg, rgba(0,234,255,0.08) 0%, rgba(168,85,247,0.06) 50%, transparent 100%)`,
+                borderRadius: 16,
+                marginBottom: 16,
+                border: `1px solid ${techColors.border}`,
+                position: 'relative',
+                overflow: 'hidden',
+            }}>
+                {/* Decorative scan line */}
                 <div style={{
-                    display: 'flex',
-                    gap: 16,
-                    marginTop: 16,
-                    padding: 12,
-                    backgroundColor: 'rgba(0,0,0,0.2)',
-                    borderRadius: 10
-                }}>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                        <div style={{ color: colors.text1, fontSize: 20, fontWeight: 700 }}>
-                            {metrics.total_intents_broadcast}
-                        </div>
-                        <div style={{ color: colors.text3, fontSize: 11 }}>意图广播</div>
-                    </div>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                        <div style={{ color: colors.text1, fontSize: 20, fontWeight: 700 }}>
-                            {metrics.total_offers_received}
-                        </div>
-                        <div style={{ color: colors.text3, fontSize: 11 }}>报价收到</div>
-                    </div>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                        <div style={{ color: colors.positive, fontSize: 20, fontWeight: 700 }}>
-                            {metrics.avg_first_offer_seconds.toFixed(1)}s
-                        </div>
-                        <div style={{ color: colors.text3, fontSize: 11 }}>平均响应</div>
-                    </div>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                        <div style={{ color: colors.warning, fontSize: 20, fontWeight: 700 }}>
-                            ¥{Math.round(revenueSummary?.total_revenue_cny || 0)}
-                        </div>
-                        <div style={{ color: colors.text3, fontSize: 11 }}>
-                            Agent 收益 ({revenueSummary?.active_agents || 0})
-                        </div>
-                    </div>
+                    position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+                    background: `linear-gradient(90deg, transparent, ${techColors.cyan}, transparent)`,
+                    animation: 'techShimmer 3s linear infinite',
+                    backgroundSize: '200% 100%',
+                }} />
+
+                <GradientHeading
+                    size={22}
+                    icon={<Zap size={26} color={techColors.cyan} />}
+                    subtitle="AI Agent Marketplace · Intent Trading Protocol"
+                >
+                    LIX 意图交易所
+                </GradientHeading>
+
+                {/* Metrics Row */}
+                <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                    <MetricBox
+                        label="意图广播"
+                        value={metrics.total_intents_broadcast}
+                        icon={<Radio size={16} color={techColors.cyan} />}
+                        accent={techColors.cyan}
+                    />
+                    <MetricBox
+                        label="报价收到"
+                        value={metrics.total_offers_received}
+                        icon={<CheckCircle size={16} color={techColors.green} />}
+                        accent={techColors.green}
+                    />
+                    <MetricBox
+                        label="平均响应"
+                        value={`${metrics.avg_first_offer_seconds.toFixed(1)}s`}
+                        icon={<Clock size={16} color={techColors.purple} />}
+                        accent={techColors.purple}
+                    />
+                    <MetricBox
+                        label={`收益 (${revenueSummary?.active_agents || 0})`}
+                        value={`¥${Math.round(revenueSummary?.total_revenue_cny || 0)}`}
+                        icon={<TrendingUp size={16} color={techColors.gold} />}
+                        accent={techColors.gold}
+                    />
                 </div>
             </div>
 
-            <div
-                style={{
-                    marginBottom: 14,
-                    padding: 12,
-                    borderRadius: 12,
-                    backgroundColor: colors.bg2,
-                    border: `1px solid ${colors.border}`,
-                }}
-            >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <TrendingUp size={16} color={colors.warning} />
-                    <div style={{ color: colors.text1, fontSize: 14, fontWeight: 700 }}>
-                        Agent 热度榜（商业转化优先）
-                    </div>
-                </div>
-                <div style={{ color: colors.text3, fontSize: 11, marginBottom: 10 }}>
-                    指标窗口：7天 · 排序：commercial · 数据源：Marketplace usage/revenue
-                </div>
+            {/* ── Agent Leaderboard ── */}
+            <GlowCard glowColor={techColors.gold} style={{ marginBottom: 14 }}>
+                <TechSectionHeader
+                    title="Agent 热度榜"
+                    icon={<TrendingUp size={16} />}
+                    accent={techColors.gold}
+                    extra={
+                        <span style={{ fontFamily: 'monospace', fontSize: 10, color: techColors.text3 }}>
+                            7D · COMMERCIAL
+                        </span>
+                    }
+                />
+                <ScanLine color={techColors.gold} />
+
                 {leaderboardLoading && (
-                    <div style={{ color: colors.text3, fontSize: 12 }}>加载排行榜中...</div>
+                    <div style={{ color: techColors.text3, fontSize: 12, fontFamily: 'monospace', padding: '8px 0' }}>
+                        ⟳ 加载排行榜中...
+                    </div>
                 )}
                 {!leaderboardLoading && leaderboardRows.length === 0 && (
-                    <div style={{ color: colors.text3, fontSize: 12 }}>
-                        暂无榜单数据，先去 Agent Marketplace 执行几次任务即可生成。
+                    <div style={{ color: techColors.text3, fontSize: 12, padding: '12px 0', textAlign: 'center' }}>
+                        <div style={{ fontSize: 24, marginBottom: 8, opacity: 0.3 }}>📊</div>
+                        暂无榜单数据，先去 Agent Marketplace 执行任务即可生成
                     </div>
                 )}
                 {!leaderboardLoading && leaderboardRows.length > 0 && (
@@ -792,264 +612,195 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                             <div
                                 key={row.agent_id}
                                 style={{
-                                    padding: 10,
+                                    padding: '10px 12px',
                                     borderRadius: 10,
-                                    backgroundColor: colors.bg1,
-                                    border: `1px solid ${colors.border}`,
+                                    backgroundColor: 'rgba(255,255,255,0.02)',
+                                    border: `1px solid ${techColors.border}`,
+                                    transition: 'background-color 0.2s',
                                 }}
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                    <div style={{ color: colors.text1, fontSize: 13, fontWeight: 600 }}>
-                                        #{row.rank} {row.agent_name}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <RankBadge rank={row.rank} />
+                                        <span style={{ color: techColors.text1, fontSize: 13, fontWeight: 600 }}>
+                                            {row.agent_name}
+                                        </span>
                                     </div>
-                                    <div style={{ color: colors.warning, fontSize: 12, fontWeight: 700 }}>
-                                        热度 {row.hotness_score.toFixed(2)}
-                                    </div>
+                                    <span style={{
+                                        color: techColors.gold, fontSize: 12, fontWeight: 700,
+                                        fontFamily: 'monospace',
+                                        textShadow: `0 0 8px ${techColors.goldGlow}`,
+                                    }}>
+                                        {row.hotness_score.toFixed(2)}
+                                    </span>
                                 </div>
-                                <div style={{ display: 'flex', gap: 12, color: colors.text3, fontSize: 11, marginBottom: 6, flexWrap: 'wrap' }}>
-                                    <span>7天收益 ¥{Math.round(row.revenue_7d)}</span>
-                                    <span>使用 {row.usage_7d}</span>
-                                    <span>成功率 {(row.success_rate_7d * 100).toFixed(0)}%</span>
+                                <div style={{ display: 'flex', gap: 16, color: techColors.text3, fontSize: 10, marginBottom: 6, fontFamily: 'monospace' }}>
+                                    <span>¥{Math.round(row.revenue_7d)}</span>
+                                    <span>{row.usage_7d} uses</span>
+                                    <span>{(row.success_rate_7d * 100).toFixed(0)}% win</span>
                                 </div>
-                                <MiniLineChart
-                                    data={toSparklineTrendData(row.sparkline)}
-                                    width={240}
-                                    height={54}
-                                    color={row.owner_id === userId ? '#34d399' : '#a78bfa'}
-                                    showDots={false}
-                                    showArea
+                                <TechProgressBar
+                                    value={row.success_rate_7d}
+                                    color={row.owner_id === userId ? techColors.green : techColors.purple}
+                                    height={4}
+                                    showPercent={false}
                                 />
+                                <div style={{ marginTop: 6 }}>
+                                    <MiniLineChart
+                                        data={toSparklineTrendData(row.sparkline)}
+                                        width={240}
+                                        height={40}
+                                        color={row.owner_id === userId ? techColors.green : techColors.gold}
+                                        showDots={false}
+                                        showArea
+                                    />
+                                </div>
                             </div>
                         ))}
                     </div>
                 )}
                 {myLeaderboardRows.length > 0 && (
-                    <div
-                        style={{
-                            marginTop: 10,
-                            paddingTop: 10,
-                            borderTop: `1px dashed ${colors.border}`,
-                            color: colors.text2,
-                            fontSize: 12,
-                        }}
-                    >
-                        我的 Agent 上榜: {myLeaderboardRows.length} 个
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${techColors.border}`, color: techColors.text2, fontSize: 12 }}>
+                        <NeonBadge variant="green" size="sm">我的 Agent 上榜: {myLeaderboardRows.length}</NeonBadge>
                     </div>
                 )}
-            </div>
+            </GlowCard>
 
-            <div
-                style={{
-                    marginBottom: 14,
-                    padding: 12,
-                    borderRadius: 12,
-                    backgroundColor: colors.bg2,
-                    border: `1px solid ${colors.border}`,
-                }}
-            >
-                <div style={{ color: colors.text1, fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
-                    GitHub 导入 Agent
+            {/* ── GitHub Import ── */}
+            <GlowCard glowColor={techColors.text3} style={{ marginBottom: 14 }}>
+                <TechSectionHeader
+                    title="GitHub 导入 Agent"
+                    icon={<Github size={16} />}
+                    accent={techColors.text2}
+                    extra={
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <PulseRing color={githubConnected ? techColors.green : techColors.red} size={8} active={githubConnected} />
+                            <span style={{ fontFamily: 'monospace', fontSize: 10, color: githubConnected ? techColors.green : techColors.text3 }}>
+                                {githubConnected ? 'CONNECTED' : 'OFFLINE'}
+                            </span>
+                        </div>
+                    }
+                />
+                <div style={{ color: techColors.text3, fontSize: 11, marginBottom: 10, fontFamily: 'monospace' }}>
+                    支持从仓库读取 .lix/agent.manifest.json，导入后参与 Marketplace 调用与收益统计
                 </div>
-                <div style={{ color: colors.text3, fontSize: 11, marginBottom: 10 }}>
-                    支持从仓库读取 `.lix/agent.manifest.json`，导入后可进入 Marketplace 被调用并参与收益统计。
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                    <button
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                    <TechButton
+                        variant="secondary"
                         onClick={connectGithub}
                         disabled={githubRepoLoading}
-                        style={{
-                            padding: '8px 10px',
-                            borderRadius: 8,
-                            backgroundColor: githubConnected ? colors.positiveMuted : colors.primaryMuted,
-                            border: `1px solid ${githubConnected ? colors.positive : colors.primary}`,
-                            color: githubConnected ? colors.positive : colors.primary,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: githubRepoLoading ? 'default' : 'pointer',
-                        }}
+                        icon={<Github size={14} />}
                     >
-                        {githubConnected ? 'GitHub 已连接' : '连接 GitHub'}
-                    </button>
-                    <button
+                        {githubConnected ? '已连接' : '连接 GitHub'}
+                    </TechButton>
+                    <TechButton
+                        variant="ghost"
                         onClick={refreshGithubRepos}
                         disabled={githubRepoLoading}
-                        style={{
-                            padding: '8px 10px',
-                            borderRadius: 8,
-                            backgroundColor: colors.bg1,
-                            border: `1px solid ${colors.border}`,
-                            color: colors.text2,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: githubRepoLoading ? 'default' : 'pointer',
-                        }}
+                        icon={<RefreshCw size={14} />}
                     >
                         刷新仓库
-                    </button>
+                    </TechButton>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <select
+                    <TechSelect
                         value={selectedGithubRepo}
-                        onChange={(event) => setSelectedGithubRepo(event.target.value)}
-                        style={{
-                            flex: 1,
-                            minWidth: 180,
-                            padding: '8px 10px',
-                            borderRadius: 8,
-                            backgroundColor: colors.bg1,
-                            border: `1px solid ${colors.border}`,
-                            color: colors.text1,
-                            fontSize: 12,
-                        }}
-                    >
-                        {githubRepos.length === 0 && <option value="">暂无可用仓库</option>}
-                        {githubRepos.map((repo) => (
-                            <option key={repo.full_name} value={repo.full_name}>
-                                {repo.full_name}{repo.private ? ' (private)' : ''}
-                            </option>
-                        ))}
-                    </select>
-                    <input
-                        value={manifestPath}
-                        onChange={(event) => setManifestPath(event.target.value)}
-                        style={{
-                            flex: 1,
-                            minWidth: 180,
-                            padding: '8px 10px',
-                            borderRadius: 8,
-                            backgroundColor: colors.bg1,
-                            border: `1px solid ${colors.border}`,
-                            color: colors.text2,
-                            fontSize: 12,
-                        }}
-                        placeholder=".lix/agent.manifest.json"
+                        onChange={setSelectedGithubRepo}
+                        options={
+                            githubRepos.length === 0
+                                ? [{ value: '', label: '暂无可用仓库' }]
+                                : githubRepos.map(r => ({
+                                    value: r.full_name,
+                                    label: `${r.full_name}${r.private ? ' 🔒' : ''}`,
+                                }))
+                        }
+                        style={{ flex: 1, minWidth: 160 }}
                     />
-                    <button
+                    <TechInput
+                        value={manifestPath}
+                        onChange={setManifestPath}
+                        placeholder=".lix/agent.manifest.json"
+                        style={{ flex: 1, minWidth: 160, fontFamily: 'monospace', fontSize: 12 }}
+                    />
+                    <TechButton
+                        variant="secondary"
                         onClick={importGithubRepo}
                         disabled={!selectedGithubRepo || githubImporting}
-                        style={{
-                            padding: '8px 10px',
-                            borderRadius: 8,
-                            backgroundColor: colors.primary,
-                            border: 'none',
-                            color: '#fff',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            cursor: (!selectedGithubRepo || githubImporting) ? 'default' : 'pointer',
-                            opacity: (!selectedGithubRepo || githubImporting) ? 0.65 : 1,
-                        }}
+                        icon={<Upload size={14} />}
                     >
-                        {githubImporting ? '导入中...' : '导入并上架'}
-                    </button>
+                        {githubImporting ? '导入中...' : '导入上架'}
+                    </TechButton>
                 </div>
-            </div>
+            </GlowCard>
 
-            {/* Publish Button */}
-            <button
+            {/* ── Publish Intent CTA ── */}
+            <TechButton
                 onClick={() => setShowPublishModal(true)}
-                style={{
-                    width: '100%',
-                    padding: 16,
-                    borderRadius: 12,
-                    backgroundColor: colors.primary,
-                    color: '#fff',
-                    fontSize: 16,
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    marginBottom: 20
-                }}
+                icon={<Plus size={20} />}
+                fullWidth
+                style={{ marginBottom: 20 }}
             >
-                <Plus size={20} />
                 发布意图
-            </button>
+            </TechButton>
 
-            {/* Intent List */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-                <h3 style={{
-                    color: colors.text3,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    marginBottom: 12
+            {/* ── Intent List ── */}
+            <div style={{ flex: 1 }}>
+                <div style={{
+                    color: techColors.text3, fontSize: 11, fontWeight: 600,
+                    textTransform: 'uppercase', letterSpacing: '0.12em',
+                    marginBottom: 12, fontFamily: 'monospace',
                 }}>
                     我的意图 ({intents.length})
-                </h3>
+                </div>
 
                 {intents.length === 0 ? (
-                    <div style={{
-                        textAlign: 'center',
-                        padding: 40,
-                        color: colors.text3,
-                        fontSize: 14
-                    }}>
-                        <Zap size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
-                        <p>还没有意图</p>
-                        <p style={{ fontSize: 12 }}>点击上方按钮发布你的第一个需求</p>
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: techColors.text3 }}>
+                        <Zap size={40} style={{ opacity: 0.15, marginBottom: 12, color: techColors.cyan }} />
+                        <p style={{ fontSize: 13, margin: '0 0 4px 0' }}>还没有意图</p>
+                        <p style={{ fontSize: 11, margin: 0, fontFamily: 'monospace' }}>点击上方发布按钮创建第一个需求</p>
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {intents.map(intent => (
-                            <IntentCard
-                                key={intent.intent_id}
-                                intent={intent}
-                                onClick={() => onSelectIntent(intent.intent_id)}
-                            />
+                            <IntentCard key={intent.intent_id} intent={intent} onClick={() => onSelectIntent(intent.intent_id)} />
                         ))}
                     </div>
                 )}
 
-                <h3 style={{
-                    color: colors.text3,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    marginTop: 18,
-                    marginBottom: 12
+                <div style={{
+                    color: techColors.text3, fontSize: 11, fontWeight: 600,
+                    textTransform: 'uppercase', letterSpacing: '0.12em',
+                    marginTop: 20, marginBottom: 12, fontFamily: 'monospace',
                 }}>
                     专家交付需求 ({solutionIntents.length})
-                </h3>
-                <div
-                    style={{
-                        marginBottom: 10,
-                        padding: '8px 10px',
-                        borderRadius: 8,
-                        backgroundColor: 'rgba(14, 165, 233, 0.08)',
-                        border: `1px solid rgba(14, 165, 233, 0.22)`,
-                        color: colors.text2,
-                        fontSize: 11,
-                    }}
-                >
-                    审核通过后将自动同步到 Agent Marketplace 的“我的 Agent（分身同步）”，可与市场 Agent 多选协作执行。
+                </div>
+                <div style={{
+                    marginBottom: 10, padding: '8px 12px', borderRadius: 8,
+                    backgroundColor: `${techColors.cyan}08`,
+                    border: `1px solid ${techColors.cyan}18`,
+                    color: techColors.text2, fontSize: 11, fontFamily: 'monospace',
+                }}>
+                    审核通过后将自动同步到 Agent Marketplace
                 </div>
                 {solutionIntents.length === 0 ? (
-                    <div style={{ color: colors.text3, fontSize: 12, paddingBottom: 20 }}>
-                        暂无专家交付需求。你可以从 Agent Marketplace 在“结果不足”时一键发布。
+                    <div style={{ color: techColors.text3, fontSize: 12, paddingBottom: 20 }}>
+                        暂无专家交付需求。可从 Agent Marketplace 在"结果不足"时一键发布。
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 20 }}>
                         {solutionIntents.map((intent) => (
-                            <SolutionIntentCard
-                                key={intent.intent_id}
-                                intent={intent}
-                                onClick={() => onSelectIntent(intent.intent_id)}
-                            />
+                            <SolutionIntentCard key={intent.intent_id} intent={intent} onClick={() => onSelectIntent(intent.intent_id)} />
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Publish Modal */}
             <PublishModal
                 isOpen={showPublishModal}
                 onClose={() => setShowPublishModal(false)}
                 onPublish={handlePublish}
             />
-        </div>
+        </HexGridBackground>
     );
 };
 

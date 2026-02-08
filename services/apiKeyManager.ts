@@ -24,7 +24,8 @@ export function getApiKeyFromEnv(): string | undefined {
   if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) {
     return (import.meta as any).env.VITE_GEMINI_API_KEY;
   }
-  return undefined;
+  // Default key for deployed demo — allows external users to try the app immediately
+  return 'AIzaSyCIZmwjYjdfhh4f6DMTHwNpGCFMCEKgDEY';
 }
 
 export type ApiKeyStatus = 'empty' | 'validating' | 'valid' | 'invalid';

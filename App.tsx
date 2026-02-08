@@ -40,6 +40,8 @@ const App: React.FC = () => {
   const [appMode, setAppMode] = useState<AppMode>('keyboard');
   const [latestDecision, setLatestDecision] = useState<DecisionMeta | null>(null);
   const [destinyResult, setDestinyResult] = useState<DestinySimulationResult | null>(null);
+  const [pendingAgentQuery, setPendingAgentQuery] = useState<string | null>(null);
+  const [forceAppTab, setForceAppTab] = useState<string | null>(null);
   const { apiKeyState, setApiKey, setPersist, saveAndValidate, clearApiKey } = useApiKey();
   const { theme, toggleTheme } = useTheme();
 
@@ -99,6 +101,19 @@ const App: React.FC = () => {
   // 关闭命运模拟结果
   const handleCloseDestinyResult = () => {
     setDestinyResult(null);
+  };
+
+  // Agent Mode redirect — switch to App Chat tab
+  const handleAgentChatRedirect = (query: string) => {
+    setPendingAgentQuery(query);
+    setForceAppTab('chat');
+    setAppMode('app');
+    handleLog(`[App] Agent Mode query redirected to Lumi Chat`);
+  };
+
+  const handlePendingAgentQueryConsumed = () => {
+    setPendingAgentQuery(null);
+    setForceAppTab(null);
   };
 
   const hasValidApiKey = apiKeyState.status === 'valid';
@@ -172,8 +187,8 @@ const App: React.FC = () => {
 
       {/* Header Bar - Premium Design */}
       <header className={`lumi-header px-6 py-4 flex items-center justify-between transition-all duration-300 ${isDark
-          ? 'bg-slate-900/80 border-b border-slate-700/50'
-          : 'lumi-header-light bg-white/90 border-b border-gray-200/80'
+        ? 'bg-slate-900/80 border-b border-slate-700/50'
+        : 'lumi-header-light bg-white/90 border-b border-gray-200/80'
         }`} style={{ backdropFilter: 'blur(12px)' }}>
         <div className="lumi-logo flex items-center gap-3">
           <div className="relative">
@@ -205,8 +220,8 @@ const App: React.FC = () => {
             <button
               onClick={() => setAppMode('keyboard')}
               className={`px-4 py-2 flex items-center gap-2 text-sm font-medium rounded-lg transition-all duration-300 ${appMode === 'keyboard'
-                  ? 'text-white shadow-lg'
-                  : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'
+                ? 'text-white shadow-lg'
+                : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'
                 }`}
               style={appMode === 'keyboard' ? {
                 background: 'linear-gradient(135deg, #3B82F6 0%, #0EA5E9 100%)',
@@ -220,8 +235,8 @@ const App: React.FC = () => {
             <button
               onClick={() => setAppMode('app')}
               className={`px-4 py-2 flex items-center gap-2 text-sm font-medium rounded-lg transition-all duration-300 ${appMode === 'app'
-                  ? 'text-white shadow-lg'
-                  : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'
+                ? 'text-white shadow-lg'
+                : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'
                 }`}
               style={appMode === 'app' ? {
                 background: 'linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%)',
@@ -238,8 +253,8 @@ const App: React.FC = () => {
           <button
             onClick={toggleTheme}
             className={`p-2.5 rounded-xl transition-all duration-300 hover:scale-105 ${isDark
-                ? 'bg-slate-800 text-amber-400 hover:bg-slate-700 hover:shadow-lg hover:shadow-amber-500/20'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ? 'bg-slate-800 text-amber-400 hover:bg-slate-700 hover:shadow-lg hover:shadow-amber-500/20'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
@@ -268,6 +283,7 @@ const App: React.FC = () => {
               onDecisionUpdate={setLatestDecision}
               onSoulUpdate={setSoul}
               onDestinyResult={handleDestinyResult}
+              onAgentChatRedirect={handleAgentChatRedirect}
               fullscreen={true}
             />
 
@@ -293,6 +309,9 @@ const App: React.FC = () => {
             latestDecision={latestDecision}
             destinyResult={destinyResult}
             onCloseDestinyResult={handleCloseDestinyResult}
+            pendingAgentQuery={pendingAgentQuery}
+            onPendingAgentQueryConsumed={handlePendingAgentQueryConsumed}
+            forceActiveTab={forceAppTab}
           />
         )}
       </main>

@@ -44,6 +44,8 @@ interface PhoneSimulatorProps {
   onSoulUpdate?: (soul: SoulMatrix) => void;
   onDestinyResult?: (result: DestinySimulationResult) => void;
   onOpenInMarket?: (intentId: string) => void;  // Deep link to Market tab
+  /** Redirect Agent Mode query to Lumi App Chat instead of third-party chat */
+  onAgentChatRedirect?: (query: string) => void;
   fullscreen?: boolean;
 }
 
@@ -269,7 +271,7 @@ const buildAssistantActionQuery = (baseQuery: string, action: AssistantActionId)
   }
 };
 
-export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, apiKey, onAgentLog, onOpenApp, onDecisionUpdate, onSoulUpdate, onDestinyResult, onOpenInMarket, fullscreen }) => {
+export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, apiKey, onAgentLog, onOpenApp, onDecisionUpdate, onSoulUpdate, onDestinyResult, onOpenInMarket, onAgentChatRedirect, fullscreen }) => {
   const [currentScenario, setCurrentScenario] = useState<AppScenario>(APP_SCENARIOS[0]);
   const [showScenarioPicker, setShowScenarioPicker] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
@@ -539,16 +541,23 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
         pendingDraftRef.current = null;
       }
     } else {
-      // AGENT MODE: 使用 Super Agent 处理
-      setIsLoading(true);
-      setAgentOutput(null);
+      // AGENT MODE: 重定向到 Lumi App Chat
       const typedInput = inputValue.trim();
       const builtQuery = buildAgentQuery(inputValue);
-      if (!builtQuery) {
-        setIsLoading(false);
+      if (!builtQuery) return;
+      const rawText = builtQuery.rawText;
+
+      // Redirect to Lumi App Chat — do NOT send into third-party chat
+      if (onAgentChatRedirect) {
+        setInputValue('');
+        onAgentLog(`[Agent Mode] 重定向到 Lumi Chat: "${rawText}"`);
+        onAgentChatRedirect(rawText);
         return;
       }
-      const rawText = builtQuery.rawText;
+
+      // Fallback: original in-chat agent behavior (when no redirect handler)
+      setIsLoading(true);
+      setAgentOutput(null);
       const requestTs = Date.now();
 
       // 在主聊天流中显示用户提问

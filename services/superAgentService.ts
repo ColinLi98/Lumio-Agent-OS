@@ -617,45 +617,79 @@ export class SuperAgentService {
                     executionTimeMs: r.latency_ms,
                 }));
 
-                // Build structured answer with actual agent result summaries
-                let answerParts: string[] = [];
+                // Build structured answer with LLM synthesis from tool results
+                let finalAnswer: string;
                 if (shouldDegradeForEvidence) {
-                    answerParts.push(`当前为高风险领域且缺少强证据链，已降级为约束补全模式。${degradedConstraints}。`);
+                    finalAnswer = `当前为高风险领域且缺少强证据链，已降级为约束补全模式。${degradedConstraints}。`;
                 } else {
-                    // Summarize each successful agent's results
+                    // Collect all tool result data for LLM synthesis
+                    const toolDataSummaries: string[] = [];
                     for (const r of summary.results) {
-                        if (!r.success) continue;
                         const agentMeta = selectedAgentMeta.get(r.agent_id);
                         const agentName = agentMeta?.name || r.agent_id;
                         const data = r.data;
 
+                        if (!r.success) {
+                            toolDataSummaries.push(`[${agentName}] 执行失败: ${r.error || '未知错误'}`);
+                            continue;
+                        }
+
+                        // Extract meaningful data for synthesis
                         if (data?.data?.hotels?.length) {
-                            const hotels = data.data.hotels;
-                            answerParts.push(`🏨 **${agentName}**: 找到 ${hotels.length} 家酒店` +
-                                (hotels[0]?.name ? `，推荐 ${hotels[0].name}（${hotels[0].pricePerNight ? '¥' + hotels[0].pricePerNight + '/晚' : ''}）` : ''));
+                            const hotels = data.data.hotels.slice(0, 5);
+                            toolDataSummaries.push(`[${agentName}] 找到 ${data.data.hotels.length} 家酒店:\n${hotels.map((h: any) => `- ${h.name || '未知'}: ¥${h.pricePerNight || '?'}/晚, 评分: ${h.rating || '?'}`).join('\n')}`);
                         } else if (data?.data?.flights?.length || data?.flights?.length) {
-                            const flights = data?.data?.flights || data?.flights;
-                            answerParts.push(`🛫 **${agentName}**: 找到 ${flights.length} 个航班`);
-                        } else if (data?.success !== undefined) {
-                            answerParts.push(`✅ **${agentName}**: 任务完成`);
+                            const flights = (data?.data?.flights || data?.flights).slice(0, 5);
+                            toolDataSummaries.push(`[${agentName}] 找到 ${flights.length} 个航班:\n${flights.map((f: any) => `- ${f.airline || ''} ${f.flightNumber || ''}: ${f.departureTime || '?'}-${f.arrivalTime || '?'}, ¥${f.price || '?'}`).join('\n')}`);
+                        } else if (data?.evidence?.items?.length) {
+                            const items = data.evidence.items.slice(0, 5);
+                            toolDataSummaries.push(`[${agentName}] 搜索结果:\n${items.map((item: any) => `- ${item.title || ''}: ${item.snippet || ''}${item.url ? ` [来源](${item.url})` : ''}`).join('\n')}`);
+                        } else if (data?.answer || data?.text || data?.content) {
+                            toolDataSummaries.push(`[${agentName}] 结果: ${data.answer || data.text || data.content}`);
+                        } else if (typeof data === 'string') {
+                            toolDataSummaries.push(`[${agentName}] 结果: ${data}`);
+                        } else {
+                            toolDataSummaries.push(`[${agentName}] 任务完成 (data: ${JSON.stringify(data).slice(0, 300)})`);
                         }
                     }
 
                     if (aggregated.failed_tasks.length > 0) {
-                        answerParts.push(`⚠️ 未完成: ${aggregated.failed_tasks.join(', ')}`);
+                        toolDataSummaries.push(`未完成的任务: ${aggregated.failed_tasks.join(', ')}`);
                     }
 
-                    if (answerParts.length === 0) {
-                        answerParts.push(`已通过 ${summary.selected_agents.length} 个专业Agent完成任务。`);
+                    // Synthesize with LLM for a proper human-readable answer
+                    try {
+                        const client = await getGeminiClient(this.apiKey);
+                        const synthesisModel = client.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+                        const synthesisPrompt = `你是Lumi AI助手。用户问了"${query}"。
+
+以下是各专业Agent返回的原始数据：
+${toolDataSummaries.join('\n\n')}
+
+请根据以上数据，用中文为用户提供一个完整、有用的回答。要求：
+1. 直接回答用户问题，不要提及"Agent"或"工具"等技术细节
+2. 使用Markdown格式（加粗、列表、链接等）增强可读性
+3. 如果有具体数据（价格、名称、评分等），务必包含
+4. 语气自然、亲切
+5. 如果数据有限，基于已有信息给出最佳建议`;
+
+                        console.log('[SuperAgent] 🧠 Marketplace: synthesizing final answer with LLM...');
+                        const synthesisResult = await synthesisModel.generateContent(synthesisPrompt);
+                        finalAnswer = synthesisResult.response.text() || toolDataSummaries.join('\n');
+                        console.log('[SuperAgent] ✅ Marketplace: LLM synthesis complete');
+                    } catch (synthesisErr) {
+                        console.warn('[SuperAgent] ⚠️ Marketplace LLM synthesis failed, using raw summaries:', synthesisErr);
+                        // Fallback: use the raw summaries if LLM synthesis fails
+                        finalAnswer = toolDataSummaries.join('\n');
                     }
                 }
 
                 return {
-                    answer: answerParts.join('\n'),
+                    answer: finalAnswer,
                     toolsUsed: Array.from(new Set(effectiveSelectedAgents.map(s => s.agent_id))),
                     toolResults: mktToolResults,
                     confidence,
-                    executionTimeMs: elapsed,
+                    executionTimeMs: Math.round(performance.now() - startTime),
                     turns: 1,
                     marketplace_trace_id: plan.trace_id,
                     marketplace_selected_agents: effectiveSelectedAgents,
