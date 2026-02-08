@@ -1,6 +1,6 @@
-import { resetAgentMarketplace } from '../../../services/agentMarketplaceService';
-import { lixAgentRegistryService } from '../../../services/lixAgentRegistryService';
-import { lixStore } from '../../../services/lixStore';
+import { resetAgentMarketplace } from '../../../services/agentMarketplaceService.js';
+import { lixAgentRegistryService } from '../../../services/lixAgentRegistryService.js';
+import { lixStore } from '../../../services/lixStore.js';
 
 function buildHeaders(methods: string) {
     return {

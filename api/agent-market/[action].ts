@@ -8,16 +8,16 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHmac, randomUUID } from 'crypto';
-import { ensureMarketplaceCatalogReady, detectDomain, resetAgentMarketplace } from '../../services/agentMarketplaceService';
-import { getToolRegistry } from '../../services/toolRegistry';
-import { getSkillRegistry } from '../../services/skillRegistry';
-import { executeSpecializedAgent } from '../../services/specializedAgents';
-import { buildFlightActionLinks, parseFlightConstraints } from '../../services/flightConstraintParser';
-import { lixAgentRegistryService } from '../../services/lixAgentRegistryService';
-import { marketAnalyticsStore } from '../../services/marketAnalyticsStore';
-import { buildLeaderboard, getAgentTrendPoints, type LeaderboardSort, type LeaderboardWindow, type TrendWindow } from '../../services/agentHotnessService';
-import type { SpecializedAgentType } from '../../types';
-import type { AgentDescriptor, AgentDomain, DigitalTwinContext, DiscoveryQuery, DiscoveryResponse } from '../../services/agentMarketplaceTypes';
+import { ensureMarketplaceCatalogReady, detectDomain, resetAgentMarketplace } from '../../services/agentMarketplaceService.js';
+import { getToolRegistry } from '../../services/toolRegistry.js';
+import { getSkillRegistry } from '../../services/skillRegistry.js';
+import { executeSpecializedAgent } from '../../services/specializedAgents.js';
+import { buildFlightActionLinks, parseFlightConstraints } from '../../services/flightConstraintParser.js';
+import { lixAgentRegistryService } from '../../services/lixAgentRegistryService.js';
+import { marketAnalyticsStore } from '../../services/marketAnalyticsStore.js';
+import { buildLeaderboard, getAgentTrendPoints, type LeaderboardSort, type LeaderboardWindow, type TrendWindow } from '../../services/agentHotnessService.js';
+import type { SpecializedAgentType } from '../../types.js';
+import type { AgentDescriptor, AgentDomain, DigitalTwinContext, DiscoveryQuery, DiscoveryResponse } from '../../services/agentMarketplaceTypes.js';
 
 const IS_DEBUG = process.env.NODE_ENV !== 'production';
 

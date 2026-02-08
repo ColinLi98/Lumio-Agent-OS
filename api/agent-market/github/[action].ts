@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { githubAppService } from '../../../services/githubAppService';
-import { importAgentFromGithub } from '../../../services/agentGithubImportService';
+import { githubAppService } from '../../../services/githubAppService.js';
+import { importAgentFromGithub } from '../../../services/agentGithubImportService.js';
 
 function withCors(res: VercelResponse): void {
     res.setHeader('Access-Control-Allow-Origin', '*');

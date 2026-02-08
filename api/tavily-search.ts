@@ -1,42 +1,34 @@
 // Vercel Serverless Function to proxy Tavily API requests
 // This bypasses CORS restrictions by making server-side calls
 
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const TAVILY_API_URL = 'https://api.tavily.com/search';
 const TAVILY_API_KEY = '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';
 
-export default async function handler(request: Request) {
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
     // Handle CORS preflight
-    if (request.method === 'OPTIONS') {
-        return new Response(null, {
-            status: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'POST, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type',
-            },
-        });
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
     }
 
-    if (request.method !== 'POST') {
-        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-            status: 405,
-            headers: { 'Content-Type': 'application/json' },
-        });
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
     }
 
     try {
-        const body = await request.json();
+        const body = req.body || {};
         const { query, search_depth = 'basic', max_results = 5 } = body;
 
         if (!query) {
-            return new Response(JSON.stringify({ error: 'Query is required' }), {
-                status: 400,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
-            });
+            res.status(400).json({ error: 'Query is required' });
+            return;
         }
 
         console.log(`[Tavily Proxy] Searching: "${query}"`);
@@ -61,40 +53,23 @@ export default async function handler(request: Request) {
         if (!tavilyResponse.ok) {
             const errorText = await tavilyResponse.text();
             console.error('[Tavily Proxy] API Error:', tavilyResponse.status, errorText);
-            return new Response(JSON.stringify({
+            res.status(tavilyResponse.status).json({
                 error: `Tavily API error: ${tavilyResponse.status}`,
                 details: errorText
-            }), {
-                status: tavilyResponse.status,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
             });
+            return;
         }
 
         const data = await tavilyResponse.json();
         console.log(`[Tavily Proxy] Got ${data.results?.length || 0} results`);
 
-        return new Response(JSON.stringify(data), {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
-        });
+        res.status(200).json(data);
 
     } catch (error) {
         console.error('[Tavily Proxy] Error:', error);
-        return new Response(JSON.stringify({
+        res.status(500).json({
             error: 'Internal server error',
             message: error instanceof Error ? error.message : 'Unknown error'
-        }), {
-            status: 500,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
         });
     }
 }

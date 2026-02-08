@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { executeSerpApiWithKey, getServerSerpApiKey } from '../../services/serpApiClient';
-import type { SerpApiExecuteRequest, SerpApiEngine } from '../../services/serpApiTypes';
+import { executeSerpApiWithKey, getServerSerpApiKey } from '../../services/serpApiClient.js';
+import type { SerpApiExecuteRequest, SerpApiEngine } from '../../services/serpApiTypes.js';
 
 const ALLOWED_ENGINES: SerpApiEngine[] = [
     'google_maps',
