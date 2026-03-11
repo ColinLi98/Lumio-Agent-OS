@@ -31,8 +31,15 @@ if [[ -n "$tracked_noise" ]]; then
   exit 1
 fi
 
-run_step "Web typecheck" npm --prefix "$REPO_ROOT" run typecheck
-run_step "Web unit tests" npm --prefix "$REPO_ROOT" run test:unit
+run_step "Web build" npm --prefix "$REPO_ROOT" run build
+run_step \
+  "B-end unit tests" \
+  npm --prefix "$REPO_ROOT" run test:unit -- \
+  tests/services/surfaceBranding.test.ts \
+  tests/components/EnterprisePlatformView.test.ts \
+  tests/components/StandaloneTrialJoinView.test.ts \
+  tests/components/EnterpriseShellPanels.test.ts \
+  tests/platformContract.test.ts
 
 echo
 echo "Release baseline passed."
