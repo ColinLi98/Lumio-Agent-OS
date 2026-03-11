@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🌟 Lumi.AI - Agent OS
+# Lumio Agent OS
 
-### 智能意图编排 × 可执行交付 × 个性化决策引擎
+### B-end governed workspace platform built on Lumi.AI Agent OS
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-lumi--agent--simulator.vercel.app-blue?style=for-the-badge)](https://lumi-agent-simulator.vercel.app)
 [![Version](https://img.shields.io/badge/Version-v0.2.7%20Beta-green?style=for-the-badge)]()
@@ -15,9 +15,15 @@
 
 ## 🎯 产品愿景
 
-**Lumi.AI** 是一个通用型 **Agent OS**。它把键盘、App、云端推理、LIX 市场和 Digital Twin 组合成一条可执行链路，把用户意图转成可验证的任务分解、执行动作与结果证据。
+**Lumio** 是面向企业场景的 **B-end governed workspace platform**，底层构建在 **Lumi.AI Agent OS** 之上。它把键盘、App、云端推理、LIX 市场和 Digital Twin 组合成一条可执行链路，把用户意图转成可验证的任务分解、执行动作与结果证据。
 
 > *"让每个意图都能被拆解、执行、验证与交付"*
+
+## 🧭 仓库定位
+
+- `Lumio` 是当前对外发布的 B-end 产品名
+- `Lumi.AI Agent OS` 是底层执行与编排内核
+- 当前 GitHub 仓库承载前端工作台、执行链路、LIX 能力与配套文档
 
 ---
 
@@ -25,7 +31,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Lumi.AI Platform                          │
+│                     Lumio on Lumi.AI Agent OS                    │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
 │  │  Input      │  │   Agent     │  │    LIX      │              │
@@ -223,7 +229,7 @@ scripts/openclaw/start-embedded-relay.sh
 ## 📁 项目结构
 
 ```
-lumi-agent-simulator/
+Lumio-Agent-OS/
 ├── api/                          # Serverless API 端点
 │   ├── lix-broadcast.ts          # POST 意图广播
 │   ├── lix-intent.ts             # GET 意图详情
@@ -268,15 +274,15 @@ lumi-agent-simulator/
 
 ```bash
 # 1. 克隆项目
-git clone <repo-url>
-cd lumi-agent-simulator
+git clone https://github.com/ColinLi98/Lumio-Agent-OS.git
+cd Lumio-Agent-OS
 
 # 2. 安装依赖
 npm install
 
 # 3. 配置环境变量
-cp .env.local.example .env.local
-# 编辑 .env.local，设置 GEMINI_API_KEY
+cp .env.example .env.local
+# 编辑 .env.local，设置 GEMINI_API_KEY 等本地变量
 
 # 4. 启动开发服务器
 npm run dev
@@ -339,7 +345,7 @@ Proprietary - All Rights Reserved
 
 <div align="center">
 
-**Built with ❤️ by the Lumi.AI Team**
+**Built for Lumio on top of Lumi.AI Agent OS**
 
 [Live Demo](https://lumi-agent-simulator.vercel.app) · [Documentation](./docs/) · [Contact](mailto:team@lumi.ai)
 
