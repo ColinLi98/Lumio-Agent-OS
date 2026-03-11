@@ -113,6 +113,13 @@ export interface TaskPlan {
   stepResults?: Record<string, any>;
   // Groups of step IDs that can run in parallel
   parallelGroups?: string[][];
+  // Optional audit metadata for policy-driven waits/approvals
+  audit?: {
+    approval_reason?: string;
+    policy_decision_ids?: string[];
+    approval_token?: string;
+    approval_expires_at?: number;
+  };
 }
 
 export type AgentOutput =
@@ -125,7 +132,15 @@ export type AgentOutput =
   | { type: 'QUICK_ACTIONS'; actions: QuickAction[]; context?: string; associatedSuggestions?: AssociatedSuggestion[] }
   | { type: 'MEMORY_SAVED'; item: MemoryItem; message: string; associatedSuggestions?: AssociatedSuggestion[] }
   | { type: 'ORCHESTRATION_RESULT'; plan: OrchestrationPlan; decision?: DecisionMeta; associatedSuggestions?: AssociatedSuggestion[] }
-  | { type: 'SUPER_AGENT_RESULT'; globalSolution: SuperAgentSolution; summary: string; recommendation: string; results: any[]; decision?: DecisionMeta }
+  | {
+    type: 'SUPER_AGENT_RESULT';
+    globalSolution: SuperAgentSolution;
+    summary: string;
+    recommendation: string;
+    results: any[];
+    reasoningProtocol?: SuperAgentSolution['reasoningProtocol'];
+    decision?: DecisionMeta
+  }
   | { type: 'NEXT_BEST_ACTION'; recommendation: LifeActionRecommendation; gamma: number }
   | { type: 'ERROR'; message: string }
   | { type: 'NONE' };
@@ -164,6 +179,15 @@ export interface SuperAgentSolution {
   optimizationScore: number;
   reasoning: string;
   executionTime: number;
+  reasoningProtocol?: {
+    version: string;
+    mode: 'lite' | 'full';
+    methods_applied: string[];
+    root_problem: string;
+    recommended_strategy: string;
+    confidence: number;
+    artifacts?: Record<string, unknown>;
+  };
   // 联想建议 - 发散性思维
   associatedSuggestions?: AssociatedSuggestion[];
 }
@@ -205,11 +229,42 @@ export type BellmanDecisionAction =
   | 'RECOMMEND_BEST'
   | 'END';
 
+export type BellmanSafetyMode = 'runtime_inference' | 'shadow' | 'promotion';
+
+export type BellmanSafetyGateId =
+  | 'B1_DATA_INTEGRITY'
+  | 'B2_CONSTRAINT_COMPLIANCE'
+  | 'B3_RISK_BUDGET'
+  | 'B4_STABILITY'
+  | 'B5_ROLLBACK_READY';
+
+export interface BellmanSafetyGateResult {
+  gate: BellmanSafetyGateId;
+  decision: 'passed' | 'blocked' | 'advisory';
+  blocking: boolean;
+  reason: string;
+}
+
+export interface BellmanSafetySnapshot {
+  mode: BellmanSafetyMode;
+  status: 'ready' | 'blocked' | 'advisory';
+  failedGates: BellmanSafetyGateId[];
+  gates: BellmanSafetyGateResult[];
+  riskCostDelta: number;
+  approvedRiskCostDelta: number;
+  stabilityScore: number;
+  minStabilityScore: number;
+  policyVersion?: string;
+  previousPolicyVersion?: string;
+}
+
 export interface BellmanPolicyTrace {
   startState: BellmanDecisionState;
   bestAction: BellmanDecisionAction;
   expectedValue: number;
   path: BellmanDecisionAction[];
+  policyStatus?: 'ready' | 'blocked' | 'advisory';
+  safety?: BellmanSafetySnapshot;
 }
 
 
@@ -940,8 +995,8 @@ export interface DynamicAvatarState {
 // Agent Marketplace Re-exports
 // ====================================
 
-export type { AgentDomain, EvidenceLevel, CostTier } from './services/agentMarketplaceTypes';
-export type GenericAgentDomain = import('./services/agentMarketplaceTypes').AgentDomain;
+export type { AgentDomain, EvidenceLevel, CostTier } from './services/agentMarketplaceTypes.js';
+export type GenericAgentDomain = import('./services/agentMarketplaceTypes.js').AgentDomain;
 export interface GenericMarketplaceTask {
   id: string;
   objective: string;

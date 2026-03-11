@@ -1,13 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Lumi Keyboard</string>
-    <string name="ime_name">Lumi 智能键盘</string>
-    <string name="subtype_en_US">English (US)</string>
-    <string name="subtype_zh_CN">中文 (简体)</string>
-    <string name="settings_title">Lumi 设置</string>
-    <string name="api_key_title">Gemini API Key</string>
-    <string name="api_key_hint">输入您的 API Key</string>
-    <string name="enable_keyboard">启用 Lumi 键盘</string>
-    <string name="enable_instructions">请在系统设置中启用 Lumi 键盘，然后选择它作为默认输入法。</string>
-    <string name="agent_mode_tip">长按空格键进入 Agent 模式</string>
+    <string name="app_name">Lumi Agent</string>
 </resources>

@@ -1,7 +1,7 @@
 /**
- * AgentActionLog - Agent 操作历史记录
+ * AgentActionLog - Agent action history
  *
- * 记录和显示所有代理操作及边界检查结果
+ * Records and displays all agent actions and boundary-check results
  */
 
 import React, { useState, useEffect } from 'react';
@@ -129,7 +129,7 @@ interface ActionCardProps {
 
 const ActionCard: React.FC<ActionCardProps> = ({ action }) => {
     const levelColor = getInteractionLevelColor(action.boundaryLevel);
-    const timeStr = new Date(action.timestamp).toLocaleString('zh-CN', {
+    const timeStr = new Date(action.timestamp).toLocaleString('en-GB', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
@@ -143,10 +143,10 @@ const ActionCard: React.FC<ActionCardProps> = ({ action }) => {
     };
 
     const typeLabels: Record<string, string> = {
-        query: '查询',
-        command: '命令',
-        tool: '工具',
-        draft: '草稿',
+        query: 'Query',
+        command: 'Command',
+        tool: 'Tool',
+        draft: 'Draft',
     };
 
     return (
@@ -184,7 +184,7 @@ const ActionCard: React.FC<ActionCardProps> = ({ action }) => {
                     <div className="text-xs text-white truncate">{action.input}</div>
                     {action.matchedRule && (
                         <div className="text-[10px] text-slate-400 mt-1">
-                            规则: {action.matchedRule}
+                            Rule: {action.matchedRule}
                         </div>
                     )}
                 </div>
@@ -224,25 +224,25 @@ export const AgentActionLog: React.FC<AgentActionLogProps> = ({ onLog }) => {
     }, []);
 
     const handleClear = () => {
-        if (confirm('确定要清除所有操作记录吗？')) {
+        if (confirm('Clear all action records?')) {
             actionLogService.clear();
             loadData();
-            onLog?.('操作记录已清除');
+            onLog?.('Action records cleared');
         }
     };
 
     const handleSimulate = () => {
         // Simulate various actions for demo
         const samples = [
-            { input: '今天天气怎么样？', type: 'query' as const, boundaryLevel: InteractionLevel.L1_AUTO, allowed: true },
-            { input: '帮我设置明天的提醒', type: 'command' as const, boundaryLevel: InteractionLevel.L2_SEMI_AUTO, allowed: true },
-            { input: '帮我转账500元', type: 'command' as const, boundaryLevel: InteractionLevel.L4_FORBIDDEN, allowed: false, matchedRule: 'financial_transaction' },
+            { input: 'What is today\'s weather?', type: 'query' as const, boundaryLevel: InteractionLevel.L1_AUTO, allowed: true },
+            { input: 'Set a reminder for tomorrow', type: 'command' as const, boundaryLevel: InteractionLevel.L2_SEMI_AUTO, allowed: true },
+            { input: 'Transfer 500 CNY for me', type: 'command' as const, boundaryLevel: InteractionLevel.L4_FORBIDDEN, allowed: false, matchedRule: 'financial_transaction' },
         ];
 
         const sample = samples[Math.floor(Math.random() * samples.length)];
         actionLogService.record(sample);
         loadData();
-        onLog?.('已添加模拟操作');
+        onLog?.('Added simulated action');
     };
 
     const filteredActions = actions.filter((a) => {
@@ -257,13 +257,13 @@ export const AgentActionLog: React.FC<AgentActionLogProps> = ({ onLog }) => {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Activity size={18} className="text-green-400" />
-                    <span className="font-semibold text-white">操作历史</span>
+                    <span className="font-semibold text-white">Action History</span>
                 </div>
                 <div className="flex gap-1">
                     <button
                         onClick={handleSimulate}
                         className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors"
-                        title="模拟操作"
+                        title="Simulate Action"
                     >
                         <Zap size={14} />
                     </button>
@@ -286,24 +286,24 @@ export const AgentActionLog: React.FC<AgentActionLogProps> = ({ onLog }) => {
             <div className="grid grid-cols-3 gap-2">
                 <div className="bg-slate-800/50 rounded-lg p-2 border border-slate-700 text-center">
                     <div className="text-lg font-bold text-white">{stats.total}</div>
-                    <div className="text-[10px] text-slate-400">总计</div>
+                    <div className="text-[10px] text-slate-400">Total</div>
                 </div>
                 <div className="bg-slate-800/50 rounded-lg p-2 border border-slate-700 text-center">
                     <div className="text-lg font-bold text-green-400">{stats.allowed}</div>
-                    <div className="text-[10px] text-slate-400">允许</div>
+                    <div className="text-[10px] text-slate-400">Allowed</div>
                 </div>
                 <div className="bg-slate-800/50 rounded-lg p-2 border border-slate-700 text-center">
                     <div className="text-lg font-bold text-red-400">{stats.blocked}</div>
-                    <div className="text-[10px] text-slate-400">拒绝</div>
+                    <div className="text-[10px] text-slate-400">Blocked</div>
                 </div>
             </div>
 
             {/* Filter */}
             <div className="flex gap-1 bg-slate-800/50 p-1 rounded-lg">
                 {[
-                    { key: 'all' as const, label: '全部' },
-                    { key: 'allowed' as const, label: '允许' },
-                    { key: 'blocked' as const, label: '拒绝' },
+                    { key: 'all' as const, label: 'All' },
+                    { key: 'allowed' as const, label: 'Allowed' },
+                    { key: 'blocked' as const, label: 'Blocked' },
                 ].map((f) => (
                     <button
                         key={f.key}
@@ -323,7 +323,7 @@ export const AgentActionLog: React.FC<AgentActionLogProps> = ({ onLog }) => {
                 {filteredActions.length === 0 ? (
                     <div className="text-center py-6 text-slate-500">
                         <Activity size={24} className="mx-auto mb-2 opacity-50" />
-                        <p className="text-xs">暂无操作记录</p>
+                        <p className="text-xs">No action records yet</p>
                     </div>
                 ) : (
                     filteredActions.map((action) => (

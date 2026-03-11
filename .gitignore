@@ -10,6 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
+playwright-report
+test-results
 *.local
 
 # Editor directories and files
@@ -23,3 +26,68 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Android / Gradle artifacts
+LumiKeyboard-Android/.gradle/
+LumiKeyboard-Android/.gradle-home/
+LumiKeyboard-Android/.kotlin/
+LumiKeyboard-Android/**/build/
+LumiKeyboard-Android/**/bin/
+LumiKeyboard-Android/captures/
+LumiKeyboard-Android/*.hprof
+*.apk
+.env*.local
+*.iml
+
+# Local scratch / generated analysis outputs (repo hygiene baseline)
+.local-output/
+local-output/
+artifacts/local/
+LumiKeyboard-Android/.local-output/
+LumiKeyboard-Android/local-output/
+LumiKeyboard-Android/artifacts/local/
+
+# Embedded OpenClaw runtime state
+.openclaw/
+
+# Repo-noise reduction (M14.5): local exports and runtime evidence should not pollute milestone diffs
+/artifacts/
+/openclaw-relay/
+/investor_demo.html
+/keyboard_edge_cloud_superagent_arch_en.pdf
+/Lumi_AI_Investor_Pitch.pptx
+/Songyi_Li_CV.docx
+/Songyi_Li_CV.html
+/Songyi_Li_CV.pdf
+/Songyi_Li_CV_from_mammoth.html
+/docs/*.docx
+/docs/*.pdf
+/docs/*.pptx
+/docs/*.html
+
+# Launch 02 release-baseline temp/cache boundaries
+/.tmp/
+/.temp/
+/tmp/
+/temp/
+.cache/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.nyc_output/
+htmlcov/
+*.tmp
+*.bak
+*.orig
+*.rej
+
+# Root-level ad-hoc exports should stay out of milestone diffs
+/*.pdf
+/*.pptx
+/*.docx
+/*.html

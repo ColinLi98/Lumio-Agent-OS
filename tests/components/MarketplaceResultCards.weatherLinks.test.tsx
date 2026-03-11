@@ -26,11 +26,11 @@ describe('WeatherResultCard links and details', () => {
       />
     );
 
-    expect(html).toContain('上海 天气');
+    expect(html).toContain('上海 Weather');
     expect(html).toContain('今天');
     expect(html).toContain('12-18°C');
     expect(html).toContain('https://www.weather.com/');
-    expect(html).toContain('https://www.google.com/search?q=%E4%B8%8A%E6%B5%B7%20%E5%A4%A9%E6%B0%94');
+    expect(html).toContain('https://www.google.com/search?q=%E4%B8%8A%E6%B5%B7%20weather');
     expect(html).toContain('https://www.windy.com/31.2304/121.4737?31.2304,121.4737,7');
     expect(html).not.toContain('serpapi.com/search.json');
     expect(html).not.toContain('api_key=secret');

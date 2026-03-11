@@ -1,7 +1,7 @@
 /**
- * EmergencyPanel - 紧急情况可视化面板
+ * EmergencyPanel - Emergency visualization panel
  *
- * 显示系统健康状态、未解决事件和历史记录
+ * Displays system health, unresolved events, and history.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -31,19 +31,19 @@ const HealthBadge: React.FC<HealthBadgeProps> = ({ status }) => {
             icon: <CheckCircle size={14} />,
             bg: 'bg-green-500/20 border-green-500/30',
             text: 'text-green-400',
-            label: '系统正常',
+            label: 'System Healthy',
         },
         degraded: {
             icon: <AlertCircle size={14} />,
             bg: 'bg-yellow-500/20 border-yellow-500/30',
             text: 'text-yellow-400',
-            label: '部分降级',
+            label: 'Partially Degraded',
         },
         critical: {
             icon: <XCircle size={14} />,
             bg: 'bg-red-500/20 border-red-500/30',
             text: 'text-red-400',
-            label: '严重问题',
+            label: 'Critical Issues',
         },
     };
 
@@ -68,31 +68,31 @@ interface EventCardProps {
 
 const getLevelConfig = (level: EmergencyLevel) => {
     const configs = {
-        [EmergencyLevel.LOW]: { color: 'text-blue-400', bg: 'bg-blue-500/20', label: '低' },
-        [EmergencyLevel.MEDIUM]: { color: 'text-yellow-400', bg: 'bg-yellow-500/20', label: '中' },
-        [EmergencyLevel.HIGH]: { color: 'text-orange-400', bg: 'bg-orange-500/20', label: '高' },
-        [EmergencyLevel.CRITICAL]: { color: 'text-red-400', bg: 'bg-red-500/20', label: '严重' },
+        [EmergencyLevel.LOW]: { color: 'text-blue-400', bg: 'bg-blue-500/20', label: 'Low' },
+        [EmergencyLevel.MEDIUM]: { color: 'text-yellow-400', bg: 'bg-yellow-500/20', label: 'Medium' },
+        [EmergencyLevel.HIGH]: { color: 'text-orange-400', bg: 'bg-orange-500/20', label: 'High' },
+        [EmergencyLevel.CRITICAL]: { color: 'text-red-400', bg: 'bg-red-500/20', label: 'Critical' },
     };
     return configs[level];
 };
 
 const getTypeLabel = (type: EmergencyType): string => {
     const labels: Record<EmergencyType, string> = {
-        [EmergencyType.NETWORK_FAILURE]: '网络故障',
-        [EmergencyType.API_ERROR]: 'API 错误',
-        [EmergencyType.PRIVACY_BREACH]: '隐私泄露',
-        [EmergencyType.SECURITY_THREAT]: '安全威胁',
-        [EmergencyType.SERVICE_UNAVAILABLE]: '服务不可用',
-        [EmergencyType.RATE_LIMIT]: '频率限制',
-        [EmergencyType.AUTH_FAILURE]: '认证失败',
-        [EmergencyType.DATA_CORRUPTION]: '数据损坏',
+        [EmergencyType.NETWORK_FAILURE]: 'Network Failure',
+        [EmergencyType.API_ERROR]: 'API Error',
+        [EmergencyType.PRIVACY_BREACH]: 'Privacy Breach',
+        [EmergencyType.SECURITY_THREAT]: 'Security Threat',
+        [EmergencyType.SERVICE_UNAVAILABLE]: 'Service Unavailable',
+        [EmergencyType.RATE_LIMIT]: 'Rate Limit',
+        [EmergencyType.AUTH_FAILURE]: 'Auth Failure',
+        [EmergencyType.DATA_CORRUPTION]: 'Data Corruption',
     };
     return labels[type] || type;
 };
 
 const EventCard: React.FC<EventCardProps> = ({ event, onResolve }) => {
     const levelConfig = getLevelConfig(event.level);
-    const timeStr = new Date(event.timestamp).toLocaleString('zh-CN', {
+    const timeStr = new Date(event.timestamp).toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
@@ -119,7 +119,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, onResolve }) => {
                         <Clock size={10} />
                         <span>{timeStr}</span>
                         {event.resolved && (
-                            <span className="text-green-400">✓ 已解决</span>
+                            <span className="text-green-400">✓ Resolved</span>
                         )}
                     </div>
                 </div>
@@ -127,7 +127,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, onResolve }) => {
                     <button
                         onClick={() => onResolve(event.id)}
                         className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors"
-                        title="标记为已解决"
+                        title="Mark as resolved"
                     >
                         <CheckCircle size={14} />
                     </button>
@@ -159,7 +159,7 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ onLog }) => {
 
     useEffect(() => {
         loadData();
-        // 订阅事件
+        // Subscribe to emergency events.
         const unsubscribe = emergencyHandler.addListener(() => {
             loadData();
         });
@@ -167,27 +167,27 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ onLog }) => {
     }, []);
 
     const handleResolve = (eventId: string) => {
-        emergencyHandler.resolve(eventId, '用户手动解决');
+        emergencyHandler.resolve(eventId, 'Resolved manually by user');
         loadData();
-        onLog?.('事件已标记为解决');
+        onLog?.('Event marked as resolved.');
     };
 
     const handleClearAll = () => {
-        if (confirm('确定要清除所有事件记录吗？')) {
+        if (confirm('Clear all event records?')) {
             emergencyHandler.clearAll();
             loadData();
-            onLog?.('已清除所有事件');
+            onLog?.('All events cleared.');
         }
     };
 
     const handleSimulateEvent = () => {
         emergencyHandler.report(
             EmergencyType.NETWORK_FAILURE,
-            '模拟网络故障测试',
+            'Simulated network failure test',
             { simulated: true }
         );
         loadData();
-        onLog?.('已模拟紧急事件');
+        onLog?.('Simulated emergency event created.');
     };
 
     return (
@@ -196,7 +196,7 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ onLog }) => {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Activity size={18} className="text-orange-400" />
-                    <span className="font-semibold text-white">系统状态</span>
+                    <span className="font-semibold text-white">System Status</span>
                 </div>
                 <HealthBadge status={health.status} />
             </div>
@@ -207,19 +207,19 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ onLog }) => {
                     <div className={`text-xl font-bold ${health.status === 'healthy' ? 'text-green-400' : 'text-yellow-400'}`}>
                         {health.unresolvedCount}
                     </div>
-                    <div className="text-xs text-slate-400">未解决</div>
+                    <div className="text-xs text-slate-400">Unresolved</div>
                 </div>
                 <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 text-center">
                     <div className={`text-xl font-bold ${health.criticalCount > 0 ? 'text-red-400' : 'text-slate-400'}`}>
                         {health.criticalCount}
                     </div>
-                    <div className="text-xs text-slate-400">严重</div>
+                    <div className="text-xs text-slate-400">Critical</div>
                 </div>
                 <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 text-center">
                     <div className="text-xl font-bold text-slate-300">
                         {historyEvents.length}
                     </div>
-                    <div className="text-xs text-slate-400">历史</div>
+                    <div className="text-xs text-slate-400">History</div>
                 </div>
             </div>
 
@@ -230,14 +230,14 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ onLog }) => {
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition-colors"
                 >
                     <RefreshCw size={12} />
-                    刷新
+                    Refresh
                 </button>
                 <button
                     onClick={handleSimulateEvent}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-xs transition-colors"
                 >
                     <AlertTriangle size={12} />
-                    模拟事件
+                    Simulate Event
                 </button>
                 <button
                     onClick={handleClearAll}
@@ -250,7 +250,7 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ onLog }) => {
             {/* Unresolved Events */}
             {unresolvedEvents.length > 0 && (
                 <div className="space-y-2">
-                    <div className="text-xs font-medium text-slate-300">待处理事件</div>
+                    <div className="text-xs font-medium text-slate-300">Pending Events</div>
                     {unresolvedEvents.map((event) => (
                         <EventCard key={event.id} event={event} onResolve={handleResolve} />
                     ))}
@@ -261,7 +261,7 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ onLog }) => {
             {unresolvedEvents.length === 0 && (
                 <div className="text-center py-6 text-slate-500">
                     <CheckCircle size={32} className="mx-auto mb-2 text-green-400/50" />
-                    <p className="text-sm">暂无待处理事件</p>
+                    <p className="text-sm">No pending events</p>
                 </div>
             )}
 
@@ -271,7 +271,7 @@ export const EmergencyPanel: React.FC<EmergencyPanelProps> = ({ onLog }) => {
                     onClick={() => setShowHistory(!showHistory)}
                     className="w-full text-xs text-slate-400 hover:text-white py-2 transition-colors"
                 >
-                    {showHistory ? '隐藏历史' : `查看历史记录 (${historyEvents.length})`}
+                    {showHistory ? 'Hide History' : `View History (${historyEvents.length})`}
                 </button>
 
                 {showHistory && historyEvents.length > 0 && (

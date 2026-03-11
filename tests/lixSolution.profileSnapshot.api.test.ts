@@ -54,6 +54,39 @@ describe('lix solution broadcast profile snapshot api', () => {
     const stored = lixStore.getSolutionIntent(intentId);
     expect(stored?.profile_share_consent).toBe('granted_remembered');
     expect(stored?.digital_twin_snapshot?.user_id).toBe('avatar_user_1');
+    const offers = stored?.offers || [];
+    expect(offers.length).toBeGreaterThan(0);
+    expect(offers.every((offer) => typeof offer.execution_score === 'number')).toBe(true);
+    expect(offers.every((offer) => typeof offer.twin_fit_score === 'number')).toBe(true);
+    expect(offers.every((offer) => typeof offer.composite_score === 'number')).toBe(true);
+    expect(offers.every((offer) => typeof offer.ranking_rationale === 'string' && offer.ranking_rationale.length > 0)).toBe(true);
+    expect(offers.some((offer) => Math.abs(Number(offer.twin_fit_score || 0)) > 0)).toBe(true);
+  });
+
+  it('keeps twin score neutral when no snapshot is provided', async () => {
+    const request = new Request('http://localhost/api/lix/solution/broadcast', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        requester_id: 'avatar_user_2',
+        query: '帮我构建上海本地生活协作 Agent',
+        domain: 'local_service',
+        required_capabilities: ['local_search', 'live_search'],
+      }),
+    });
+
+    const response = await solutionHandler(request);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload?.success).toBe(true);
+
+    const intentId = String(payload?.intent_id || '');
+    const stored = lixStore.getSolutionIntent(intentId);
+    const offers = stored?.offers || [];
+    expect(offers.length).toBeGreaterThan(0);
+    expect(offers.every((offer) => (offer.twin_fit_score || 0) === 0)).toBe(true);
+    expect(offers.every((offer) => String(offer.ranking_rationale || '').includes('未提供 Digital Twin'))).toBe(true);
   });
 
   it('rejects snapshot when consent is missing', async () => {
@@ -77,4 +110,3 @@ describe('lix solution broadcast profile snapshot api', () => {
     expect(String(payload?.error || '')).toContain('profile_share_consent');
   });
 });
-

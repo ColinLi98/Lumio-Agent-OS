@@ -7,22 +7,22 @@ import { Sparkles, Star, Zap, Crown, Trophy } from 'lucide-react';
 // ============================================================================
 
 const LEVEL_CONFIG = {
-    // 经验值计算：每级需要的经验递增
+    // XP curve: required XP increases per level.
     getXpForLevel: (level: number) => Math.floor(50 * Math.pow(1.5, level - 1)),
 
-    // 等级称号
+    // Level titles.
     titles: [
-        { minLevel: 1, title: '新手探索者', badge: '🌱', color: '#94a3b8' },
-        { minLevel: 5, title: '初露锋芒', badge: '🌿', color: '#22c55e' },
-        { minLevel: 10, title: '渐入佳境', badge: '⭐', color: '#3b82f6' },
-        { minLevel: 20, title: '独当一面', badge: '💫', color: '#8b5cf6' },
-        { minLevel: 35, title: '炉火纯青', badge: '🔥', color: '#f59e0b' },
-        { minLevel: 50, title: '登峰造极', badge: '👑', color: '#eab308' },
-        { minLevel: 75, title: '传奇大师', badge: '💎', color: '#06b6d4' },
-        { minLevel: 100, title: '数字分身之神', badge: '🏆', color: '#ec4899' },
+        { minLevel: 1, title: 'Rookie Explorer', badge: '🌱', color: '#94a3b8' },
+        { minLevel: 5, title: 'Rising Talent', badge: '🌿', color: '#22c55e' },
+        { minLevel: 10, title: 'In the Zone', badge: '⭐', color: '#3b82f6' },
+        { minLevel: 20, title: 'Independent Pro', badge: '💫', color: '#8b5cf6' },
+        { minLevel: 35, title: 'Expert Craft', badge: '🔥', color: '#f59e0b' },
+        { minLevel: 50, title: 'Peak Performer', badge: '👑', color: '#eab308' },
+        { minLevel: 75, title: 'Legendary Master', badge: '💎', color: '#06b6d4' },
+        { minLevel: 100, title: 'Digital Twin Deity', badge: '🏆', color: '#ec4899' },
     ],
 
-    // 根据经验值计算等级
+    // Calculate level from total XP.
     calculateLevel: (totalXp: number): AvatarLevel => {
         let level = 1;
         let remainingXp = totalXp;
@@ -51,7 +51,7 @@ const LEVEL_CONFIG = {
         };
     },
 
-    // 从交互数据计算经验值
+    // Calculate XP from interaction stats.
     calculateXpFromStats: (stats: { totalInteractions: number; totalMessages: number; totalToolUses: number }) => {
         return stats.totalInteractions * 2 +
             stats.totalMessages * 3 +
@@ -91,7 +91,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
     const [isAnimating, setIsAnimating] = useState(false);
     const [pulseEffect, setPulseEffect] = useState(false);
 
-    // 计算等级
+    // Compute level.
     const totalXp = LEVEL_CONFIG.calculateXpFromStats({
         totalInteractions,
         totalMessages,
@@ -100,7 +100,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
     const level = LEVEL_CONFIG.calculateLevel(totalXp);
     const xpProgress = (level.xp / level.nextLevelXp) * 100;
 
-    // 根据情绪选择表情
+    // Pick emoji by mood.
     const getMoodEmoji = () => {
         switch (currentMood) {
             case 'positive': return '😊';
@@ -109,7 +109,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
         }
     };
 
-    // 根据等级获取边框样式
+    // Pick border style by level.
     const getBorderStyle = () => {
         if (level.level >= 50) {
             return 'ring-4 ring-yellow-400 ring-opacity-50';
@@ -121,7 +121,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
         return '';
     };
 
-    // 尺寸配置
+    // Size configuration.
     const sizeConfig = {
         small: { avatar: 'w-12 h-12', text: 'text-lg', badge: 'text-sm', xpHeight: 'h-1' },
         medium: { avatar: 'w-20 h-20', text: 'text-2xl', badge: 'text-lg', xpHeight: 'h-1.5' },
@@ -130,7 +130,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
 
     const config = sizeConfig[size];
 
-    // 动画效果
+    // Animation effects.
     useEffect(() => {
         if (animated) {
             const interval = setInterval(() => {
@@ -143,9 +143,9 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
 
     return (
         <div className="flex flex-col items-center gap-2">
-            {/* 头像容器 */}
+            {/* Avatar container */}
             <div className="relative">
-                {/* 等级徽章 - 左上 */}
+                {/* Level badge - top left */}
                 {showLevel && level.level >= 5 && (
                     <div
                         className="absolute -left-2 -top-2 z-10 flex items-center justify-center w-7 h-7 rounded-full shadow-lg"
@@ -156,7 +156,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
                     </div>
                 )}
 
-                {/* 主头像 */}
+                {/* Main avatar */}
                 <div
                     className={`
                         ${config.avatar} rounded-full 
@@ -175,7 +175,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
                     </span>
                 </div>
 
-                {/* 情绪指示器 - 右下 */}
+                {/* Mood indicator - bottom right */}
                 <div
                     className={`
                         absolute -right-1 -bottom-1 
@@ -189,7 +189,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
                     <span className="text-xs">{getMoodEmoji()}</span>
                 </div>
 
-                {/* 高等级特效 */}
+                {/* High-level effect */}
                 {level.level >= 35 && animated && (
                     <div className="absolute inset-0 pointer-events-none">
                         <Sparkles
@@ -200,7 +200,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
                 )}
             </div>
 
-            {/* 等级信息 */}
+            {/* Level info */}
             {showLevel && (
                 <div className="text-center">
                     <div className="flex items-center gap-1.5 justify-center">
@@ -213,7 +213,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
                 </div>
             )}
 
-            {/* 经验值进度条 */}
+            {/* XP progress bar */}
             {showXpBar && (
                 <div className="w-full max-w-[120px]">
                     <div className={`w-full ${config.xpHeight} bg-slate-700 rounded-full overflow-hidden`}>
@@ -236,7 +236,7 @@ export const DynamicAvatar: React.FC<DynamicAvatarProps> = ({
 };
 
 // ============================================================================
-// Level Progress Card - 等级进度卡片
+// Level Progress Card
 // ============================================================================
 
 interface LevelProgressCardProps {
@@ -258,7 +258,7 @@ export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
     const level = LEVEL_CONFIG.calculateLevel(totalXp);
     const xpProgress = (level.xp / level.nextLevelXp) * 100;
 
-    // 找到下一个里程碑
+    // Find next milestone.
     const nextMilestone = LEVEL_CONFIG.titles.find(t => t.minLevel > level.level);
 
     return (
@@ -273,14 +273,14 @@ export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
                 </div>
                 <div className="text-right">
                     <div className="text-sm font-medium text-purple-400">{totalXp} XP</div>
-                    <div className="text-[10px] text-slate-500">累计经验</div>
+                    <div className="text-[10px] text-slate-500">Total XP</div>
                 </div>
             </div>
 
-            {/* 进度条 */}
+            {/* Progress bar */}
             <div className="mb-3">
                 <div className="flex justify-between text-xs text-slate-400 mb-1">
-                    <span>距离 Lv.{level.level + 1}</span>
+                    <span>To Lv.{level.level + 1}</span>
                     <span>{level.xp}/{level.nextLevelXp} XP</span>
                 </div>
                 <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
@@ -294,30 +294,30 @@ export const LevelProgressCard: React.FC<LevelProgressCardProps> = ({
                 </div>
             </div>
 
-            {/* 下一个里程碑 */}
+            {/* Next milestone */}
             {nextMilestone && (
                 <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/50 rounded-lg p-2">
                     <span className="text-lg">{nextMilestone.badge}</span>
                     <div>
-                        <span className="text-slate-300">下一里程碑: </span>
+                        <span className="text-slate-300">Next milestone: </span>
                         <span className="text-purple-400">{nextMilestone.title}</span>
                         <span className="text-slate-500 ml-1">(Lv.{nextMilestone.minLevel})</span>
                     </div>
                 </div>
             )}
 
-            {/* 经验值来源说明 */}
+            {/* XP source breakdown */}
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="text-xs">
-                    <div className="text-slate-400">交互</div>
+                    <div className="text-slate-400">Interactions</div>
                     <div className="text-white font-medium">{totalInteractions} <span className="text-purple-400">×2</span></div>
                 </div>
                 <div className="text-xs">
-                    <div className="text-slate-400">消息</div>
+                    <div className="text-slate-400">Messages</div>
                     <div className="text-white font-medium">{totalMessages} <span className="text-blue-400">×3</span></div>
                 </div>
                 <div className="text-xs">
-                    <div className="text-slate-400">工具</div>
+                    <div className="text-slate-400">Tools</div>
                     <div className="text-white font-medium">{totalToolUses} <span className="text-yellow-400">×5</span></div>
                 </div>
             </div>

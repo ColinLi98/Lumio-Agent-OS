@@ -1,0 +1,44 @@
+{
+  "thresholds": {
+    "crossDomainMin": 2,
+    "capabilitiesMin": 3,
+    "dependencyMin": 2,
+    "riskMin": 0.75,
+    "requireEvidenceOnRisk": true
+  },
+  "complexityWeights": {
+    "crossDomain": 0.38,
+    "capability": 0.22,
+    "dependency": 0.4
+  },
+  "riskProfile": {
+    "highRiskScore": 0.9,
+    "defaultRiskScore": 0.34,
+    "settingsRiskScore": 0.28
+  },
+  "explicitMultiAgentKeywords": [
+    "并行协作",
+    "多agent",
+    "multi-agent",
+    "多方案"
+  ],
+  "dependencyKeywords": [
+    "然后",
+    "先",
+    "再",
+    "并且",
+    "同时",
+    "and then"
+  ],
+  "highRiskKeywords": [
+    "法律",
+    "合同",
+    "health",
+    "医疗",
+    "投资",
+    "股票",
+    "比特币",
+    "转账",
+    "支付"
+  ]
+}

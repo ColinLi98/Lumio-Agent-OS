@@ -6,23 +6,23 @@ interface EmojiReactionsProps {
     visible: boolean;
 }
 
-// 常用快捷表情
+// Common quick emojis
 const QUICK_EMOJIS = ['👍', '👎', '❤️', '😂', '🎉', '🤔'];
 
-// 扩展表情面板
+// Extended emoji panel
 const EMOJI_CATEGORIES = {
-    '常用': ['👍', '👎', '❤️', '😂', '🎉', '🤔', '👏', '🙏'],
-    '表情': ['😊', '😄', '😢', '😭', '😡', '🥺', '😍', '🤣'],
-    '手势': ['👋', '✋', '👌', '✌️', '🤝', '💪', '👊', '🙌']
+    'Common': ['👍', '👎', '❤️', '😂', '🎉', '🤔', '👏', '🙏'],
+    'Faces': ['😊', '😄', '😢', '😭', '😡', '🥺', '😍', '🤣'],
+    'Gestures': ['👋', '✋', '👌', '✌️', '🤝', '💪', '👊', '🙌']
 };
 
 /**
- * 快捷表情反应组件
- * 提供常用表情快速发送
+ * Quick emoji reaction component
+ * Provides fast emoji sending
  */
 export const EmojiReactions: React.FC<EmojiReactionsProps> = ({ onEmojiSelect, visible }) => {
     const [showPanel, setShowPanel] = useState(false);
-    const [activeCategory, setActiveCategory] = useState<keyof typeof EMOJI_CATEGORIES>('常用');
+    const [activeCategory, setActiveCategory] = useState<keyof typeof EMOJI_CATEGORIES>('Common');
 
     if (!visible) return null;
 

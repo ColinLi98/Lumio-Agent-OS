@@ -81,12 +81,12 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
 
     const getCategoryLabel = (cat: string) => {
         const labels: Record<string, string> = {
-            purchase: '购买意图',
-            service: '服务意图',
-            job: '求职意图',
-            collaboration: '合作意图'
+            purchase: 'Purchase Intent',
+            service: 'Service Intent',
+            job: 'Job Intent',
+            collaboration: 'Collaboration Intent'
         };
-        return labels[cat] || '意图';
+        return labels[cat] || 'Intent';
     };
 
     const handleBiometricSimulation = () => {
@@ -148,7 +148,7 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
                             fontWeight: 600,
                             margin: 0
                         }}>
-                            {isHighValue ? '高价值意图确认' : '确认发布意图'}
+                            {isHighValue ? 'High-Value Intent Confirmation' : 'Confirm Intent Publishing'}
                         </h3>
                         <p style={{
                             color: colors.text3,
@@ -176,10 +176,10 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
                             <AlertTriangle size={16} color={colors.warning} style={{ flexShrink: 0, marginTop: 2 }} />
                             <div>
                                 <p style={{ color: colors.warning, fontSize: 13, margin: 0, fontWeight: 500 }}>
-                                    高价值交易提醒
+                                    High-Value Transaction Alert
                                 </p>
                                 <p style={{ color: colors.text2, fontSize: 12, margin: '4px 0 0' }}>
-                                    此意图涉及较高金额，请仔细确认后再发布
+                                    This intent involves a high amount. Please review carefully before publishing.
                                 </p>
                             </div>
                         </div>
@@ -209,7 +209,7 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
                                 justifyContent: 'space-between',
                                 alignItems: 'center'
                             }}>
-                                <span style={{ color: colors.text3, fontSize: 12 }}>预算上限</span>
+                                <span style={{ color: colors.text3, fontSize: 12 }}>Budget Cap</span>
                                 <span style={{
                                     color: isHighValue ? colors.warning : colors.primary,
                                     fontSize: 18,
@@ -234,7 +234,7 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
                         }}>
                             <Lock size={14} color={colors.success} />
                             <span style={{ color: colors.success, fontSize: 11 }}>
-                                意图已签名 · 有效期 {Math.floor(proof.ttl / 60)} 分钟
+                                Intent signed · valid for {Math.floor(proof.ttl / 60)} minutes
                             </span>
                         </div>
                     )}
@@ -251,13 +251,13 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
                             {biometricPassed ? (
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                                     <Check size={20} color={colors.success} />
-                                    <span style={{ color: colors.success, fontSize: 14 }}>身份验证通过</span>
+                                    <span style={{ color: colors.success, fontSize: 14 }}>Identity verification passed</span>
                                 </div>
                             ) : (
                                 <>
                                     <Fingerprint size={32} color={colors.text3} style={{ marginBottom: 8 }} />
                                     <p style={{ color: colors.text2, fontSize: 12, margin: 0 }}>
-                                        高价值交易需要验证身份
+                                        High-value transactions require identity verification
                                     </p>
                                     <button
                                         onClick={handleBiometricSimulation}
@@ -277,7 +277,7 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
                                         }}
                                     >
                                         <Eye size={14} />
-                                        验证身份
+                                        Verify Identity
                                     </button>
                                 </>
                             )}
@@ -305,7 +305,7 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
                             }}
                         />
                         <span style={{ color: colors.text2, fontSize: 13, lineHeight: 1.5 }}>
-                            我确认发布此意图，了解报价将来自第三方服务商，Lumi 仅提供匹配服务
+                            I confirm publishing this intent and understand that quotes come from third-party providers; Lumi only offers matching services.
                         </span>
                     </label>
 
@@ -330,7 +330,7 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
                             }}
                         >
                             <X size={16} />
-                            取消
+                            Cancel
                         </button>
                         <button
                             onClick={handleConfirm}
@@ -352,7 +352,7 @@ export const ConfirmationGate: React.FC<ConfirmationGateProps> = ({
                             }}
                         >
                             <Zap size={16} />
-                            确认并发布
+                            Confirm and Publish
                         </button>
                     </div>
                 </div>

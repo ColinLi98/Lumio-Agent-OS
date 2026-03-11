@@ -1,0 +1,183 @@
+{
+  "version": "0.1.0",
+  "defaults": {
+    "action": "DENY",
+    "log_level": "STANDARD"
+  },
+  "rules": [
+    {
+      "id": "hard_deny_payment",
+      "tier": "hard_deny",
+      "priority": 1000,
+      "when": {
+        "any": [
+          { "path": "tool.category", "op": "eq", "value": "payment" },
+          { "path": "tool.side_effect", "op": "eq", "value": "payment" },
+          { "path": "intent.goal", "op": "in", "value": ["transfer_money", "buy", "checkout"] }
+        ]
+      },
+      "then": {
+        "action": "DENY",
+        "reason": "Payment actions disabled in v0.1"
+      }
+    },
+    {
+      "id": "market_egress_requires_consent",
+      "tier": "egress",
+      "priority": 950,
+      "when": {
+        "all": [
+          { "path": "data.egress_target", "op": "eq", "value": "market" },
+          { "path": "data.contains_pii", "op": "eq", "value": true }
+        ]
+      },
+      "then": {
+        "action": "REQUIRE_APPROVAL",
+        "reason": "PII to market requires explicit consent",
+        "constraints": {
+          "allowed_fields": ["entities", "summary", "constraints"],
+          "max_chars": 800
+        }
+      }
+    },
+    {
+      "id": "require_approval_external_send",
+      "tier": "side_effect",
+      "priority": 900,
+      "when": {
+        "all": [
+          { "path": "tool.category", "op": "eq", "value": "communication" },
+          { "path": "tool.side_effect", "op": "in", "value": ["send", "post"] }
+        ]
+      },
+      "then": {
+        "action": "REQUIRE_APPROVAL",
+        "reason": "External send requires user confirmation"
+      }
+    },
+    {
+      "id": "write_requires_approval",
+      "tier": "side_effect",
+      "priority": 890,
+      "when": {
+        "all": [
+          { "path": "tool.side_effect", "op": "eq", "value": "write" }
+        ]
+      },
+      "then": {
+        "action": "REQUIRE_APPROVAL",
+        "reason": "Write actions require user confirmation"
+      }
+    },
+    {
+      "id": "draft_allowed",
+      "tier": "side_effect",
+      "priority": 850,
+      "when": {
+        "all": [
+          { "path": "tool.name", "op": "eq", "value": "email.draft_invite" },
+          { "path": "permissions.email_write_draft", "op": "eq", "value": true }
+        ]
+      },
+      "then": {
+        "action": "ALLOW_WITH_LIMITS",
+        "reason": "Draft only is allowed",
+        "constraints": {
+          "force_draft_only": true
+        }
+      }
+    },
+    {
+      "id": "redact_high_privacy_capsule",
+      "tier": "user_pref",
+      "priority": 700,
+      "when": {
+        "all": [
+          { "path": "phase", "op": "eq", "value": "CAPSULE" },
+          { "path": "user.privacy_level", "op": "eq", "value": "high" }
+        ]
+      },
+      "then": {
+        "action": "REDACT",
+        "reason": "High privacy: minimal disclosure",
+        "constraints": {
+          "allowed_fields": ["entities", "summary", "constraints"],
+          "max_chars": 800
+        }
+      }
+    },
+    {
+      "id": "high_confirm_threshold_requires_approval_for_draft",
+      "tier": "user_pref",
+      "priority": 650,
+      "when": {
+        "all": [
+          { "path": "user.confirm_threshold", "op": "eq", "value": "high" },
+          { "path": "tool.side_effect", "op": "eq", "value": "draft" }
+        ]
+      },
+      "then": {
+        "action": "REQUIRE_APPROVAL",
+        "reason": "High confirm threshold requires approval for draft"
+      }
+    },
+    {
+      "id": "budget_downgrade",
+      "tier": "budget",
+      "priority": 500,
+      "when": {
+        "any": [
+          { "path": "budget.tool_calls_left", "op": "lte", "value": 0 },
+          { "path": "budget.latency_left_ms", "op": "lte", "value": 0 }
+        ]
+      },
+      "then": {
+        "action": "DOWNGRADE",
+        "reason": "Budget exceeded: provide best-effort draft"
+      }
+    },
+    {
+      "id": "default_allowlist",
+      "tier": "default_allow",
+      "priority": 100,
+      "when": {
+        "any": [
+          { "path": "tool.name", "op": "in", "value": ["search.web", "calendar.read", "email.draft_invite", "web_search", "live_search"] },
+          { "path": "node.name", "op": "in", "value": ["search.web", "calendar.read", "email.draft_invite", "web_search", "live_search"] }
+        ]
+      },
+      "then": {
+        "action": "ALLOW",
+        "reason": "Tool allowlist"
+      }
+    },
+    {
+      "id": "default_allow_internal_node_types",
+      "tier": "default_allow",
+      "priority": 95,
+      "when": {
+        "any": [
+          { "path": "node.type", "op": "in", "value": ["llm", "verify", "merge", "approval", "ask_user"] }
+        ]
+      },
+      "then": {
+        "action": "ALLOW",
+        "reason": "Internal orchestration node allowed"
+      }
+    },
+    {
+      "id": "default_allow_pre_response",
+      "tier": "default_allow",
+      "priority": 90,
+      "when": {
+        "all": [
+          { "path": "phase", "op": "eq", "value": "PRE_RESPONSE" }
+        ]
+      },
+      "then": {
+        "action": "ALLOW",
+        "reason": "Pre-response default allow with upstream safeguards"
+      }
+    }
+  ]
+}

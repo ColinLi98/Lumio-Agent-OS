@@ -237,6 +237,24 @@ class MarketAnalyticsStore {
     return this.data.agent_profiles[String(agentId || '').trim()];
   }
 
+  async listAgentProfiles(filter?: {
+    source?: string;
+    imported_via?: string;
+  }): Promise<MarketAgentProfile[]> {
+    await this.ensureLoaded();
+    const source = String(filter?.source || '').trim();
+    const importedVia = String(filter?.imported_via || '').trim();
+    const profiles = Object.values(this.data.agent_profiles);
+    return profiles.filter((profile) => {
+      if (source && String(profile.source || '').trim() !== source) return false;
+      if (importedVia) {
+        const via = String((profile.source_meta as any)?.imported_via || '').trim();
+        if (via !== importedVia) return false;
+      }
+      return true;
+    });
+  }
+
   private applyDailyRollup(event: MarketUsageEvent): void {
     const key = rollupKey(event.date, event.agent_id);
     const prev = this.data.daily_rollups[key];

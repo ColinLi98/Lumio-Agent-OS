@@ -156,9 +156,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
               <label className="block text-xs uppercase text-gray-500 mb-2">Model Preference</label>
               <div className="flex gap-2">
                 {[
-                  { id: 'auto', label: '🤖 Auto', desc: '智能切换' },
-                  { id: 'flash', label: '⚡ Flash', desc: '快速响应' },
-                  { id: 'pro', label: '🧠 Pro', desc: '深度推理' }
+                  { id: 'auto', label: '🤖 Auto', desc: 'Smart switching' },
+                  { id: 'flash', label: '⚡ Flash', desc: 'Fast response' },
+                  { id: 'pro', label: '🧠 Pro', desc: 'Deep reasoning' }
                 ].map(option => (
                   <button
                     key={option.id}
@@ -177,7 +177,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
                 ))}
               </div>
               <p className="text-[10px] text-gray-500 mt-2">
-                Auto: 根据任务复杂度自动选择 Flash 或 Pro 模型
+                Auto: selects Flash or Pro based on task complexity
               </p>
             </div>
           </div>
@@ -296,7 +296,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({
         <MemoryPanel />
       </div>
 
-      {/* Digital Avatar Panel - 数字分身 */}
+      {/* Digital Avatar Panel */}
       <div className="mb-4 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 border border-slate-700">
         <DigitalAvatarPanel />
       </div>

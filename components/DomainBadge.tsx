@@ -13,14 +13,14 @@ interface DomainBadgeProps {
 }
 
 const DOMAIN_CONFIG: Record<IntentDomain, { label: string; icon: string; color: string }> = {
-    ticketing: { label: '票务', icon: '🎫', color: '#8B5CF6' },
-    commerce: { label: '电商', icon: '🛒', color: '#10B981' },
-    travel: { label: '旅行', icon: '✈️', color: '#3B82F6' },
-    food: { label: '餐饮', icon: '🍜', color: '#F59E0B' },
-    local_service: { label: '本地服务', icon: '🔧', color: '#EC4899' },
-    education: { label: '教育', icon: '📚', color: '#6366F1' },
-    talent: { label: '找人', icon: '👤', color: '#14B8A6' },
-    other: { label: '其他', icon: '📋', color: '#6B7280' },
+    ticketing: { label: 'Ticketing', icon: '🎫', color: '#8B5CF6' },
+    commerce: { label: 'Commerce', icon: '🛒', color: '#10B981' },
+    travel: { label: 'Travel', icon: '✈️', color: '#3B82F6' },
+    food: { label: 'Food', icon: '🍜', color: '#F59E0B' },
+    local_service: { label: 'Local Service', icon: '🔧', color: '#EC4899' },
+    education: { label: 'Education', icon: '📚', color: '#6366F1' },
+    talent: { label: 'Talent', icon: '👤', color: '#14B8A6' },
+    other: { label: 'Other', icon: '📋', color: '#6B7280' },
 };
 
 const SIZE_CLASSES = {

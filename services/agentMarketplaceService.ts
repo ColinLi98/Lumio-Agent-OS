@@ -25,6 +25,7 @@ import { getSkillRegistry, type Skill } from './skillRegistry.js';
 import { SPECIALIZED_AGENTS, getSpecializedAgentRuntimeStats } from './specializedAgents.js';
 import type { SpecializedAgentType } from '../types.js';
 import { lixAgentRegistryService } from './lixAgentRegistryService.js';
+import { marketAnalyticsStore, type MarketAgentProfile } from './marketAnalyticsStore.js';
 
 // ============================================================================
 // Constants & Defaults
@@ -41,6 +42,23 @@ const SCORE_WEIGHTS = {
 const MAX_FALLBACKS = 2;
 const MAX_CONCURRENCY = 3;
 const DEFAULT_TTL_MS = 120_000;
+const REALTIME_REQUIRED_CAPABILITIES = new Set([
+    'live_search',
+    'flight_search',
+    'hotel_search',
+    'weather_query',
+    'finance_analysis',
+    'price_compare',
+]);
+const SPECIALIZED_TASK_PREFERENCES: Record<string, string> = {
+    flight_search: 'specialized:flight_booking',
+    hotel_search: 'specialized:hotel_booking',
+    restaurant_search: 'specialized:restaurant',
+    attraction_search: 'specialized:attraction',
+    local_transport: 'specialized:transportation',
+    itinerary_plan: 'specialized:itinerary',
+    weather_query: 'specialized:weather',
+};
 
 /** High-risk domains that auto-require evidence */
 const HIGH_RISK_DOMAINS: AgentDomain[] = ['health', 'legal', 'finance'];
@@ -58,6 +76,36 @@ const COMPLIANCE_BLOCK_TAGS = new Set([
     'non_compliant',
     'external_disabled',
 ]);
+
+function shouldRequireRealtimeForTask(domain: AgentDomain, task: MarketplaceTask): boolean {
+    if (domain === 'finance') return true;
+    return task.required_capabilities.some((capability) =>
+        REALTIME_REQUIRED_CAPABILITIES.has(capability)
+    );
+}
+
+function prioritizeTaskCandidates(task: MarketplaceTask, candidates: CandidateAgent[]): CandidateAgent[] {
+    if (!candidates.length) return candidates;
+    for (const capability of task.required_capabilities) {
+        const preferredAgentId = SPECIALIZED_TASK_PREFERENCES[capability];
+        if (!preferredAgentId) continue;
+        const preferred = candidates.find((candidate) => candidate.agent.id === preferredAgentId);
+        if (!preferred) continue;
+        return [
+            preferred,
+            ...candidates.filter((candidate) => candidate.agent.id !== preferredAgentId),
+        ];
+    }
+    return candidates;
+}
+
+function shouldSyncPersistedImports(): boolean {
+    const configured = String(process.env.AGENT_MARKET_SYNC_PERSISTED_IMPORTS || '').trim().toLowerCase();
+    if (configured) {
+        return !['0', 'false', 'off', 'no'].includes(configured);
+    }
+    return process.env.NODE_ENV !== 'test';
+}
 
 // Specialized catalog policy:
 // - Register only usable agents that return meaningful structured outputs.
@@ -134,7 +182,7 @@ const SPECIALIZED_AGENT_META: Partial<Record<SpecializedAgentType, {
 
 const DOMAIN_KEYWORDS: Record<AgentDomain, RegExp> = {
     recruitment: /招聘|简历|面试|求职|job|resume|salary|hire|候选人|薪资|猎头/i,
-    travel: /旅行|旅游|机票|航班|酒店|住宿|景点|flight|hotel|travel|行程|签证/i,
+    travel: /旅行|旅游|休假|度假|出游|机票|航班|酒店|住宿|景点|flight|hotel|travel|trip|vacation|holiday|行程|签证/i,
     finance: /金融|理财|股票|基金|投资|贷款|保险|银行|finance|invest|stock|黄金|比特币/i,
     health: /健康|医疗|看病|体检|用药|health|medical|诊断|症状|处方/i,
     legal: /法律|合同|诉讼|律师|法务|legal|law|lawsuit|维权|侵权/i,
@@ -173,11 +221,14 @@ const CAPABILITY_KEYWORDS: Record<string, RegExp> = {
     web_search: /搜索|查询|search|是什么|是谁/i,
     live_search: /实时|最新|行情|live|realtime/i,
     knowledge_qa: /回复|润色|措辞|怎么回/i,
-    itinerary_plan: /行程|安排|规划|计划|plan/i,
+    itinerary_plan: /行程|安排|规划|计划|plan|休假|度假|vacation|holiday/i,
     legal_review: /合同|审查|法律|review|法务/i,
     health_consult: /症状|诊断|用药|健康|咨询/i,
     finance_analysis: /投资|理财|分析|financial|analysis/i,
     course_recommend: /课程|学习|推荐|course/i,
+    task_planning: /计划|排期|拆解|任务|todo|task|plan|roadmap/i,
+    time_blocking: /日程|时间块|时间管理|calendar|schedule|time block/i,
+    reminder_management: /提醒|deadline|due date|follow up/i,
 };
 
 export function detectCapabilities(query: string): string[] {
@@ -208,8 +259,10 @@ const DOMAIN_TASK_TEMPLATES: Partial<Record<AgentDomain, Array<{
     travel: [
         { id_suffix: 'flight', objective: '搜索航班', required_capabilities: ['flight_search'], dependencies: [], parallelizable: true },
         { id_suffix: 'hotel', objective: '搜索住宿', required_capabilities: ['hotel_search'], dependencies: [], parallelizable: true },
+        { id_suffix: 'restaurant', objective: '搜索当地美食', required_capabilities: ['restaurant_search'], dependencies: [], parallelizable: true },
+        { id_suffix: 'attraction', objective: '搜索景点与活动', required_capabilities: ['attraction_search'], dependencies: [], parallelizable: true },
         { id_suffix: 'transport', objective: '本地交通方案', required_capabilities: ['local_transport'], dependencies: [], parallelizable: true },
-        { id_suffix: 'itinerary', objective: '行程规划', required_capabilities: ['itinerary_plan'], dependencies: ['flight', 'hotel', 'transport'], parallelizable: false },
+        { id_suffix: 'itinerary', objective: '行程规划', required_capabilities: ['itinerary_plan'], dependencies: ['flight', 'hotel', 'restaurant', 'attraction', 'transport'], parallelizable: false },
     ],
     finance: [
         { id_suffix: 'analysis', objective: '金融数据分析', required_capabilities: ['finance_analysis', 'live_search'], dependencies: [], parallelizable: true },
@@ -231,6 +284,11 @@ const DOMAIN_TASK_TEMPLATES: Partial<Record<AgentDomain, Array<{
     local_service: [
         { id_suffix: 'local_discovery', objective: '本地服务发现', required_capabilities: ['local_search', 'live_search'], dependencies: [], parallelizable: true },
         { id_suffix: 'local_verify', objective: '营业状态与评价核验', required_capabilities: ['web_search'], dependencies: [], parallelizable: true },
+    ],
+    productivity: [
+        { id_suffix: 'task_planning', objective: '目标拆解与优先级排序', required_capabilities: ['task_planning'], dependencies: [], parallelizable: true },
+        { id_suffix: 'time_blocking', objective: '时间块排期', required_capabilities: ['time_blocking'], dependencies: ['task_planning'], parallelizable: false },
+        { id_suffix: 'reminders', objective: '提醒与回顾机制', required_capabilities: ['reminder_management'], dependencies: ['time_blocking'], parallelizable: false },
     ],
 };
 
@@ -265,43 +323,99 @@ export function decomposeTasks(query: string, domain: AgentDomain): MarketplaceT
         ];
     }
 
-    // Fixed acceptance scenario: always include 3 parallel tasks for travel.
+    // Travel scenarios require a full solution set: transport + stay + food + attractions + itinerary.
     if (domain === 'travel') {
+        const flightTaskId = `task_flight_${ts}`;
+        const hotelTaskId = `task_hotel_${ts}`;
+        const restaurantTaskId = `task_restaurant_${ts}`;
+        const attractionTaskId = `task_attraction_${ts}`;
+        const transportTaskId = `task_local_transport_${ts}`;
+        const itineraryTaskId = `task_itinerary_${ts}`;
         const base: MarketplaceTask[] = [
             {
-                id: `task_flight_${ts}`,
+                id: flightTaskId,
                 objective: '航班查询',
                 required_capabilities: ['flight_search'],
                 dependencies: [],
                 parallelizable: true,
             },
             {
-                id: `task_hotel_${ts}`,
+                id: hotelTaskId,
                 objective: '酒店查询',
                 required_capabilities: ['hotel_search'],
                 dependencies: [],
                 parallelizable: true,
             },
             {
-                id: `task_local_transport_${ts}`,
+                id: restaurantTaskId,
+                objective: '美食推荐',
+                required_capabilities: ['restaurant_search'],
+                dependencies: [],
+                parallelizable: true,
+            },
+            {
+                id: attractionTaskId,
+                objective: '景点推荐',
+                required_capabilities: ['attraction_search'],
+                dependencies: [],
+                parallelizable: true,
+            },
+            {
+                id: transportTaskId,
                 objective: '本地交通方案',
                 required_capabilities: ['local_transport'],
                 dependencies: [],
                 parallelizable: true,
             },
-        ];
-
-        if (detectedCaps.has('itinerary_plan')) {
-            base.push({
-                id: `task_itinerary_${ts}`,
+            {
+                id: itineraryTaskId,
                 objective: '行程规划',
                 required_capabilities: ['itinerary_plan'],
-                dependencies: [`task_flight_${ts}`, `task_hotel_${ts}`, `task_local_transport_${ts}`],
+                dependencies: [flightTaskId, hotelTaskId, restaurantTaskId, attractionTaskId, transportTaskId],
                 parallelizable: false,
+            },
+        ];
+
+        if (detectedCaps.has('weather_query')) {
+            base.push({
+                id: `task_weather_${ts}`,
+                objective: '天气与穿搭建议',
+                required_capabilities: ['weather_query'],
+                dependencies: [],
+                parallelizable: true,
             });
         }
 
         return base;
+    }
+
+    if (domain === 'productivity') {
+        const planningTaskId = `task_task_planning_${ts}`;
+        const scheduleTaskId = `task_time_blocking_${ts}`;
+        const reminderTaskId = `task_reminders_${ts}`;
+        return [
+            {
+                id: planningTaskId,
+                objective: '目标拆解与优先级排序',
+                required_capabilities: ['task_planning'],
+                dependencies: [],
+                parallelizable: true,
+            },
+            {
+                id: scheduleTaskId,
+                objective: '时间块排期',
+                required_capabilities: ['time_blocking'],
+                dependencies: [planningTaskId],
+                parallelizable: false,
+            },
+            {
+                id: reminderTaskId,
+                objective: '提醒与回顾机制',
+                required_capabilities: ['reminder_management'],
+                dependencies: [scheduleTaskId],
+                parallelizable: false,
+            },
+        ];
     }
 
     const templates = DOMAIN_TASK_TEMPLATES[domain];
@@ -494,12 +608,42 @@ function hasCapabilityOverlap(agentCaps: string[], requiredCaps: string[]): bool
     );
 }
 
+function isBroadcastIntentAgent(agent: AgentDescriptor): boolean {
+    return agent.id === 'tool:broadcast_intent'
+        || agent.execute_ref === 'broadcast_intent'
+        || agent.name === 'broadcast_intent';
+}
+
+function isAgentRequirementBroadcastAgent(agent: AgentDescriptor): boolean {
+    return agent.id === 'tool:broadcast_agent_requirement'
+        || agent.execute_ref === 'broadcast_agent_requirement'
+        || agent.name === 'broadcast_agent_requirement';
+}
+
+function isCommerceIntentQuery(queryText: string, domain: AgentDomain): boolean {
+    if (domain === 'shopping') return true;
+    return /(购买|下单|商品|比价|电商|价格|报价|shopping|purchase|buy|price compare)/i.test(queryText);
+}
+
+function isAgentSupplyIntentQuery(queryText: string): boolean {
+    return /(发布需求|招募|找服务方|找agent|agent\s*market|上架|交付新agent|供给不足|缺少agent|专家市场)/i.test(queryText);
+}
+
 function parseEvidenceRateFromTags(tags: string[] | undefined): number | undefined {
     if (!tags) return undefined;
     const rateTag = tags.find(t => t.startsWith('evidence_rate:'));
     if (!rateTag) return undefined;
     const value = Number(rateTag.split(':')[1]);
     return Number.isFinite(value) ? value : undefined;
+}
+
+function hasReviewedAdmissionBypass(agent: AgentDescriptor): boolean {
+    const tags = agent.compliance_tags ?? [];
+    const via = agent.source_meta?.imported_via;
+    return tags.includes('reviewed')
+        || tags.includes('lix_delivered')
+        || via === 'github_import'
+        || via === 'lix_delivery';
 }
 
 function checkCompliancePass(agent: AgentDescriptor): { pass: boolean; reason?: string } {
@@ -533,6 +677,94 @@ function normalizeExternalEvidenceLevel(value: unknown): EvidenceLevel {
 function normalizeExternalCostTier(value: unknown): CostTier {
     if (value === 'low' || value === 'mid' || value === 'high') return value;
     return 'mid';
+}
+
+function normalizePersistedImportedDescriptor(profile: MarketAgentProfile): AgentDescriptor | null {
+    const sourceMeta = (profile.source_meta ?? {}) as Record<string, any>;
+    const importedVia = String(sourceMeta.imported_via || '').trim();
+    if (importedVia !== 'github_import' && importedVia !== 'lix_delivery') {
+        return null;
+    }
+
+    const snapshot = sourceMeta.manifest_snapshot;
+    if (!snapshot || typeof snapshot !== 'object') {
+        return null;
+    }
+
+    const agentId = String((snapshot as any).agent_id || profile.agent_id || '').trim();
+    const agentName = String((snapshot as any).name || profile.agent_name || '').trim();
+    const executeRef = String((snapshot as any).execute_ref || '').trim();
+    if (!agentId || !agentName || !executeRef) {
+        return null;
+    }
+
+    const domains = Array.isArray((snapshot as any).domains)
+        ? (snapshot as any).domains
+            .map(normalizeExternalDomain)
+            .filter(Boolean) as AgentDomain[]
+        : [];
+    const capabilities = Array.isArray((snapshot as any).capabilities)
+        ? (snapshot as any).capabilities
+            .map((value: unknown) => String(value || '').trim())
+            .filter(Boolean)
+        : [];
+
+    const marketVisibility = (snapshot as any).market_visibility === 'private' ? 'private' : 'public';
+    const pricingModel = (snapshot as any).pricing_model === 'free' ? 'free' : 'pay_per_use';
+    const pricePerUse = Number.isFinite((snapshot as any).price_per_use_cny)
+        ? Math.max(0, Number((snapshot as any).price_per_use_cny))
+        : undefined;
+    const successRate = Number.isFinite((snapshot as any).success_rate)
+        ? Number((snapshot as any).success_rate)
+        : undefined;
+    const avgLatencyMs = Number.isFinite((snapshot as any).avg_latency_ms)
+        ? Number((snapshot as any).avg_latency_ms)
+        : undefined;
+    const approvedAt = String(sourceMeta.approved_at || profile.updated_at || '').trim();
+
+    const complianceTags: string[] = [
+        'external_feed',
+        'external_admitted',
+        'lix_delivered',
+        'reviewed',
+        importedVia === 'github_import' ? 'github_imported' : 'lix_imported',
+        approvedAt ? `approved_at:${approvedAt}` : '',
+        marketVisibility ? `market_visibility:${marketVisibility}` : '',
+        pricingModel ? `pricing_model:${pricingModel}` : '',
+        Number.isFinite(pricePerUse) ? `price_per_use_cny:${pricePerUse}` : '',
+        sourceMeta.github_repo ? `github_repo:${String(sourceMeta.github_repo)}` : '',
+        sourceMeta.github_manifest_path ? `github_manifest_path:${String(sourceMeta.github_manifest_path)}` : '',
+    ].filter(Boolean);
+
+    return {
+        id: agentId,
+        name: agentName,
+        source: 'external_market',
+        domains: domains.length > 0 ? domains : ['general'],
+        capabilities: capabilities.length > 0 ? capabilities : ['general'],
+        supports_realtime: (snapshot as any).supports_realtime === true,
+        evidence_level: normalizeExternalEvidenceLevel((snapshot as any).evidence_level),
+        supports_parallel: (snapshot as any).supports_parallel !== false,
+        avg_latency_ms: avgLatencyMs,
+        success_rate: successRate,
+        cost_tier: normalizeExternalCostTier((snapshot as any).cost_tier),
+        compliance_tags: complianceTags,
+        metrics_source: 'prior',
+        metrics_sample_size: undefined,
+        owner_id: typeof (snapshot as any).owner_id === 'string'
+            ? String((snapshot as any).owner_id)
+            : undefined,
+        market_visibility: marketVisibility,
+        pricing_model: pricingModel,
+        price_per_use_cny: pricePerUse,
+        source_meta: {
+            imported_via: importedVia,
+            imported_at: approvedAt || undefined,
+            github_repo: typeof sourceMeta.github_repo === 'string' ? sourceMeta.github_repo : undefined,
+            github_manifest_path: typeof sourceMeta.github_manifest_path === 'string' ? sourceMeta.github_manifest_path : undefined,
+        },
+        execute_ref: executeRef,
+    };
 }
 
 function normalizeExternalDescriptor(raw: any): AgentDescriptor | null {
@@ -614,6 +846,19 @@ export function applyHardFilters(
     query: DiscoveryQuery,
     domain: AgentDomain
 ): CandidateAgent {
+    const queryText = String(query.query || '').toLowerCase();
+
+    // Governor-aligned generic filtering:
+    // 1) broadcast_intent only for commerce-like intents.
+    if (isBroadcastIntentAgent(candidate.agent) && !isCommerceIntentQuery(queryText, domain)) {
+        return { ...candidate, rejected: true, reject_reason: 'tool_governor: broadcast_intent_not_required' };
+    }
+
+    // 2) broadcast_agent_requirement only for explicit market-supply intents.
+    if (isAgentRequirementBroadcastAgent(candidate.agent) && !isAgentSupplyIntentQuery(queryText)) {
+        return { ...candidate, rejected: true, reject_reason: 'tool_governor: agent_requirement_not_required' };
+    }
+
     // Domain match
     if (!candidate.agent.domains.includes(domain) && !candidate.agent.domains.includes('general')) {
         return { ...candidate, rejected: true, reject_reason: `domain_mismatch: agent domains [${candidate.agent.domains}] do not include ${domain}` };
@@ -649,14 +894,25 @@ export function applyHardFilters(
         const sr = candidate.agent.success_rate ?? 0;
         const lat = candidate.agent.avg_latency_ms ?? Infinity;
         const evidenceRate = parseEvidenceRateFromTags(candidate.agent.compliance_tags);
-        if (sr < EXTERNAL_ADMISSION.min_success_rate) {
-            return { ...candidate, rejected: true, reject_reason: `external_admission: success_rate ${sr} < ${EXTERNAL_ADMISSION.min_success_rate}` };
-        }
-        if (lat > EXTERNAL_ADMISSION.max_p95_latency_ms) {
-            return { ...candidate, rejected: true, reject_reason: `external_admission: latency ${lat}ms > ${EXTERNAL_ADMISSION.max_p95_latency_ms}ms` };
-        }
-        if ((evidenceRate ?? 0) < EXTERNAL_ADMISSION.min_evidence_rate) {
-            return { ...candidate, rejected: true, reject_reason: `external_admission: evidence_rate ${(evidenceRate ?? 0)} < ${EXTERNAL_ADMISSION.min_evidence_rate}` };
+        const reviewedBypass = hasReviewedAdmissionBypass(candidate.agent);
+        if (!reviewedBypass) {
+            if (sr < EXTERNAL_ADMISSION.min_success_rate) {
+                return { ...candidate, rejected: true, reject_reason: `external_admission: success_rate ${sr} < ${EXTERNAL_ADMISSION.min_success_rate}` };
+            }
+            if (lat > EXTERNAL_ADMISSION.max_p95_latency_ms) {
+                return { ...candidate, rejected: true, reject_reason: `external_admission: latency ${lat}ms > ${EXTERNAL_ADMISSION.max_p95_latency_ms}ms` };
+            }
+            if ((evidenceRate ?? 0) < EXTERNAL_ADMISSION.min_evidence_rate) {
+                return { ...candidate, rejected: true, reject_reason: `external_admission: evidence_rate ${(evidenceRate ?? 0)} < ${EXTERNAL_ADMISSION.min_evidence_rate}` };
+            }
+        } else {
+            // Reviewed imports are admitted by governance; keep a lightweight runtime guard.
+            if (sr > 0 && sr < 0.8) {
+                return { ...candidate, rejected: true, reject_reason: `reviewed_admission_guard: success_rate ${sr} < 0.8` };
+            }
+            if (lat > 8000) {
+                return { ...candidate, rejected: true, reject_reason: `reviewed_admission_guard: latency ${lat}ms > 8000ms` };
+            }
         }
     }
 
@@ -671,6 +927,7 @@ export class AgentMarketplaceService {
     private registeredAgents: AgentDescriptor[] = [];
     private internalSynced = false;
     private externalSynced = false;
+    private persistedImportsSynced = false;
 
     // ------------------------------------------------------------------
     // Agent Registration
@@ -846,8 +1103,26 @@ export class AgentMarketplaceService {
         this.externalSynced = true;
     }
 
+    async syncPersistedImports(force: boolean = false): Promise<void> {
+        if (this.persistedImportsSynced && !force) return;
+        try {
+            const profiles = await marketAnalyticsStore.listAgentProfiles({ source: 'external_market' });
+            for (const profile of profiles) {
+                const descriptor = normalizePersistedImportedDescriptor(profile);
+                if (!descriptor) continue;
+                this.registerAgent(descriptor);
+            }
+        } catch {
+            // Ignore durable storage read failures to avoid breaking discovery.
+        }
+        this.persistedImportsSynced = true;
+    }
+
     async ensureCatalogReady(includeExternal: boolean = true): Promise<void> {
         this.syncInternalSources(false);
+        if (shouldSyncPersistedImports()) {
+            await this.syncPersistedImports(false);
+        }
         if (includeExternal) {
             await this.syncExternalFeeds(false);
         }
@@ -903,47 +1178,77 @@ export class AgentMarketplaceService {
         domain: AgentDomain,
         options?: { require_realtime?: boolean; require_evidence?: boolean }
     ): { primary_agent_id: string; fallback_agent_ids: string[] } | null {
-        const dq: DiscoveryQuery = {
-            query: task.objective,
-            domain_hint: domain,
-            required_capabilities: task.required_capabilities,
-            require_realtime: options?.require_realtime,
-            require_evidence: options?.require_evidence,
-        };
-        const discovery = this.discoverAgents(dq);
-        if (discovery.candidates.length === 0) return null;
+        const attempts: Array<{
+            required_capabilities: string[];
+            require_realtime?: boolean;
+            require_evidence?: boolean;
+        }> = [
+            {
+                required_capabilities: task.required_capabilities,
+                require_realtime: options?.require_realtime,
+                require_evidence: options?.require_evidence,
+            },
+            {
+                // Relax capability hard filter first, keep domain and policy.
+                required_capabilities: [],
+                require_realtime: options?.require_realtime,
+                require_evidence: options?.require_evidence,
+            },
+            {
+                // Last fallback: keep same domain, relax policy constraints.
+                required_capabilities: [],
+                require_realtime: false,
+                require_evidence: false,
+            }
+        ];
 
-        const primary = discovery.candidates[0];
-        const fallbacks = discovery.candidates
-            .slice(1, 1 + MAX_FALLBACKS)
-            .map(c => c.agent.id);
+        for (const attempt of attempts) {
+            const discovery = this.discoverAgents({
+                query: task.objective,
+                domain_hint: domain,
+                required_capabilities: attempt.required_capabilities,
+                require_realtime: attempt.require_realtime,
+                require_evidence: attempt.require_evidence,
+            });
+            if (discovery.candidates.length === 0) {
+                continue;
+            }
 
-        return {
-            primary_agent_id: primary.agent.id,
-            fallback_agent_ids: fallbacks,
-        };
+            const orderedCandidates = prioritizeTaskCandidates(task, discovery.candidates);
+            const primary = orderedCandidates[0];
+            const fallbacks = orderedCandidates
+                .slice(1, 1 + MAX_FALLBACKS)
+                .map(c => c.agent.id);
+
+            return {
+                primary_agent_id: primary.agent.id,
+                fallback_agent_ids: fallbacks,
+            };
+        }
+
+        return null;
     }
 
     // ------------------------------------------------------------------
     // Build Execution Plan (Steps 1-5)
     // ------------------------------------------------------------------
 
-    buildExecutionPlan(query: string, domainHint?: AgentDomain): PlanBuildResult {
+    buildExecutionPlan(
+        query: string,
+        domainHint?: AgentDomain,
+        options?: { prebuiltTasks?: MarketplaceTask[] }
+    ): PlanBuildResult {
         const traceId = `plan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const domain = domainHint ?? detectDomain(query);
-        const tasks = decomposeTasks(query, domain);
+        const tasks = options?.prebuiltTasks && options.prebuiltTasks.length > 0
+            ? options.prebuiltTasks
+            : decomposeTasks(query, domain);
 
         const selections: AgentExecutionPlan['selections'] = [];
         const candidateMap: Record<string, CandidateAgent[]> = {};
 
         for (const task of tasks) {
-            const requireRealtime =
-                domain === 'travel' ||
-                domain === 'finance' ||
-                task.required_capabilities.includes('live_search') ||
-                task.required_capabilities.includes('flight_search') ||
-                task.required_capabilities.includes('hotel_search') ||
-                task.required_capabilities.includes('local_transport');
+            const requireRealtime = shouldRequireRealtimeForTask(domain, task);
             const requireEvidence = HIGH_RISK_DOMAINS.includes(domain);
 
             const dq: DiscoveryQuery = {
@@ -1018,14 +1323,14 @@ export class AgentMarketplaceService {
                     batch.map(async (task) => {
                         const sel = selectionMap.get(task.id);
                         if (!sel || !sel.primary_agent_id) {
-                            return {
+                            return this.attachExecutionGovernance(task, {
                                 task_id: task.id,
                                 agent_id: '',
                                 success: false,
                                 data: null,
                                 error: 'no_agent_selected',
                                 latency_ms: 0,
-                            } as AgentExecutionResult;
+                            } as AgentExecutionResult);
                         }
 
                         // Try primary
@@ -1052,7 +1357,7 @@ export class AgentMarketplaceService {
                             }
                         }
 
-                        return result;
+                        return this.attachExecutionGovernance(task, result);
                     })
                 );
 
@@ -1093,8 +1398,66 @@ export class AgentMarketplaceService {
                 data: null,
                 error: err instanceof Error ? err.message : String(err),
                 latency_ms: Date.now() - start,
+                trace_id: `mkt_exec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
             };
         }
+    }
+
+    private attachExecutionGovernance(task: MarketplaceTask, result: AgentExecutionResult): AgentExecutionResult {
+        const evidenceValid = Array.isArray(result.evidence) && result.evidence.length > 0;
+        const twinFit = this.estimateTwinFitScore(task, result);
+        const validated = Boolean(result.success && evidenceValid && twinFit >= 0.45);
+        const gateDecisions: NonNullable<AgentExecutionResult['gate_decisions']> = [
+            {
+                gate: 'gate_r4_evidence_required_for_success',
+                decision: !result.success ? 'passed' : (evidenceValid ? 'passed' : 'blocked'),
+                reason: !result.success
+                    ? 'non_success_state'
+                    : evidenceValid
+                        ? 'evidence_attached'
+                        : 'success_without_evidence',
+                next_action: !result.success || evidenceValid ? undefined : 'Attach verifiable evidence before success.',
+            },
+            {
+                gate: 'gate_r5_supplier_validation_required',
+                decision: !result.success ? 'waiting_user' : (validated ? 'passed' : 'blocked'),
+                reason: !result.success
+                    ? 'awaiting_successful_supplier_execution'
+                    : validated
+                        ? 'supplier_solution_validated'
+                        : 'supplier_solution_not_validated',
+                next_action: validated ? undefined : 'Run negotiation or validation loop before delivery.',
+            },
+        ];
+        return {
+            ...result,
+            trace_id: result.trace_id || `mkt_exec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            owner_agent: result.owner_agent || 'solution_validation_agent',
+            gate_decisions: gateDecisions,
+            validation: {
+                passed: validated,
+                evidence_valid: evidenceValid,
+                twin_fit: Number(twinFit.toFixed(2)),
+                note: validated
+                    ? 'evidence_and_twin_fit_validated'
+                    : 'validation_failed_or_incomplete',
+            },
+        };
+    }
+
+    private estimateTwinFitScore(task: MarketplaceTask, result: AgentExecutionResult): number {
+        const taskTokens = (task.objective || '')
+            .toLowerCase()
+            .split(/[^a-z0-9\u4e00-\u9fa5]+/i)
+            .filter((token) => token.length >= 2);
+        const resultText = JSON.stringify(result.data || {}).toLowerCase();
+        if (taskTokens.length === 0 || !resultText) return 0.35;
+        const hits = taskTokens.filter((token) => resultText.includes(token)).length;
+        const capCoverage = task.required_capabilities.length > 0
+            ? task.required_capabilities.filter((cap) => resultText.includes(cap.toLowerCase())).length / task.required_capabilities.length
+            : 0.5;
+        const lexicalScore = hits / taskTokens.length;
+        return clampScore(lexicalScore * 0.7 + capCoverage * 0.3, 0.0, 1.0);
     }
 
     // ------------------------------------------------------------------
@@ -1137,13 +1500,14 @@ export class AgentMarketplaceService {
     async runFullPipeline(
         query: string,
         executorFn: (agentId: string, task: MarketplaceTask) => Promise<AgentExecutionResult>,
-        domainHint?: AgentDomain
+        domainHint?: AgentDomain,
+        options?: { prebuiltTasks?: MarketplaceTask[] }
     ): Promise<{
         plan: AgentExecutionPlan;
         summary: ExecutionSummary;
         aggregated: ReturnType<AgentMarketplaceService['aggregateResults']>;
     }> {
-        const { plan, candidate_map } = this.buildExecutionPlan(query, domainHint);
+        const { plan, candidate_map } = this.buildExecutionPlan(query, domainHint, options);
         const summary = await this.executePlan(plan, candidate_map, executorFn);
         const aggregated = this.aggregateResults(summary);
         return { plan, summary, aggregated };

@@ -123,7 +123,7 @@ const AlternativeCard: React.FC<{ alt: Alternative; index: number }> = ({ alt, i
             <span className="text-sm font-medium text-gray-200">{alt.title}</span>
             {alt.estimated_score && (
                 <span className="ml-auto text-xs text-gray-500">
-                    预估 {formatScore(alt.estimated_score)}
+                    Est. {formatScore(alt.estimated_score)}
                 </span>
             )}
         </div>
@@ -177,7 +177,7 @@ export const PlanExplanationPanel: React.FC<PlanExplanationProps> = ({
     if (!explanation) {
         return (
             <div className="flex items-center justify-center py-8 text-gray-500 text-sm">
-                生成解释中...
+                Generating explanation...
             </div>
         );
     }
@@ -190,12 +190,12 @@ export const PlanExplanationPanel: React.FC<PlanExplanationProps> = ({
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700 text-left hover:bg-gray-800/70 transition-colors"
             >
                 <HelpCircle size={14} className="text-indigo-400" />
-                <span className="text-xs text-gray-300">为什么这样推荐?</span>
+                <span className="text-xs text-gray-300">Why this recommendation?</span>
                 <span
                     className="ml-auto text-xs"
                     style={{ color: getScoreColor(explanation.confidence_score) }}
                 >
-                    置信度 {formatScore(explanation.confidence_score)}
+                    Confidence {formatScore(explanation.confidence_score)}
                 </span>
                 <ChevronDown size={14} className="text-gray-500" />
             </button>
@@ -211,14 +211,14 @@ export const PlanExplanationPanel: React.FC<PlanExplanationProps> = ({
             >
                 <div className="flex items-center gap-2">
                     <Lightbulb size={16} className="text-indigo-400" />
-                    <span className="text-sm font-medium text-white">解释与反馈</span>
+                    <span className="text-sm font-medium text-white">Explanation & Feedback</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <span
                         className="text-xs"
                         style={{ color: getScoreColor(explanation.confidence_score) }}
                     >
-                        置信度 {formatScore(explanation.confidence_score)}
+                        Confidence {formatScore(explanation.confidence_score)}
                     </span>
                     {compact && <ChevronUp size={14} className="text-gray-500" />}
                 </div>
@@ -229,7 +229,7 @@ export const PlanExplanationPanel: React.FC<PlanExplanationProps> = ({
                 {explanation.trait_influences.length > 0 && (
                     <div>
                         <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
-                            基于你的偏好
+                            Based on Your Preferences
                         </h4>
                         <div className="space-y-2">
                             {explanation.trait_influences.slice(0, 3).map(influence => (
@@ -243,7 +243,7 @@ export const PlanExplanationPanel: React.FC<PlanExplanationProps> = ({
                 {explanation.dimension_explanations.length > 0 && (
                     <div>
                         <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
-                            五维评估
+                            5D Evaluation
                         </h4>
                         <div className="space-y-3">
                             {explanation.dimension_explanations.map(dim => (
@@ -257,7 +257,7 @@ export const PlanExplanationPanel: React.FC<PlanExplanationProps> = ({
                 {explanation.alternatives.length > 0 && (
                     <div>
                         <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
-                            备选方案
+                            Alternatives
                         </h4>
                         <div className="space-y-2">
                             {explanation.alternatives.map((alt, i) => (
@@ -269,7 +269,7 @@ export const PlanExplanationPanel: React.FC<PlanExplanationProps> = ({
 
                 {/* Feedback */}
                 <div className="pt-3 border-t border-gray-700">
-                    <p className="text-xs text-gray-400 mb-2">这个推荐有帮助吗?</p>
+                    <p className="text-xs text-gray-400 mb-2">Was this recommendation helpful?</p>
                     <div className="flex gap-2">
                         <button
                             onClick={() => handleFeedback('up')}
@@ -282,7 +282,7 @@ export const PlanExplanationPanel: React.FC<PlanExplanationProps> = ({
                                 }`}
                         >
                             <ThumbsUp size={14} />
-                            有帮助
+                            Helpful
                         </button>
                         <button
                             onClick={() => handleFeedback('down')}
@@ -295,12 +295,12 @@ export const PlanExplanationPanel: React.FC<PlanExplanationProps> = ({
                                 }`}
                         >
                             <ThumbsDown size={14} />
-                            需改进
+                            Needs Improvement
                         </button>
                     </div>
                     {feedbackGiven && (
                         <p className="mt-2 text-xs text-gray-500">
-                            感谢反馈! 我们会持续优化推荐质量。
+                            Thanks for the feedback. We will keep improving recommendation quality.
                         </p>
                     )}
                 </div>

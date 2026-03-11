@@ -132,6 +132,51 @@ const AGENT_CAPABILITIES: AgentCapability[] = [
     }
 ];
 
+const TRAVEL_REQUEST_PATTERN = /旅行|旅游|出行|行程|trip|travel|去.*(玩|旅)|planning|机票|航班|飞机/i;
+export const LEGACY_TRAVEL_AUTO_EXPANSION_STORAGE_KEY = 'lumi_legacy_travel_auto_expansion';
+
+const EXPLICIT_TRAVEL_AGENT_PATTERNS: Array<{
+    agentType: SpecializedAgentType;
+    patterns: RegExp[];
+}> = [
+    { agentType: 'weather', patterns: [/天气|weather|气温|forecast/i] },
+    { agentType: 'flight_booking', patterns: [/机票|航班|飞机|flight|airfare|airline/i] },
+    { agentType: 'hotel_booking', patterns: [/酒店|住宿|hotel|accommodation|民宿|住哪/i] },
+    { agentType: 'attraction', patterns: [/景点|sightseeing|attraction|游玩|玩什么|活动/i] },
+    { agentType: 'restaurant', patterns: [/餐厅|美食|restaurant|food|dining|吃什么|吃啥/i] },
+    { agentType: 'transportation', patterns: [/交通|transport|transfer|接送|地铁|subway|bus|打车|机场接送/i] },
+    { agentType: 'translation', patterns: [/翻译|translate|语言|language/i] },
+    { agentType: 'itinerary', patterns: [/行程|攻略|itinerary|schedule|plan|planning|规划/i] },
+];
+
+function isTruthyFlagValue(value: string | null | undefined): boolean {
+    if (!value) return false;
+    return ['1', 'true', 'yes', 'on', 'enabled'].includes(value.trim().toLowerCase());
+}
+
+export function isLegacyTravelAutoExpansionEnabled(): boolean {
+    try {
+        const storedValue = globalThis.localStorage?.getItem(LEGACY_TRAVEL_AUTO_EXPANSION_STORAGE_KEY);
+        if (isTruthyFlagValue(storedValue)) {
+            return true;
+        }
+    } catch {
+        // Ignore storage access failures outside browser/test environments.
+    }
+
+    const envValue = (
+        globalThis as typeof globalThis & {
+            process?: { env?: Record<string, string | undefined> };
+        }
+    ).process?.env?.LUMI_LEGACY_TRAVEL_AUTO_EXPANSION;
+
+    return isTruthyFlagValue(envValue);
+}
+
+function isTravelRequestText(userRequest: string): boolean {
+    return TRAVEL_REQUEST_PATTERN.test(userRequest);
+}
+
 // ============================================================================
 // Problem Analysis (using Gemini or pattern matching)
 // ============================================================================
@@ -455,14 +500,16 @@ function buildOptimizationGoal(): string {
     return `综合偏好：${priceFocus}、${stabilityFocus}、${efficiencyFocus}、${paceFocus}`;
 }
 
-function normalizeTravelDecomposition(
-    decomposition: TaskDecomposition,
+function applyTravelContext(
+    tasks: SubTask[],
     userRequest: string
-): TaskDecomposition {
-    const isTravel = /旅行|旅游|出行|行程|trip|travel|机票|航班/i.test(userRequest);
+): SubTask[] {
     const route = extractRoute(userRequest);
     const locationHint = extractLocationHint(userRequest);
-    const tasks = decomposition.subTasks.map((task) => {
+    const departureDate = extractDepartureDate(userRequest);
+    const departureTimePreference = extractDepartureTimePreference(userRequest);
+
+    return tasks.map((task) => {
         const params = { ...(task.params || {}) };
         if (locationHint && ['hotel_booking', 'weather', 'attraction', 'restaurant', 'itinerary', 'transportation'].includes(task.agentType)) {
             if (!params.destination) {
@@ -475,12 +522,46 @@ function normalizeTravelDecomposition(
         if (route.destination && ['flight_booking', 'transportation'].includes(task.agentType)) {
             if (!params.destination) params.destination = route.destination;
         }
+
+        const destination = route.destination || params.destination || locationHint;
+        const origin = route.origin || params.origin;
+        if (task.agentType === 'flight_booking') {
+            return {
+                ...task,
+                params: {
+                    ...params,
+                    origin,
+                    destination,
+                    departureDate: params.departureDate || departureDate,
+                    departureTimePreference: params.departureTimePreference || departureTimePreference,
+                    timePriorityMode: params.timePriorityMode || (departureTimePreference ? 'prefer' : undefined),
+                },
+            };
+        }
+
+        if (['hotel_booking', 'weather', 'attraction', 'restaurant', 'itinerary', 'transportation'].includes(task.agentType)) {
+            return {
+                ...task,
+                params: { ...params, destination, origin },
+            };
+        }
+
         return { ...task, params };
     });
+}
 
-    if (!isTravel) {
+function normalizeTravelDecomposition(
+    decomposition: TaskDecomposition,
+    userRequest: string
+): TaskDecomposition {
+    const isTravel = isTravelRequestText(userRequest);
+    const route = extractRoute(userRequest);
+    const tasks = applyTravelContext(decomposition.subTasks, userRequest);
+
+    if (!isTravel || !isLegacyTravelAutoExpansionEnabled()) {
         return { ...decomposition, subTasks: tasks };
     }
+
     const departureDate = extractDepartureDate(userRequest);
     const departureTimePreference = extractDepartureTimePreference(userRequest);
     const travelTasks = [...tasks];
@@ -567,30 +648,175 @@ function normalizeTravelDecomposition(
         });
     }
 
-    travelTasks.forEach((task) => {
-        const destination = route.destination || task.params?.destination;
-        const origin = route.origin || task.params?.origin;
-        if (task.agentType === 'flight_booking') {
-            task.params = {
-                ...task.params,
-                origin,
-                destination,
-                departureDate: task.params?.departureDate || departureDate,
-                departureTimePreference: task.params?.departureTimePreference || departureTimePreference,
-                timePriorityMode: task.params?.timePriorityMode || (departureTimePreference ? 'prefer' : undefined)
-            };
-        } else if (['hotel_booking', 'weather', 'attraction', 'restaurant', 'itinerary', 'transportation'].includes(task.agentType)) {
-            task.params = { ...task.params, destination, origin };
-        }
-    });
-
     return {
         ...decomposition,
-        subTasks: travelTasks,
+        subTasks: applyTravelContext(travelTasks, userRequest),
         optimizationGoal: decomposition.optimizationGoal || buildOptimizationGoal(),
         implicitNeeds: decomposition.implicitNeeds.length
             ? decomposition.implicitNeeds
             : ['transportation', 'accommodation', 'activities', 'dining', 'ground_transfer']
+    };
+}
+
+function detectExplicitTravelAgents(request: string): SpecializedAgentType[] {
+    return EXPLICIT_TRAVEL_AGENT_PATTERNS
+        .filter(({ patterns }) => patterns.some((pattern) => pattern.test(request)))
+        .map(({ agentType }) => agentType);
+}
+
+function buildTravelTask(
+    agentType: SpecializedAgentType,
+    taskId: number,
+    createdTasks: SubTask[],
+    context: {
+        destination: string;
+        origin: string;
+        budget: number | null;
+        departureDate: string | null;
+        departureTimePreference: 'morning' | 'afternoon' | 'evening' | 'night' | null;
+    }
+): SubTask {
+    const weatherTask = createdTasks.find((task) => task.agentType === 'weather');
+    const flightTask = createdTasks.find((task) => task.agentType === 'flight_booking');
+
+    switch (agentType) {
+        case 'weather':
+            return {
+                id: `t${taskId}`,
+                description: `Check weather forecast for ${context.destination}`,
+                agentType,
+                priority: 1,
+                dependsOn: [],
+                params: { destination: context.destination },
+                status: 'pending'
+            };
+        case 'flight_booking':
+            return {
+                id: `t${taskId}`,
+                description: `Search flights to ${context.destination}`,
+                agentType,
+                priority: 1,
+                dependsOn: [],
+                params: {
+                    origin: context.origin,
+                    destination: context.destination,
+                    budget: context.budget,
+                    departureDate: context.departureDate,
+                    departureTimePreference: context.departureTimePreference,
+                    timePriorityMode: context.departureTimePreference ? 'prefer' : undefined
+                },
+                status: 'pending'
+            };
+        case 'hotel_booking':
+            return {
+                id: `t${taskId}`,
+                description: `Find hotels in ${context.destination}`,
+                agentType,
+                priority: 2,
+                dependsOn: flightTask ? [flightTask.id] : [],
+                params: { destination: context.destination },
+                status: 'pending'
+            };
+        case 'attraction':
+            return {
+                id: `t${taskId}`,
+                description: `Discover attractions in ${context.destination}`,
+                agentType,
+                priority: 2,
+                dependsOn: weatherTask ? [weatherTask.id] : [],
+                params: { destination: context.destination },
+                status: 'pending'
+            };
+        case 'restaurant':
+            return {
+                id: `t${taskId}`,
+                description: `Find restaurants in ${context.destination}`,
+                agentType,
+                priority: 3,
+                dependsOn: [],
+                params: { destination: context.destination },
+                status: 'pending'
+            };
+        case 'transportation':
+            return {
+                id: `t${taskId}`,
+                description: 'Plan airport transfer and ground transport',
+                agentType,
+                priority: 3,
+                dependsOn: flightTask ? [flightTask.id] : [],
+                params: { origin: context.origin, destination: context.destination, departureDate: context.departureDate },
+                status: 'pending'
+            };
+        case 'translation':
+            return {
+                id: `t${taskId}`,
+                description: `Prepare travel language help for ${context.destination}`,
+                agentType,
+                priority: 3,
+                dependsOn: [],
+                params: { destination: context.destination },
+                status: 'pending'
+            };
+        case 'itinerary':
+            return {
+                id: `t${taskId}`,
+                description: `Create itinerary for ${context.destination}`,
+                agentType,
+                priority: 4,
+                dependsOn: createdTasks.map((task) => task.id),
+                params: { destination: context.destination },
+                status: 'pending'
+            };
+        default:
+            return {
+                id: `t${taskId}`,
+                description: `Handle travel request for ${context.destination}`,
+                agentType,
+                priority: 2,
+                dependsOn: [],
+                params: { destination: context.destination, origin: context.origin },
+                status: 'pending'
+            };
+    }
+}
+
+function buildExplicitTravelDecomposition(
+    userRequest: string,
+    budget: number | null
+): TaskDecomposition {
+    const request = userRequest.toLowerCase();
+    const route = extractRoute(userRequest);
+    const locationHint = extractLocationHint(userRequest);
+    const departureDate = extractDepartureDate(userRequest);
+    const departureTimePreference = extractDepartureTimePreference(userRequest);
+    const destination = route.destination || locationHint || 'destination';
+    const origin = route.origin || 'origin';
+    const explicitAgents = detectExplicitTravelAgents(request);
+    const selectedAgents = explicitAgents.length ? explicitAgents : ['itinerary'];
+
+    const subTasks = selectedAgents.reduce<SubTask[]>((tasks, agentType) => {
+        tasks.push(
+            buildTravelTask(agentType, tasks.length + 1, tasks, {
+                destination,
+                origin,
+                budget,
+                departureDate,
+                departureTimePreference,
+            })
+        );
+        return tasks;
+    }, []);
+
+    return {
+        originalRequest: userRequest,
+        userIntent: `Resolve travel request for ${destination}`,
+        implicitNeeds: [],
+        constraints: budget ? [`Budget: ${budget}`] : [],
+        subTasks,
+        optimizationGoal: buildOptimizationGoal(),
+        reasoning: explicitAgents.length
+            ? 'Travel request kept on explicit user-requested capabilities only'
+            : 'Travel request routed to a single planning capability until more explicit needs are provided'
     };
 }
 
@@ -599,135 +825,50 @@ function normalizeTravelDecomposition(
  */
 function patternBasedDecomposition(userRequest: string): TaskDecomposition {
     const request = userRequest.toLowerCase();
-    const subTasks: SubTask[] = [];
-    let taskId = 0;
 
     // Detect travel/trip planning
-    const isTravelRequest = /旅行|旅游|出行|行程|trip|travel|去.*(玩|旅)|planning|机票|航班|飞机/i.test(request);
-
-    // Detect origin and destination
-    const route = extractRoute(userRequest);
-    const departureDate = extractDepartureDate(userRequest);
-    const departureTimePreference = extractDepartureTimePreference(userRequest);
-    const destination = route.destination || 'destination';
-    const origin = route.origin || 'origin';
+    const isTravelRequest = isTravelRequestText(request);
 
     // Detect budget constraint
     const budgetMatch = request.match(/(\d+)\s*(?:万|k|元|¥|\$|日元|美元)/i);
     const budget = budgetMatch ? parseInt(budgetMatch[1]) : null;
 
     if (isTravelRequest) {
-        // Weather first (no dependencies)
-        subTasks.push({
-            id: `t${++taskId}`,
-            description: `Check weather forecast for ${destination}`,
-            agentType: 'weather',
-            priority: 1,
-            dependsOn: [],
-            params: { destination },
-            status: 'pending'
-        });
+        if (isLegacyTravelAutoExpansionEnabled()) {
+            return normalizeTravelDecomposition({
+                originalRequest: userRequest,
+                userIntent: 'Execute user request',
+                implicitNeeds: [],
+                constraints: budget ? [`Budget: ${budget}`] : [],
+                subTasks: [],
+                optimizationGoal: '',
+                reasoning: 'Legacy travel auto-expansion enabled',
+            }, userRequest);
+        }
 
-        // Flights (no dependencies, can run parallel with weather)
-        subTasks.push({
-            id: `t${++taskId}`,
-            description: `Search flights to ${destination}`,
-            agentType: 'flight_booking',
-            priority: 1,
-            dependsOn: [],
-            params: {
-                origin,
-                destination,
-                budget,
-                departureDate,
-                departureTimePreference,
-                timePriorityMode: departureTimePreference ? 'prefer' : undefined
-            },
-            status: 'pending'
-        });
-
-        // Hotels (depends on flight cost for budget allocation)
-        subTasks.push({
-            id: `t${++taskId}`,
-            description: `Find hotels in ${destination}`,
-            agentType: 'hotel_booking',
-            priority: 2,
-            dependsOn: ['t2'],  // Depends on flight result
-            params: { destination },
-            status: 'pending'
-        });
-
-        // Attractions (depends on weather)
-        subTasks.push({
-            id: `t${++taskId}`,
-            description: `Discover attractions in ${destination}`,
-            agentType: 'attraction',
-            priority: 2,
-            dependsOn: ['t1'],  // Weather affects activity planning
-            params: { destination },
-            status: 'pending'
-        });
-
-        // Restaurants
-        subTasks.push({
-            id: `t${++taskId}`,
-            description: `Find restaurants in ${destination}`,
-            agentType: 'restaurant',
-            priority: 3,
-            dependsOn: [],
-            params: { destination },
-            status: 'pending'
-        });
-
-        // Transportation (depends on flight info)
-        subTasks.push({
-            id: `t${++taskId}`,
-            description: `Plan airport transfer and ground transport`,
-            agentType: 'transportation',
-            priority: 3,
-            dependsOn: ['t2'],
-            params: { origin, destination, departureDate },
-            status: 'pending'
-        });
-
-        // Final itinerary (depends on all)
-        subTasks.push({
-            id: `t${++taskId}`,
-            description: `Create optimized itinerary for ${destination}`,
-            agentType: 'itinerary',
-            priority: 4,
-            dependsOn: ['t1', 't2', 't3', 't4', 't5', 't6'],
-            params: { destination },
-            status: 'pending'
-        });
-    } else {
-        // Single-domain request - detect best agent
-        const agent = detectBestAgent(request);
-        subTasks.push({
-            id: 't1',
-            description: userRequest,
-            agentType: agent,
-            priority: 1,
-            dependsOn: [],
-            params: extractParams(userRequest),
-            status: 'pending'
-        });
+        return buildExplicitTravelDecomposition(userRequest, budget);
     }
+
+    const subTasks: SubTask[] = [];
+    const agent = detectBestAgent(request);
+    subTasks.push({
+        id: 't1',
+        description: userRequest,
+        agentType: agent,
+        priority: 1,
+        dependsOn: [],
+        params: extractParams(userRequest),
+        status: 'pending'
+    });
 
     return {
         originalRequest: userRequest,
-        userIntent: isTravelRequest ? `Plan a trip to ${destination}` : 'Execute user request',
-        implicitNeeds: isTravelRequest
-            ? ['transportation', 'accommodation', 'activities', 'dining', 'ground_transfer']
-            : [],
+        userIntent: 'Execute user request',
+        implicitNeeds: [],
         constraints: budget ? [`Budget: ${budget}`] : [],
         subTasks,
-        optimizationGoal: isTravelRequest
-            ? buildOptimizationGoal()
-            : 'Complete request efficiently',
-        reasoning: isTravelRequest
-            ? 'Decomposed into weather → flights/hotels → attractions/transport → itinerary pipeline'
-            : 'Single-task routing to best agent'
+        optimizationGoal: 'Complete request efficiently',
+        reasoning: 'Single-task routing to best agent'
     };
 }
 

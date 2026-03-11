@@ -9,6 +9,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHmac, randomUUID } from 'crypto';
 import { ensureMarketplaceCatalogReady, detectDomain, resetAgentMarketplace } from '../../services/agentMarketplaceService.js';
+import { classifyFreshness } from '../../services/freshnessClassifier.js';
 import { getToolRegistry } from '../../services/toolRegistry.js';
 import { getSkillRegistry } from '../../services/skillRegistry.js';
 import { executeSpecializedAgent } from '../../services/specializedAgents.js';
@@ -16,6 +17,7 @@ import { buildFlightActionLinks, parseFlightConstraints } from '../../services/f
 import { lixAgentRegistryService } from '../../services/lixAgentRegistryService.js';
 import { marketAnalyticsStore } from '../../services/marketAnalyticsStore.js';
 import { buildLeaderboard, getAgentTrendPoints, type LeaderboardSort, type LeaderboardWindow, type TrendWindow } from '../../services/agentHotnessService.js';
+import { importAgentFromGithub } from '../../services/agentGithubImportService.js';
 import type { SpecializedAgentType } from '../../types.js';
 import type { AgentDescriptor, AgentDomain, DigitalTwinContext, DiscoveryQuery, DiscoveryResponse } from '../../services/agentMarketplaceTypes.js';
 
@@ -109,6 +111,21 @@ function getRetryCount(bodyRetries: unknown): number {
 function getManualAgentTimeoutMs(): number {
     const configured = parseIntWithDefault(process.env.AGENT_MARKET_MANUAL_AGENT_TIMEOUT_MS, DEFAULT_MANUAL_AGENT_TIMEOUT_MS);
     return Math.max(1_000, Math.min(120_000, configured));
+}
+
+function resolveRealtimeIntentDomain(query: string, domainHint: AgentDomain): string {
+    const routedDomain = classifyFreshness(query).intent_domain;
+    if (routedDomain && routedDomain !== 'knowledge') return routedDomain;
+
+    if (domainHint === 'shopping') return 'ecommerce.product';
+    if (domainHint === 'local_service') return 'local.service';
+    if (domainHint === 'finance') return 'finance';
+    if (domainHint === 'recruitment') return 'recruitment';
+    if (domainHint === 'health') return 'health';
+    if (domainHint === 'legal') return 'legal';
+    if (domainHint === 'education') return 'education';
+    if (domainHint === 'productivity') return 'productivity';
+    return 'knowledge';
 }
 
 function getAllowlistHosts(): string[] {
@@ -871,15 +888,7 @@ async function executeManualAgent(
                 || agent.capabilities.includes('hotel_search')
                 || agent.capabilities.includes('local_transport')
             ) {
-                const mappedDomain =
-                    domain === 'travel'
-                        ? 'travel.flight'
-                        : domain === 'shopping'
-                            ? 'ecommerce'
-                            : domain === 'local_service'
-                                ? 'local_life'
-                                : domain;
-                args.intent_domain = mappedDomain;
+                args.intent_domain = resolveRealtimeIntentDomain(query, domain);
                 args.locale = locale;
             }
             if (agent.execute_ref === 'web_exec') {
@@ -1167,6 +1176,60 @@ export async function handleAgentMarketManualExecute(req: VercelRequest, res: Ve
     }
 }
 
+export async function handleAgentMarketImport(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
+
+    try {
+        const body = req.body || {};
+        const repo = String(body?.repo || '').trim();
+        if (!repo) {
+            return res.status(400).json({ success: false, error: 'Missing required field: repo' });
+        }
+
+        const result = await importAgentFromGithub({
+            user_id: typeof body?.user_id === 'string' ? body.user_id : 'demo_user',
+            owner_id: typeof body?.owner_id === 'string' ? body.owner_id : undefined,
+            repo,
+            manifest_path: typeof body?.manifest_path === 'string' ? body.manifest_path : undefined,
+            ref: typeof body?.ref === 'string' ? body.ref : undefined,
+            manifest_json: body?.manifest_json,
+            delivery_mode_preference:
+                body?.delivery_mode_preference === 'agent_collab'
+                    ? 'agent_collab'
+                    : body?.delivery_mode_preference === 'human_expert'
+                        ? 'human_expert'
+                        : 'hybrid',
+        });
+
+        return res.status(200).json({
+            success: true,
+            descriptor: result.descriptor,
+            manifest: result.manifest,
+            review: result.review,
+            repo: result.repo,
+            manifest_path: result.manifest_path,
+            source: result.source,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? String(error.message || '') : 'internal_error';
+        if (message === 'invalid_repo_full_name') {
+            return res.status(400).json({ success: false, error: 'invalid_repo_full_name', error_code: 'invalid_repo' });
+        }
+        if (message === 'Not Found' || message.includes('github_manifest_http_404')) {
+            return res.status(400).json({ success: false, error: 'manifest_not_found', error_code: 'manifest_not_found' });
+        }
+        if (message.startsWith('manifest_json_parse_failed')) {
+            return res.status(422).json({ success: false, error: message, error_code: 'manifest_json_parse_failed' });
+        }
+        if (message.startsWith('manifest_invalid')) {
+            return res.status(422).json({ success: false, error: message, error_code: 'manifest_invalid' });
+        }
+        return res.status(500).json({ success: false, error: message || 'internal_error', error_code: 'internal_error' });
+    }
+}
+
 export const __agentMarketTestables = {
     inferRouteFromQuery,
     inferDestinationFromQuery,
@@ -1245,6 +1308,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (action === 'manual-execute') {
         return handleAgentMarketManualExecute(req, res);
+    }
+    if (action === 'import') {
+        return handleAgentMarketImport(req, res);
     }
     if (action === 'leaderboard') {
         return handleLeaderboard(req, res);

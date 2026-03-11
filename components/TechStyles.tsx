@@ -1,5 +1,5 @@
 /**
- * TechStyles.tsx — 科技风共享样式组件库
+ * TechStyles.tsx — shared tech-style component library
  * Shared futuristic / sci-fi design system for LIX & Agent Marketplace
  */
 

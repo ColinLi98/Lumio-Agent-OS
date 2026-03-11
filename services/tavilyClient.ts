@@ -6,8 +6,9 @@
  */
 import { buildApiUrl } from './apiBaseUrl.js';
 
-const TAVILY_PROXY_URL = buildApiUrl('/api/tavily-search');
+const TAVILY_DIRECT_URL = 'https://api.tavily.com/search';
 const DEFAULT_TAVILY_TIMEOUT_MS = 6000;
+const REMOTE_PROXY_URL = 'https://lumi-agent-simulator.vercel.app/api/tavily-search';
 
 function getTavilyTimeoutMs(): number {
     const raw = Number(process.env.TAVILY_PROXY_TIMEOUT_MS || process.env.VITE_TAVILY_PROXY_TIMEOUT_MS || DEFAULT_TAVILY_TIMEOUT_MS);
@@ -35,57 +36,109 @@ export interface TavilySearchResponse {
     response_time: number;
 }
 
-export class TavilyClient {
-    /**
-     * Search via the proxy endpoint
-     */
-    async search(request: TavilySearchRequest): Promise<TavilySearchResponse> {
-        console.log(`[Tavily] Searching via proxy: "${request.query}"`);
+function getTavilyApiKey(): string | undefined {
+    if (typeof process === 'undefined' || !process.env) return undefined;
+    const key = process.env.TAVILY_API_KEY || process.env.TAVILY_KEY || process.env.VITE_TAVILY_API_KEY;
+    return key ? String(key).trim() : undefined;
+}
 
-        const timeoutMs = getTavilyTimeoutMs();
+function getProxyCandidates(): string[] {
+    const primary = buildApiUrl('/api/tavily-search');
+    const candidates = [primary];
+    if ((primary.includes('127.0.0.1') || primary.includes('localhost')) && primary !== REMOTE_PROXY_URL) {
+        candidates.push(REMOTE_PROXY_URL);
+    }
+    return Array.from(new Set(candidates));
+}
+
+export class TavilyClient {
+    private async fetchJsonWithTimeout(url: string, body: Record<string, any>, timeoutMs: number): Promise<any> {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
-        let response: Response;
         try {
-            response = await fetch(TAVILY_PROXY_URL, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    query: request.query,
-                    search_depth: request.search_depth || 'basic',
-                    max_results: request.max_results || 5
-                }),
+                body: JSON.stringify(body),
                 signal: controller.signal,
             });
+
+            const rawText = await response.text();
+            if (!response.ok) {
+                const errorText = rawText.slice(0, 500);
+                throw new Error(`HTTP_${response.status}: ${errorText}`);
+            }
+
+            try {
+                return rawText ? JSON.parse(rawText) : {};
+            } catch {
+                throw new Error('non_json_response');
+            }
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
-                throw new Error(`Tavily proxy timeout after ${timeoutMs}ms`);
+                throw new Error(`timeout_${timeoutMs}ms`);
             }
             throw error;
         } finally {
             clearTimeout(timer);
         }
+    }
 
-        const rawText = await response.text();
+    /**
+     * Search via the proxy endpoint
+     */
+    async search(request: TavilySearchRequest): Promise<TavilySearchResponse> {
+        const timeoutMs = getTavilyTimeoutMs();
+        const proxyBody = {
+            query: request.query,
+            search_depth: request.search_depth || 'basic',
+            max_results: request.max_results || 5
+        };
 
-        if (!response.ok) {
-            const errorText = rawText.slice(0, 500);
-            console.error('[Tavily] Proxy Error:', response.status, errorText);
-            throw new Error(`Tavily proxy error: ${response.status} - ${errorText}`);
+        let lastError: Error | null = null;
+        for (const proxyUrl of getProxyCandidates()) {
+            try {
+                console.log(`[Tavily] Searching via proxy (${proxyUrl}): "${request.query}"`);
+                const data = await this.fetchJsonWithTimeout(proxyUrl, proxyBody, timeoutMs);
+                console.log(`[Tavily] Got ${data.results?.length || 0} results`);
+                return data as TavilySearchResponse;
+            } catch (error) {
+                lastError = error instanceof Error ? error : new Error(String(error));
+                console.warn(`[Tavily] Proxy failed (${proxyUrl}): ${lastError.message}`);
+            }
         }
 
-        let data: any;
-        try {
-            data = rawText ? JSON.parse(rawText) : {};
-        } catch {
-            throw new Error('Tavily proxy returned non-JSON response');
+        // Server-side fallback: direct Tavily call when proxy is unavailable.
+        if (typeof window === 'undefined') {
+            const apiKey = getTavilyApiKey();
+            if (apiKey) {
+                try {
+                    console.log('[Tavily] Falling back to direct API');
+                    const data = await this.fetchJsonWithTimeout(
+                        TAVILY_DIRECT_URL,
+                        {
+                            api_key: apiKey,
+                            query: request.query,
+                            search_depth: request.search_depth || 'basic',
+                            include_answer: true,
+                            include_raw_content: false,
+                            include_images: false,
+                            max_results: request.max_results || 5,
+                        },
+                        timeoutMs
+                    );
+                    console.log(`[Tavily] Direct API got ${data.results?.length || 0} results`);
+                    return data as TavilySearchResponse;
+                } catch (error) {
+                    lastError = error instanceof Error ? error : new Error(String(error));
+                    console.warn(`[Tavily] Direct API fallback failed: ${lastError.message}`);
+                }
+            }
         }
 
-        console.log(`[Tavily] Got ${data.results?.length || 0} results`);
-
-        return data as TavilySearchResponse;
+        throw lastError || new Error('tavily_search_failed');
     }
 
     /**

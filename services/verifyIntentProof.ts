@@ -15,6 +15,8 @@
 // Types
 // ============================================================================
 
+import { validateAndRecordNonce } from './redisNonceCache.js';
+
 export interface IntentProof {
     proof_type: 'device_signed';
     intent_hash: string;           // sha256:hex
@@ -38,7 +40,7 @@ export interface IntentProofInput {
 export interface VerifyResult {
     valid: boolean;
     error?: string;
-    code?: 'MISSING_PROOF' | 'INVALID_PROOF' | 'INVALID_SIGNATURE' | 'HASH_MISMATCH' | 'EXPIRED' | 'PROOF_EXPIRED' | 'MISSING_PUBLIC_KEY';
+    code?: 'MISSING_PROOF' | 'INVALID_PROOF' | 'INVALID_SIGNATURE' | 'HASH_MISMATCH' | 'EXPIRED' | 'PROOF_EXPIRED' | 'MISSING_PUBLIC_KEY' | 'NONCE_REPLAY' | 'INVALID_NONCE_FORMAT';
     details?: Record<string, unknown>;
 }
 
@@ -204,8 +206,9 @@ export async function verifyIntentProof(
     }
 
     // 2. Validate proof structure
+    const resolvedSignature = String(proof.signature || (proof as any).device_signature || '').trim();
     const missingCoreFields = !proof.intent_hash || !proof.nonce || !proof.timestamp;
-    const missingSignatureInStrictMode = ENFORCE_STRICT_PROOF_VERIFICATION && !proof.signature;
+    const missingSignatureInStrictMode = ENFORCE_STRICT_PROOF_VERIFICATION && !resolvedSignature;
     if (missingCoreFields || missingSignatureInStrictMode) {
         return {
             valid: false,
@@ -213,7 +216,7 @@ export async function verifyIntentProof(
             code: 'INVALID_PROOF',
             details: {
                 has_intent_hash: !!proof.intent_hash,
-                has_signature: !!proof.signature,
+                has_signature: !!resolvedSignature,
                 has_nonce: !!proof.nonce,
                 has_timestamp: !!proof.timestamp
             }
@@ -225,7 +228,7 @@ export async function verifyIntentProof(
     const expiresAt = proof.timestamp + (validityWindowSec * 1000);
     if (Date.now() > expiresAt) {
         const ageSeconds = Math.floor((Date.now() - proof.timestamp) / 1000);
-        const expiredCode = proof.signature ? 'EXPIRED' : 'PROOF_EXPIRED';
+        const expiredCode = resolvedSignature ? 'EXPIRED' : 'PROOF_EXPIRED';
         return {
             valid: false,
             error: `Intent proof has expired (age: ${ageSeconds}s, max: ${validityWindowSec}s)`,
@@ -234,11 +237,21 @@ export async function verifyIntentProof(
         };
     }
 
+    // 3.5 Check and record nonce for replay protection.
+    const nonceResult = await validateAndRecordNonce(userPseudonym, proof.nonce, validityWindowSec);
+    if (!nonceResult.valid) {
+        return {
+            valid: false,
+            error: nonceResult.error || 'Nonce replay detected',
+            code: nonceResult.code || 'NONCE_REPLAY',
+        };
+    }
+
     // MVP/dev path: accept synthetic test signatures after expiry checks.
     // Set LIX_ENFORCE_STRICT_PROOF=true to require full crypto verification.
     if (
         !ENFORCE_STRICT_PROOF_VERIFICATION &&
-        (!proof.signature || proof.signature.startsWith('sig_'))
+        (!resolvedSignature || resolvedSignature.startsWith('sig_'))
     ) {
         console.log('[security.mock_proof_accepted] non-strict mode');
         return { valid: true };
@@ -306,7 +319,7 @@ export async function verifyIntentProof(
 
         // Parse signature (handle hex or base64)
         let signatureBuffer: ArrayBuffer;
-        const sigWithoutPrefix = proof.signature.replace(/^sig_/, '');
+        const sigWithoutPrefix = resolvedSignature.replace(/^sig_/, '');
         if (/^[0-9a-fA-F]+$/.test(sigWithoutPrefix)) {
             signatureBuffer = hexToArrayBuffer(sigWithoutPrefix);
         } else {
@@ -330,7 +343,7 @@ export async function verifyIntentProof(
 
         // MVP RELAXATION: Accept mock signatures starting with "sig_"
         // TODO: Remove this in production!
-        if (!proof.signature?.startsWith('sig_')) {
+        if (!resolvedSignature.startsWith('sig_')) {
             return {
                 valid: false,
                 error: 'Signature verification failed',

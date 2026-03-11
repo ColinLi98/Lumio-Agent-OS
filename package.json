@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "fix:mac-bin": "/bin/sh -lc 'xattr -dr com.apple.quarantine node_modules/@rollup node_modules/@esbuild 2>/dev/null || true; echo \"[fix:mac-bin] Cleared quarantine for @rollup and @esbuild\"'",
     "preview": "vite preview",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:script:raw": "/bin/sh -lc 'BASE_URL=${LUMI_BASE_URL:-https://lumi-agent-simulator.vercel.app}; npx vite-node tests/provider-adapters.smoke.test.ts && npx vite-node tests/e2e/intent_router_e2e.test.ts && API_BASE=${BASE_URL}/api/lix npx vite-node tests/lix-v02-compliance.test.ts && API_BASE=${BASE_URL}/api/lix npx vite-node tests/lix-validation.test.ts'",
@@ -14,8 +15,14 @@
     "test:e2e:raw": "playwright test",
     "test:e2e": "node scripts/with-dev-server.mjs -- npm run test:e2e:raw",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "check:policy-parity": "npx vite-node scripts/check-policy-parity.ts",
+    "check:release-baseline": "bash scripts/check-release-baseline.sh",
     "benchmark:scenarios": "npx vite-node scripts/benchmark-scenarios.ts",
     "verify:external-market": "/bin/sh -lc 'LUMI_API_BASE_URL=${LUMI_API_BASE_URL:-http://127.0.0.1:3000} AGENT_MARKET_FEEDS=${AGENT_MARKET_FEEDS:-http://127.0.0.1:3000/agent-market/external-feed.json} npx vite-node scripts/verify-external-market.ts'",
+    "verify:openclaw-release": "bash scripts/verify-openclaw-release.sh",
+    "verify:superagent-github-flow": "npx vite-node scripts/run-superagent-github-skills-flow.ts",
+    "demo:live": "bash scripts/run-live-demo.sh",
+    "demo:closed-loop": "bash scripts/run-closed-loop-demo.sh",
     "debug:all": "/bin/sh -lc 'npm run build && npm run typecheck && npm run test:unit && npm run benchmark:scenarios && npm run test:life-optimizer && npm run test:script && npm run test:e2e'"
   },
   "dependencies": {
@@ -24,10 +31,12 @@
     "lucide-react": "^0.562.0",
     "mammoth": "^1.11.0",
     "pdfjs-dist": "^5.4.530",
+    "pg": "^8.19.0",
     "pinyin-pro": "^3.28.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-simple-keyboard": "^3.8.141",
+    "redis": "^5.11.0",
     "tesseract.js": "^7.0.0",
     "vercel": "^50.10.2"
   },

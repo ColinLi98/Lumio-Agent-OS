@@ -11,15 +11,15 @@ interface UserPreferences {
 const DEFAULT_PREFERENCES: UserPreferences = {
     defaultTone: 'casual',
     defaultLanguage: 'auto',
-    quickPhrases: ['好的，收到', '谢谢', '稍等'],
+    quickPhrases: ['Got it', 'Thanks', 'One moment'],
     learnedPatterns: 0
 };
 
 const STORAGE_KEY = 'lumi_user_preferences';
 
 /**
- * 用户偏好设置面板
- * 管理语气风格、语言设置、快捷短语
+ * User preference panel
+ * Manage response tone, language, and quick phrases.
  */
 export const PreferencePanel: React.FC = () => {
     const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
@@ -72,15 +72,15 @@ export const PreferencePanel: React.FC = () => {
     };
 
     const toneOptions = [
-        { value: 'professional', label: '专业', icon: '👔' },
-        { value: 'casual', label: '轻松', icon: '😊' },
-        { value: 'humorous', label: '幽默', icon: '😄' },
-        { value: 'formal', label: '正式', icon: '📝' }
+        { value: 'professional', label: 'Professional', icon: '👔' },
+        { value: 'casual', label: 'Casual', icon: '😊' },
+        { value: 'humorous', label: 'Humorous', icon: '😄' },
+        { value: 'formal', label: 'Formal', icon: '📝' }
     ] as const;
 
     const languageOptions = [
-        { value: 'auto', label: '自动' },
-        { value: 'zh', label: '中文' },
+        { value: 'auto', label: 'Auto' },
+        { value: 'zh', label: 'Chinese' },
         { value: 'en', label: 'English' }
     ] as const;
 
@@ -93,10 +93,10 @@ export const PreferencePanel: React.FC = () => {
             >
                 <div className="flex items-center gap-2">
                     <Settings size={16} className="text-purple-400" />
-                    <span>个性化设置</span>
+                    <span>Personalization</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-400">
-                    {isExpanded ? '收起' : '展开'}
+                    {isExpanded ? 'Collapse' : 'Expand'}
                 </div>
             </button>
 
@@ -106,7 +106,7 @@ export const PreferencePanel: React.FC = () => {
                     <div className="preference-section">
                         <div className="section-label">
                             <MessageSquare size={14} />
-                            默认语气
+                            Default Tone
                         </div>
                         <div className="tone-grid">
                             {toneOptions.map(opt => (
@@ -127,7 +127,7 @@ export const PreferencePanel: React.FC = () => {
                     <div className="preference-section">
                         <div className="section-label">
                             <Globe size={14} />
-                            回复语言
+                            Reply Language
                         </div>
                         <div className="lang-grid">
                             {languageOptions.map(opt => (
@@ -146,7 +146,7 @@ export const PreferencePanel: React.FC = () => {
                     <div className="preference-section">
                         <div className="section-label">
                             <Sparkles size={14} />
-                            快捷短语
+                            Quick Phrases
                         </div>
                         <div className="phrases-list">
                             {preferences.quickPhrases.map((phrase, idx) => (
@@ -161,7 +161,7 @@ export const PreferencePanel: React.FC = () => {
                                 type="text"
                                 value={newPhrase}
                                 onChange={(e) => setNewPhrase(e.target.value)}
-                                placeholder="添加新短语..."
+                                placeholder="Add a new phrase..."
                                 onKeyDown={(e) => e.key === 'Enter' && handleAddPhrase()}
                             />
                             <button onClick={handleAddPhrase}>+</button>
@@ -171,7 +171,7 @@ export const PreferencePanel: React.FC = () => {
                     {/* Reset Button */}
                     <button onClick={handleReset} className="reset-btn">
                         <RotateCcw size={14} />
-                        重置为默认
+                        Reset to defaults
                     </button>
                 </div>
             )}

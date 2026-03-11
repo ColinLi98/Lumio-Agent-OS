@@ -1,5 +1,5 @@
 /**
- * MarketHome - LIX 意图交易所 (Sci-Fi Redesign)
+ * MarketHome - LIX Intent Exchange (Sci-Fi Redesign)
  * Shows intent list, publish button, and recent offers summary
  */
 
@@ -31,15 +31,15 @@ interface StatusBadgeProps { status: string; }
 
 const statusConfig: Record<string, { variant: BadgeVariant; text: string; icon: React.ReactNode }> = {
     broadcasting: { variant: 'cyan', text: 'LIVE', icon: <Radio size={10} /> },
-    offers_received: { variant: 'green', text: '报价已收', icon: <CheckCircle size={10} /> },
-    accepted: { variant: 'green', text: '已接受', icon: <CheckCircle size={10} /> },
-    offer_accepted: { variant: 'green', text: '方案确认', icon: <CheckCircle size={10} /> },
-    delivery_submitted: { variant: 'purple', text: '审核中', icon: <Clock size={10} /> },
-    approved: { variant: 'green', text: '已上架', icon: <CheckCircle size={10} /> },
-    rejected: { variant: 'red', text: '已拒绝', icon: <AlertCircle size={10} /> },
-    expired: { variant: 'gold', text: '已过期', icon: <AlertCircle size={10} /> },
-    cancelled: { variant: 'red', text: '已取消', icon: <AlertCircle size={10} /> },
-    draft: { variant: 'purple', text: '草稿', icon: <Clock size={10} /> },
+    offers_received: { variant: 'green', text: 'Offers received', icon: <CheckCircle size={10} /> },
+    accepted: { variant: 'green', text: 'Accepted', icon: <CheckCircle size={10} /> },
+    offer_accepted: { variant: 'green', text: 'Offer accepted', icon: <CheckCircle size={10} /> },
+    delivery_submitted: { variant: 'purple', text: 'Under review', icon: <Clock size={10} /> },
+    approved: { variant: 'green', text: 'Published', icon: <CheckCircle size={10} /> },
+    rejected: { variant: 'red', text: 'Rejected', icon: <AlertCircle size={10} /> },
+    expired: { variant: 'gold', text: 'Expired', icon: <AlertCircle size={10} /> },
+    cancelled: { variant: 'red', text: 'Cancelled', icon: <AlertCircle size={10} /> },
+    draft: { variant: 'purple', text: 'Draft', icon: <Clock size={10} /> },
 };
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
@@ -167,15 +167,15 @@ interface PublishModalProps {
 }
 
 const CITY_CODES = [
-    { value: 'beijing', label: '北京' },
-    { value: 'shanghai', label: '上海' },
-    { value: 'guangzhou', label: '广州' },
-    { value: 'shenzhen', label: '深圳' },
-    { value: 'hangzhou', label: '杭州' },
-    { value: 'chengdu', label: '成都' },
-    { value: 'wuhan', label: '武汉' },
-    { value: 'nanjing', label: '南京' },
-    { value: 'all', label: '全国' },
+    { value: 'beijing', label: 'Beijing' },
+    { value: 'shanghai', label: 'Shanghai' },
+    { value: 'guangzhou', label: 'Guangzhou' },
+    { value: 'shenzhen', label: 'Shenzhen' },
+    { value: 'hangzhou', label: 'Hangzhou' },
+    { value: 'chengdu', label: 'Chengdu' },
+    { value: 'wuhan', label: 'Wuhan' },
+    { value: 'nanjing', label: 'Nanjing' },
+    { value: 'all', label: 'Nationwide' },
 ];
 
 const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish }) => {
@@ -211,9 +211,9 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
     };
 
     const categories = [
-        { id: 'purchase' as const, icon: <Package size={20} />, label: '购买', color: techColors.cyan },
-        { id: 'job' as const, icon: <Briefcase size={20} />, label: '求职', color: techColors.purple },
-        { id: 'collaboration' as const, icon: <Users size={20} />, label: '合作', color: techColors.green },
+        { id: 'purchase' as const, icon: <Package size={20} />, label: 'Purchase', color: techColors.cyan },
+        { id: 'job' as const, icon: <Briefcase size={20} />, label: 'Job', color: techColors.purple },
+        { id: 'collaboration' as const, icon: <Users size={20} />, label: 'Collaboration', color: techColors.green },
     ];
 
     return (
@@ -232,7 +232,7 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
                 borderBottom: 'none',
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <GradientHeading size={18}>发布意图</GradientHeading>
+                    <GradientHeading size={18}>Publish intent</GradientHeading>
                     <button
                         onClick={onClose}
                         style={{
@@ -270,7 +270,7 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
                 <TechInput
                     value={item}
                     onChange={setItem}
-                    placeholder="描述你的需求，例如：iPhone 16 Pro Max 256G"
+                    placeholder="Describe your need, e.g. iPhone 16 Pro Max 256G"
                     style={{ marginBottom: 12 }}
                 />
 
@@ -278,7 +278,7 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
                     value={budget}
                     onChange={setBudget}
                     type="number"
-                    placeholder="预算上限（可选）"
+                    placeholder="Budget cap (optional)"
                     style={{ marginBottom: 12 }}
                 />
 
@@ -319,7 +319,7 @@ const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish 
                     icon={isPublishing ? undefined : <Radio size={18} />}
                     fullWidth
                 >
-                    {isPublishing ? '广播中...' : '广播到市场'}
+                    {isPublishing ? 'Broadcasting...' : 'Broadcast to market'}
                 </TechButton>
             </div>
         </div>
@@ -502,7 +502,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
         if (!repo) return;
         setGithubImporting(true);
         try {
-            const response = await fetch(buildApiUrl('/api/agent-market/github/import'), {
+            const response = await fetch(buildApiUrl('/api/agent-market/import'), {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
@@ -549,31 +549,31 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                     icon={<Zap size={26} color={techColors.cyan} />}
                     subtitle="AI Agent Marketplace · Intent Trading Protocol"
                 >
-                    LIX 意图交易所
+                    LIX Intent Exchange
                 </GradientHeading>
 
                 {/* Metrics Row */}
                 <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
                     <MetricBox
-                        label="意图广播"
+                        label="Intents broadcast"
                         value={metrics.total_intents_broadcast}
                         icon={<Radio size={16} color={techColors.cyan} />}
                         accent={techColors.cyan}
                     />
                     <MetricBox
-                        label="报价收到"
+                        label="Offers received"
                         value={metrics.total_offers_received}
                         icon={<CheckCircle size={16} color={techColors.green} />}
                         accent={techColors.green}
                     />
                     <MetricBox
-                        label="平均响应"
+                        label="Avg response"
                         value={`${metrics.avg_first_offer_seconds.toFixed(1)}s`}
                         icon={<Clock size={16} color={techColors.purple} />}
                         accent={techColors.purple}
                     />
                     <MetricBox
-                        label={`收益 (${revenueSummary?.active_agents || 0})`}
+                        label={`Revenue (${revenueSummary?.active_agents || 0})`}
                         value={`¥${Math.round(revenueSummary?.total_revenue_cny || 0)}`}
                         icon={<TrendingUp size={16} color={techColors.gold} />}
                         accent={techColors.gold}
@@ -584,7 +584,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
             {/* ── Agent Leaderboard ── */}
             <GlowCard glowColor={techColors.gold} style={{ marginBottom: 14 }}>
                 <TechSectionHeader
-                    title="Agent 热度榜"
+                    title="Agent Hotness Leaderboard"
                     icon={<TrendingUp size={16} />}
                     accent={techColors.gold}
                     extra={
@@ -597,13 +597,13 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
 
                 {leaderboardLoading && (
                     <div style={{ color: techColors.text3, fontSize: 12, fontFamily: 'monospace', padding: '8px 0' }}>
-                        ⟳ 加载排行榜中...
+                        ⟳ Loading leaderboard...
                     </div>
                 )}
                 {!leaderboardLoading && leaderboardRows.length === 0 && (
                     <div style={{ color: techColors.text3, fontSize: 12, padding: '12px 0', textAlign: 'center' }}>
                         <div style={{ fontSize: 24, marginBottom: 8, opacity: 0.3 }}>📊</div>
-                        暂无榜单数据，先去 Agent Marketplace 执行任务即可生成
+                        No leaderboard data yet. Run tasks in Agent Marketplace to generate entries.
                     </div>
                 )}
                 {!leaderboardLoading && leaderboardRows.length > 0 && (
@@ -661,7 +661,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                 )}
                 {myLeaderboardRows.length > 0 && (
                     <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${techColors.border}`, color: techColors.text2, fontSize: 12 }}>
-                        <NeonBadge variant="green" size="sm">我的 Agent 上榜: {myLeaderboardRows.length}</NeonBadge>
+                        <NeonBadge variant="green" size="sm">My agents ranked: {myLeaderboardRows.length}</NeonBadge>
                     </div>
                 )}
             </GlowCard>
@@ -669,7 +669,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
             {/* ── GitHub Import ── */}
             <GlowCard glowColor={techColors.text3} style={{ marginBottom: 14 }}>
                 <TechSectionHeader
-                    title="GitHub 导入 Agent"
+                    title="Import Agent from GitHub"
                     icon={<Github size={16} />}
                     accent={techColors.text2}
                     extra={
@@ -682,7 +682,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                     }
                 />
                 <div style={{ color: techColors.text3, fontSize: 11, marginBottom: 10, fontFamily: 'monospace' }}>
-                    支持从仓库读取 .lix/agent.manifest.json，导入后参与 Marketplace 调用与收益统计
+                    Import `.lix/agent.manifest.json` from a repository. Imported agents can join Marketplace execution and revenue tracking.
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                     <TechButton
@@ -691,7 +691,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                         disabled={githubRepoLoading}
                         icon={<Github size={14} />}
                     >
-                        {githubConnected ? '已连接' : '连接 GitHub'}
+                        {githubConnected ? 'Connected' : 'Connect GitHub'}
                     </TechButton>
                     <TechButton
                         variant="ghost"
@@ -699,7 +699,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                         disabled={githubRepoLoading}
                         icon={<RefreshCw size={14} />}
                     >
-                        刷新仓库
+                        Refresh repos
                     </TechButton>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -708,7 +708,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                         onChange={setSelectedGithubRepo}
                         options={
                             githubRepos.length === 0
-                                ? [{ value: '', label: '暂无可用仓库' }]
+                                ? [{ value: '', label: 'No repos available' }]
                                 : githubRepos.map(r => ({
                                     value: r.full_name,
                                     label: `${r.full_name}${r.private ? ' 🔒' : ''}`,
@@ -728,7 +728,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                         disabled={!selectedGithubRepo || githubImporting}
                         icon={<Upload size={14} />}
                     >
-                        {githubImporting ? '导入中...' : '导入上架'}
+                        {githubImporting ? 'Importing...' : 'Import & publish'}
                     </TechButton>
                 </div>
             </GlowCard>
@@ -740,7 +740,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                 fullWidth
                 style={{ marginBottom: 20 }}
             >
-                发布意图
+                Publish intent
             </TechButton>
 
             {/* ── Intent List ── */}
@@ -750,14 +750,14 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                     textTransform: 'uppercase', letterSpacing: '0.12em',
                     marginBottom: 12, fontFamily: 'monospace',
                 }}>
-                    我的意图 ({intents.length})
+                    My intents ({intents.length})
                 </div>
 
                 {intents.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 20px', color: techColors.text3 }}>
                         <Zap size={40} style={{ opacity: 0.15, marginBottom: 12, color: techColors.cyan }} />
-                        <p style={{ fontSize: 13, margin: '0 0 4px 0' }}>还没有意图</p>
-                        <p style={{ fontSize: 11, margin: 0, fontFamily: 'monospace' }}>点击上方发布按钮创建第一个需求</p>
+                        <p style={{ fontSize: 13, margin: '0 0 4px 0' }}>No intents yet</p>
+                        <p style={{ fontSize: 11, margin: 0, fontFamily: 'monospace' }}>Click publish above to create your first request</p>
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -772,7 +772,7 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                     textTransform: 'uppercase', letterSpacing: '0.12em',
                     marginTop: 20, marginBottom: 12, fontFamily: 'monospace',
                 }}>
-                    专家交付需求 ({solutionIntents.length})
+                    Expert delivery requests ({solutionIntents.length})
                 </div>
                 <div style={{
                     marginBottom: 10, padding: '8px 12px', borderRadius: 8,
@@ -780,11 +780,11 @@ export const MarketHome: React.FC<MarketHomeProps> = ({ onSelectIntent }) => {
                     border: `1px solid ${techColors.cyan}18`,
                     color: techColors.text2, fontSize: 11, fontFamily: 'monospace',
                 }}>
-                    审核通过后将自动同步到 Agent Marketplace
+                    Approved entries sync automatically to Agent Marketplace
                 </div>
                 {solutionIntents.length === 0 ? (
                     <div style={{ color: techColors.text3, fontSize: 12, paddingBottom: 20 }}>
-                        暂无专家交付需求。可从 Agent Marketplace 在"结果不足"时一键发布。
+                        No expert delivery requests yet. You can publish from Agent Marketplace when results are insufficient.
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 20 }}>

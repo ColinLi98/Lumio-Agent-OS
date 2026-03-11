@@ -156,6 +156,22 @@ export function rankOffers(
     const ranked: RankedOffer[] = [];
 
     for (const { offer, validationResult } of inputs) {
+        const bondCoverage = hasBondCoverage(offer);
+        const capacityAvailable = hasCapacityAvailable(offer);
+
+        if (!bondCoverage || !capacityAvailable) {
+            ranked.push({
+                offer,
+                rank: -1,
+                total_score: 0,
+                score_breakdown: zeroScores(),
+                eligible: false,
+                ineligibility_reason: !bondCoverage ? 'bond_coverage_required' : 'capacity_unavailable',
+                explanation: !bondCoverage ? '未通过保证金门槛' : '当前运力不可用'
+            });
+            continue;
+        }
+
         // Check eligibility (blocked offers are ineligible)
         if (validationResult.final_action === 'BLOCK') {
             ranked.push({
@@ -171,18 +187,23 @@ export function rankOffers(
         }
 
         // Calculate individual scores
-        const price_score = calculatePriceScore(offer, intent);
-        const reputation_score = calculateReputationScore(offer);
+        const capabilityMatchScore = calculateCapabilityMatchScore(offer, intent);
+        const riskCoverageScore = calculateRiskCoverageScore(offer);
+        const capacityScore = calculateCapacityScore(offer);
         const delivery_score = calculateDeliveryScore(offer, intent);
-        const sku_match_score = calculateSKUMatchScore(offer, intent);
+        const costScore = calculateCostScore(offer, intent);
+        const price_score = costScore;
+        const reputation_score = riskCoverageScore;
+        const sku_match_score = capabilityMatchScore;
         const validation_penalty = calculateValidationPenalty(validationResult);
 
-        // Weighted total
+        // LIX 1.5 weighted total: capability + risk + capacity + delivery + cost.
         const total_score = Math.max(0,
-            0.35 * price_score +
-            0.25 * reputation_score +
-            0.20 * delivery_score +
-            0.20 * sku_match_score -
+            0.30 * capabilityMatchScore +
+            0.22 * riskCoverageScore +
+            0.18 * capacityScore +
+            0.15 * delivery_score +
+            0.15 * costScore -
             validation_penalty
         );
 
@@ -191,7 +212,11 @@ export function rankOffers(
             reputation_score,
             delivery_score,
             sku_match_score,
-            validation_penalty
+            validation_penalty,
+            capability_match_score: capabilityMatchScore,
+            risk_coverage_score: riskCoverageScore,
+            capacity_score: capacityScore,
+            cost_score: costScore
         };
 
         ranked.push({
@@ -226,6 +251,50 @@ function zeroScores(): ScoreBreakdown {
         sku_match_score: 0,
         validation_penalty: 0
     };
+}
+
+function asOfferExt(offer: Offer): Record<string, unknown> {
+    return offer as unknown as Record<string, unknown>;
+}
+
+function hasBondCoverage(offer: Offer): boolean {
+    const ext = asOfferExt(offer);
+    if (typeof ext.bond_coverage === 'boolean') return ext.bond_coverage;
+    return true;
+}
+
+function hasCapacityAvailable(offer: Offer): boolean {
+    const ext = asOfferExt(offer);
+    if (typeof ext.capacity_available === 'boolean') return ext.capacity_available;
+    return true;
+}
+
+function calculateCapabilityMatchScore(offer: Offer, intent: IntentRequest): number {
+    const ext = asOfferExt(offer);
+    if (typeof ext.capability_match_score === 'number') {
+        return Math.max(0, Math.min(1, ext.capability_match_score));
+    }
+    return calculateSKUMatchScore(offer, intent);
+}
+
+function calculateRiskCoverageScore(offer: Offer): number {
+    const ext = asOfferExt(offer);
+    if (typeof ext.risk_score === 'number') {
+        return Math.max(0, Math.min(1, 1 - ext.risk_score));
+    }
+    return calculateReputationScore(offer);
+}
+
+function calculateCapacityScore(offer: Offer): number {
+    const ext = asOfferExt(offer);
+    if (typeof ext.capacity_score === 'number') {
+        return Math.max(0, Math.min(1, ext.capacity_score));
+    }
+    return 0.65;
+}
+
+function calculateCostScore(offer: Offer, intent: IntentRequest): number {
+    return calculatePriceScore(offer, intent);
 }
 
 // ============================================================================
@@ -296,6 +365,15 @@ function calculateSKUMatchScore(offer: Offer, intent: IntentRequest): number {
 function generateExplanation(scores: ScoreBreakdown): string {
     const reasons: string[] = [];
 
+    if ((scores.capability_match_score ?? scores.sku_match_score) >= 0.85) {
+        reasons.push('🎯 能力高度匹配');
+    }
+    if ((scores.risk_coverage_score ?? scores.reputation_score) >= 0.75) {
+        reasons.push('🛡️ 风险覆盖良好');
+    }
+    if ((scores.capacity_score ?? 0) >= 0.7) {
+        reasons.push('⚙️ 运力充足');
+    }
     if (scores.price_score > 0.3) {
         reasons.push('💰 价格有竞争力');
     }

@@ -176,6 +176,26 @@ export function getCounter(name: string, labels: Record<string, string> = {}): n
     return counters.get(key)?.value || 0;
 }
 
+/**
+ * Sum counters by metric name with partial label match.
+ * Useful for aggregating over additional high-cardinality labels.
+ */
+export function sumCounters(
+    name: string,
+    requiredLabels: Record<string, string> = {}
+): number {
+    let total = 0;
+    counters.forEach((counter) => {
+        if (counter.name !== name) return;
+        const matched = Object.entries(requiredLabels).every(
+            ([key, value]) => counter.labels[key] === value
+        );
+        if (!matched) return;
+        total += counter.value;
+    });
+    return total;
+}
+
 // ============================================================================
 // Gauge Operations
 // ============================================================================
@@ -205,6 +225,22 @@ export function setGauge(
 export function getGauge(name: string, labels: Record<string, string> = {}): number | undefined {
     const key = getMetricKey(name, labels);
     return gauges.get(key)?.value;
+}
+
+export function sumGauges(
+    name: string,
+    requiredLabels: Record<string, string> = {}
+): number {
+    let total = 0;
+    gauges.forEach((gauge) => {
+        if (gauge.name !== name) return;
+        const matched = Object.entries(requiredLabels).every(
+            ([key, value]) => gauge.labels[key] === value
+        );
+        if (!matched) return;
+        total += gauge.value;
+    });
+    return total;
 }
 
 // ============================================================================

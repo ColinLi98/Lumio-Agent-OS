@@ -1,7 +1,7 @@
 /**
- * Super Agent Result Panel - 结果可视化面板
+ * Super Agent Result Panel - Result Visualization Panel
  * 
- * 在 App 视图中显示 Super Agent 的结构化结果
+ * Displays structured Super Agent results in the App view
  * v0.3: Added LIX Intent Router integration with DomainBadge and FallbackPanel
  */
 
@@ -26,8 +26,8 @@ import type { RouteResult, FallbackResponse } from '../services/intentRouterType
 // ============================================================================
 
 export interface SkillResultData {
-    skillId?: string;           // 可选，因为 SkillResult 不包含此字段
-    skillName?: string;         // 可选，因为 SkillResult 不包含此字段
+    skillId?: string;           // Optional: SkillResult does not include this field
+    skillName?: string;         // Optional: SkillResult does not include this field
     success: boolean;
     confidence: number;
     data: any;
@@ -114,10 +114,10 @@ const FreshnessBadge: React.FC<FreshnessBadgeProps> = ({ isLive, fetchedAt, isSt
         const ageMs = Date.now() - timestamp;
         const ageSec = Math.floor(ageMs / 1000);
 
-        if (ageSec < 60) return '刚刚更新';
-        if (ageSec < 120) return '1分钟前';
-        if (ageSec < 300) return `${Math.floor(ageSec / 60)}分钟前`;
-        return `${Math.floor(ageSec / 60)}分钟前`;
+        if (ageSec < 60) return 'Just updated';
+        if (ageSec < 120) return '1 min ago';
+        if (ageSec < 300) return `${Math.floor(ageSec / 60)} min ago`;
+        return `${Math.floor(ageSec / 60)} min ago`;
     };
 
     if (isLive && fetchedAt) {
@@ -140,7 +140,7 @@ const FreshnessBadge: React.FC<FreshnessBadgeProps> = ({ isLive, fetchedAt, isSt
                     background: isStale ? '#F59E0B' : '#10B981',
                     animation: isStale ? undefined : 'pulse 2s infinite',
                 }} />
-                <span>实时检索</span>
+                <span>Live retrieval</span>
                 <span style={{ opacity: 0.7 }}>·</span>
                 <span>{getTimeLabel()}</span>
             </div>
@@ -160,7 +160,7 @@ const FreshnessBadge: React.FC<FreshnessBadgeProps> = ({ isLive, fetchedAt, isSt
             fontWeight: 500,
         }}>
             <span>📋</span>
-            <span>非实时建议</span>
+            <span>Non-live suggestion</span>
         </div>
     );
 };
@@ -252,7 +252,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
         return (
             <div style={{ marginBottom: 12 }}>
                 <div style={{ color: '#E2E8F0', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-                    快速直达
+                    Quick links
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {actionLinks.slice(0, 3).map((link, idx) => (
@@ -286,7 +286,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
                                 </div>
                                 <div style={{ color: '#94A3B8', fontSize: 11 }}>
                                     {link.provider}
-                                    {!link.supports_time_filter && ' · 需在站内手动选择早班筛选'}
+                                    {!link.supports_time_filter && ' · manually select early-flight filter on site'}
                                 </div>
                             </div>
                             <ExternalLink size={14} color="#60A5FA" />
@@ -302,7 +302,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
         return (
             <div style={{ marginBottom: 12 }}>
                 <div style={{ color: '#E2E8F0', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-                    比价候选
+                    Price comparison options
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {quoteCards.slice(0, 5).map((quote, idx) => (
@@ -351,7 +351,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
         return (
             <div style={{ marginBottom: 12 }}>
                 <div style={{ color: '#E2E8F0', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-                    本地服务候选
+                    Local service options
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {localResults.slice(0, 5).map((item, idx) => {
@@ -372,10 +372,10 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
                             }}
                         >
                             <div style={{ color: '#E2E8F0', fontSize: 13, fontWeight: 600 }}>
-                                {item?.name || '本地商家'}
+                                {item?.name || 'Local provider'}
                             </div>
                             <div style={{ color: '#94A3B8', fontSize: 11, marginTop: 2 }}>
-                                {item?.address || item?.category || item?.status || '信息待补充'}
+                                {item?.address || item?.category || item?.status || 'Details pending'}
                                 {item?.rating ? ` · ${item.rating}⭐` : ''}
                             </div>
                         </a>
@@ -391,7 +391,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
         return (
             <div style={{ marginBottom: 12 }}>
                 <div style={{ color: '#E2E8F0', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-                    商品比价候选
+                    Shopping comparison options
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {shoppingResults.slice(0, 5).map((item, idx) => {
@@ -412,10 +412,10 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
                             }}
                         >
                             <div style={{ color: '#E2E8F0', fontSize: 13, fontWeight: 600 }}>
-                                {item?.title || '商品'}
+                                {item?.title || 'Product'}
                             </div>
                             <div style={{ color: '#94A3B8', fontSize: 11, marginTop: 2 }}>
-                                {item?.source || item?.merchant || '平台待确认'}
+                                {item?.source || item?.merchant || 'Platform pending'}
                                 {(item?.price_text || item?.price) ? ` · ${item.price_text || item.price}` : ''}
                             </div>
                         </a>
@@ -438,7 +438,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <AlertCircle size={18} color="#EF4444" />
-                    <span style={{ color: '#F87171', fontWeight: 500 }}>无法获取实时信息</span>
+                    <span style={{ color: '#F87171', fontWeight: 500 }}>Unable to fetch live information</span>
                 </div>
 
                 <p style={{ color: '#CBD5E1', fontSize: 13, marginBottom: 12 }}>
@@ -447,7 +447,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
 
                 {fallback.missing_constraints.length > 0 && (
                     <div style={{ marginBottom: 12 }}>
-                        <span style={{ color: '#94A3B8', fontSize: 12 }}>请补充以下信息：</span>
+                        <span style={{ color: '#94A3B8', fontSize: 12 }}>Please provide:</span>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                             {fallback.missing_constraints.map((constraint, idx) => (
                                 <button
@@ -488,7 +488,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
                         gap: 6,
                     }}
                 >
-                    刷新搜索
+                    Refresh search
                 </button>
             </div>
         );
@@ -514,7 +514,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Search size={16} color="#10B981" />
-                    <span style={{ color: '#F8FAFC', fontWeight: 500, fontSize: 14 }}>实时搜索结果</span>
+                    <span style={{ color: '#F8FAFC', fontWeight: 500, fontSize: 14 }}>Live search results</span>
                 </div>
                 <FreshnessBadge isLive={is_live || false} fetchedAt={fetched_at} isStale={isStale} />
             </div>
@@ -571,7 +571,7 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
                         marginTop: 12,
                     }}
                 >
-                    刷新
+                    Refresh
                 </button>
             )}
         </div>
@@ -579,22 +579,22 @@ export const LiveSearchResultCard: React.FC<LiveSearchResultCardProps> = ({ data
 };
 
 // ============================================================================
-// Markdown Renderer - 简单 Markdown 渲染组件
+// Markdown Renderer - Simple markdown renderer component
 // ============================================================================
 
 const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
-    // 预处理：修复跨行的 markdown 链接并提取独立URL
+    // Preprocess: fix cross-line markdown links and extract standalone URLs
     const preprocessText = (content: string): string => {
         let processed = content;
 
-        // 1. 修复跨行的 markdown 链接 [text]\n(url) -> [text](url)
+        // 1. Fix cross-line markdown links: [text]\n(url) -> [text](url)
         processed = processed.replace(/\[([^\]]+)\]\s*\n\s*\(([^)]+)\)/g, '[$1]($2)');
 
-        // 2. 修复 [text] 后面紧跟 (url) 但中间有空格的情况
+        // 2. Fix [text] followed by (url) with spaces in between
         processed = processed.replace(/\[([^\]]+)\]\s+\(([^)]+)\)/g, '[$1]($2)');
 
-        // 3. 修复 markdown 链接中 URL 被换行/空白打断的情况
-        // 例如: [标题](https://a.com/x
+        // 3. Fix URLs broken by line breaks/whitespace inside markdown links
+        // Example: [Title](https://a.com/x
         //       ?k=v)
         processed = processed.replace(
             /\[([^\]]+)\]\((https?:\/\/[\s\S]*?)\)/g,
@@ -607,9 +607,9 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
         return processed;
     };
 
-    // 渲染链接卡片 - 美观的可点击卡片
+    // Render a clickable link card
     const renderLinkCard = (url: string, displayText: string, key: number) => {
-        // 提取域名
+        // Extract domain
         let domain = '';
         try {
             const urlObj = new URL(url);
@@ -675,7 +675,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                     }}>
-                        {displayText || '点击查看详情'}
+                        {displayText || 'View details'}
                     </div>
                     <div style={{
                         color: '#94A3B8',
@@ -697,12 +697,12 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
         );
     };
 
-    // 将 markdown 文本解析为 React 元素
+    // Parse markdown text into React elements
     const renderMarkdown = (content: string) => {
-        // 预处理文本
+        // Preprocess content
         const processedContent = preprocessText(content);
 
-        // 按行分割
+        // Split by line
         const lines = processedContent.split('\n');
         const elements: React.ReactNode[] = [];
         let currentParagraph: string[] = [];
@@ -720,8 +720,8 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
             }
         };
 
-        // 检测独立的 URL 行（包括被括号包围的）
-        const urlLinePattern = /^\s*\(?https?:\/\/[^\s)]+\)?\s*(?:\*?\(来源[^)]*\)\*?)?$/i;
+        // Detect standalone URL lines (including wrapped in parentheses)
+        const urlLinePattern = /^\s*\(?https?:\/\/[^\s)]+\)?\s*(?:\*?\((?:source|\u6765\u6e90)[^)]*\)\*?)?$/i;
         const extractUrlFromLine = (line: string): string | null => {
             const match = line.match(/https?:\/\/[^\s)]+/);
             return match ? match[0] : null;
@@ -730,23 +730,23 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
         lines.forEach((line, index) => {
             const trimmedLine = line.trim();
 
-            // 空行 - 分段
+            // Empty line: paragraph break
             if (!trimmedLine) {
                 flushParagraph();
                 return;
             }
 
-            // 检测独立 URL 行 - 渲染为链接卡片
+            // Standalone URL line: render link card
             if (urlLinePattern.test(trimmedLine)) {
                 flushParagraph();
                 const url = extractUrlFromLine(trimmedLine);
                 if (url) {
-                    elements.push(renderLinkCard(url, '点击查看详细信息', elementKey++));
+                    elements.push(renderLinkCard(url, 'View full details', elementKey++));
                 }
                 return;
             }
 
-            // 检测 markdown 链接行 [text](url) - 渲染为链接卡片
+            // Markdown link line [text](url): render link card
             const markdownLinkMatch = trimmedLine.match(/^\s*(?:[-*•]\s+)?(?:[✈🔗📎]\s*)?\[([^\]]+)\]\((https?:\/\/[^)]+)\)\s*$/);
             if (markdownLinkMatch) {
                 flushParagraph();
@@ -755,7 +755,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                 return;
             }
 
-            // ### 标题
+            // ### Heading
             if (trimmedLine.startsWith('### ')) {
                 flushParagraph();
                 elements.push(
@@ -774,7 +774,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                 return;
             }
 
-            // ## 标题
+            // ## Heading
             if (trimmedLine.startsWith('## ')) {
                 flushParagraph();
                 elements.push(
@@ -791,7 +791,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                 return;
             }
 
-            // 有序列表 (1. 2. 3.)
+            // Ordered list (1. 2. 3.)
             const orderedMatch = trimmedLine.match(/^(\d+)\.\s+(.+)/);
             if (orderedMatch) {
                 flushParagraph();
@@ -818,7 +818,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                 return;
             }
 
-            // 无序列表 (- * •) - 但不要把 `* **bold**` 当作列表
+            // Unordered list (- * •), but do not treat `* **bold**` as a list item
             const isBulletList = (
                 trimmedLine.startsWith('- ') ||
                 trimmedLine.startsWith('• ') ||
@@ -843,30 +843,30 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                 return;
             }
 
-            // 普通文本 - 收集到段落
+            // Plain text: collect into paragraph
             currentParagraph.push(trimmedLine);
         });
 
-        // 处理最后的段落
+        // Flush final paragraph
         flushParagraph();
 
         return elements;
     };
 
-    // 渲染行内 markdown（**粗体**、*斜体*）
+    // Render inline markdown (**bold**, *italic*)
     const renderInlineMarkdown = (text: string): React.ReactNode => {
-        // 处理行内元素：**粗体**、[链接](url) 和裸 URL
+        // Handle inline tokens: **bold**, [link](url), and raw URLs
         const elements: React.ReactNode[] = [];
         let remaining = text;
         let keyIndex = 0;
 
         while (remaining.length > 0) {
-            // 查找下一个 markdown 元素
+            // Find next markdown token
             const boldMatch = remaining.match(/\*\*([^*]+)\*\*/);
             const linkMatch = remaining.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/);
             const plainUrlMatch = remaining.match(/https?:\/\/[^\s)\]]+/);
 
-            // 找到最早出现的匹配
+            // Pick the earliest match
             let earliestMatch: { type: 'bold' | 'link' | 'url'; index: number; match: RegExpMatchArray } | null = null;
 
             if (boldMatch && boldMatch.index !== undefined) {
@@ -884,19 +884,19 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
             }
 
             if (!earliestMatch) {
-                // 没有更多匹配，添加剩余文本
+                // No more matches, append remaining text
                 if (remaining) {
                     elements.push(<span key={keyIndex++}>{remaining}</span>);
                 }
                 break;
             }
 
-            // 添加匹配前的文本
+            // Append text before the match
             if (earliestMatch.index > 0) {
                 elements.push(<span key={keyIndex++}>{remaining.slice(0, earliestMatch.index)}</span>);
             }
 
-            // 处理匹配的元素
+            // Render matched token
             if (earliestMatch.type === 'bold') {
                 elements.push(
                     <strong key={keyIndex++} style={{ color: colors.text1, fontWeight: 600 }}>
@@ -915,7 +915,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
                         rel="noopener noreferrer"
                         onClick={(e) => {
                             e.stopPropagation();
-                            // 在新窗口打开链接
+                            // Open link in a new window
                             window.open(linkUrl, '_blank', 'noopener,noreferrer');
                         }}
                         style={{
@@ -976,7 +976,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
     );
 };
 
-// 🆕 继续对话输入框组件
+// Follow-up input component
 const FollowUpInput: React.FC<{ onSubmit: (question: string) => void }> = ({ onSubmit }) => {
     const [input, setInput] = React.useState('');
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -986,7 +986,7 @@ const FollowUpInput: React.FC<{ onSubmit: (question: string) => void }> = ({ onS
             setIsSubmitting(true);
             onSubmit(input.trim());
             setInput('');
-            // 短暂延迟后重置状态
+            // Brief delay before resetting state
             setTimeout(() => setIsSubmitting(false), 500);
         }
     };
@@ -1009,7 +1009,7 @@ const FollowUpInput: React.FC<{ onSubmit: (question: string) => void }> = ({ onS
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="输入您的问题..."
+                placeholder="Enter your question..."
                 disabled={isSubmitting}
                 style={{
                     flex: 1,
@@ -1038,19 +1038,19 @@ const FollowUpInput: React.FC<{ onSubmit: (question: string) => void }> = ({ onS
                     transition: 'all 0.2s',
                 }}
             >
-                {isSubmitting ? '发送中...' : '发送'}
+                {isSubmitting ? 'Sending...' : 'Send'}
             </button>
         </div>
     );
 };
 
-// 价格对比卡片 - 支持产品变体和可点击链接
+// Price comparison card - supports product variants and clickable links
 const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
-    // 支持新格式 (products 数组) 和旧格式 (results/prices 数组)
+    // Supports both new format (products array) and legacy format (results/prices)
     const products = data?.products;
     const legacyPrices = data?.results || data?.prices;
 
-    // 如果是新格式（有 products 数组）
+    // New format path (products array)
     if (products && Array.isArray(products) && products.length > 0) {
         return (
             <div style={{
@@ -1059,7 +1059,7 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                 padding: 16,
                 marginBottom: 12,
             }}>
-                {/* 头部信息 */}
+                {/* Header */}
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1067,7 +1067,7 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                     marginBottom: 12
                 }}>
                     <ShoppingCart size={18} color={colors.primary} />
-                    <span style={{ color: colors.text1, fontWeight: 600 }}>价格对比</span>
+                    <span style={{ color: colors.text1, fontWeight: 600 }}>Price comparison</span>
                     {data.brand && (
                         <span style={{ color: colors.text3, fontSize: 12 }}>
                             {data.brand}
@@ -1082,12 +1082,12 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                             fontSize: 12,
                             marginLeft: 'auto',
                         }}>
-                            最低 ¥{data.lowestPrice}
+                            Lowest ¥{data.lowestPrice}
                         </span>
                     )}
                 </div>
 
-                {/* 产品变体列表 */}
+                {/* Product variants */}
                 {products.map((product: any, pIndex: number) => (
                     <div key={pIndex} style={{
                         marginBottom: pIndex < products.length - 1 ? 16 : 0,
@@ -1095,7 +1095,7 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                         borderRadius: 10,
                         overflow: 'hidden'
                     }}>
-                        {/* 产品型号和规格 */}
+                        {/* Model and specs */}
                         <div style={{
                             background: colors.bg3,
                             padding: '10px 12px',
@@ -1119,10 +1119,10 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                             )}
                         </div>
 
-                        {/* 平台价格列表 */}
+                        {/* Platform price list */}
                         <div style={{ padding: 8 }}>
                             {(product.platforms || [])
-                                // 过滤掉无效的平台数据
+                                // Filter out invalid platform records
                                 .filter((plat: any) =>
                                     plat.name &&
                                     typeof plat.price === 'number' &&
@@ -1172,7 +1172,7 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                     </div>
                 ))}
 
-                {/* 推荐信息 */}
+                {/* Recommendation */}
                 {data?.recommendation && (
                     <div style={{
                         marginTop: 12,
@@ -1190,7 +1190,7 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                     </div>
                 )}
 
-                {/* 估算提示 */}
+                {/* Estimate note */}
                 {data?.isEstimate && (
                     <div style={{
                         marginTop: 8,
@@ -1198,18 +1198,18 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                         fontSize: 11,
                         textAlign: 'center'
                     }}>
-                        * 以上为估算价格，点击链接查看实时价格
+                        * Estimated price. Open link for live pricing.
                     </div>
                 )}
             </div>
         );
     }
 
-    // 旧格式兼容处理
+    // Legacy format fallback
     if (!legacyPrices || !Array.isArray(legacyPrices) || legacyPrices.length === 0) return null;
 
     const lowestPrice = Math.min(...legacyPrices.map((p: any) => p.price));
-    const productName = data?.product || data?.query || '商品';
+    const productName = data?.product || data?.query || 'Product';
     const category = data?.category || '';
 
     return (
@@ -1226,7 +1226,7 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                 marginBottom: 12
             }}>
                 <ShoppingCart size={18} color={colors.primary} />
-                <span style={{ color: colors.text1, fontWeight: 600 }}>价格对比</span>
+                <span style={{ color: colors.text1, fontWeight: 600 }}>Price comparison</span>
                 {category && (
                     <span style={{ color: colors.text3, fontSize: 12 }}>
                         {category}
@@ -1240,11 +1240,11 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                     fontSize: 12,
                     marginLeft: 'auto',
                 }}>
-                    最低 ¥{lowestPrice}
+                    Lowest ¥{lowestPrice}
                 </span>
             </div>
 
-            {productName && productName !== '商品' && (
+            {productName && productName !== 'Product' && (
                 <div style={{
                     color: colors.text2,
                     fontSize: 13,
@@ -1303,7 +1303,7 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
                                     borderRadius: 8,
                                     fontSize: 11,
                                 }}>
-                                    省¥{item.savings}
+                                    Save ¥{item.savings}
                                 </span>
                             )}
                             {item.url && (
@@ -1334,7 +1334,7 @@ const PriceCompareCard: React.FC<{ data: any }> = ({ data }) => {
     );
 };
 
-// 搜索结果卡片
+// Search results card
 const SearchResultCard: React.FC<{ data: any }> = ({ data }) => {
     if (!data || !data.results) return null;
 
@@ -1352,9 +1352,9 @@ const SearchResultCard: React.FC<{ data: any }> = ({ data }) => {
                 marginBottom: 12
             }}>
                 <Search size={18} color={colors.primary} />
-                <span style={{ color: colors.text1, fontWeight: 600 }}>搜索结果</span>
+                <span style={{ color: colors.text1, fontWeight: 600 }}>Search results</span>
                 <span style={{ color: colors.text3, fontSize: 12 }}>
-                    {data.results.length} 条
+                    {data.results.length} results
                 </span>
             </div>
 
@@ -1392,7 +1392,7 @@ const SearchResultCard: React.FC<{ data: any }> = ({ data }) => {
 };
 
 // ============================================================================
-// Hotel Result Card - 酒店搜索结果卡片
+// Hotel Result Card - hotel search result card
 // ============================================================================
 
 const HotelResultCard: React.FC<{ data: any }> = ({ data }) => {
@@ -1421,7 +1421,7 @@ const HotelResultCard: React.FC<{ data: any }> = ({ data }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 18 }}>🏨</span>
                     <span style={{ color: colors.text1, fontWeight: 600, fontSize: 14 }}>
-                        {destination} 酒店推荐
+                        {destination} hotel recommendations
                     </span>
                     <span style={{
                         background: colors.positiveMuted,
@@ -1431,10 +1431,10 @@ const HotelResultCard: React.FC<{ data: any }> = ({ data }) => {
                         fontSize: 11,
                         fontWeight: 500,
                     }}>
-                        实时数据
+                        Live data
                     </span>
                 </div>
-                <span style={{ color: colors.text3, fontSize: 12 }}>{hotels.length} 家</span>
+                <span style={{ color: colors.text3, fontSize: 12 }}>{hotels.length} hotels</span>
             </div>
 
             {/* Hotel List */}
@@ -1503,7 +1503,7 @@ const HotelResultCard: React.FC<{ data: any }> = ({ data }) => {
                                     fontWeight: 700,
                                     fontSize: 14,
                                 }}>
-                                    ¥{hotel.pricePerNight || hotel.price || '—'}<span style={{ fontSize: 11, fontWeight: 400 }}>/晚</span>
+                                    ¥{hotel.pricePerNight || hotel.price || '—'}<span style={{ fontSize: 11, fontWeight: 400 }}>/night</span>
                                 </span>
                             </div>
                         </div>
@@ -1517,7 +1517,7 @@ const HotelResultCard: React.FC<{ data: any }> = ({ data }) => {
                     padding: '8px 10px 10px',
                     borderTop: `1px solid ${colors.border}`,
                 }}>
-                    <div style={{ color: colors.text3, fontSize: 11, marginBottom: 6 }}>对比预订 →</div>
+                    <div style={{ color: colors.text3, fontSize: 11, marginBottom: 6 }}>Compare bookings →</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {comparisonLinks.slice(0, 4).map((link: any, i: number) => (
                             <a
@@ -1562,7 +1562,7 @@ const HotelResultCard: React.FC<{ data: any }> = ({ data }) => {
 };
 
 // ============================================================================
-// Flight Result Card - 航班搜索结果卡片
+// Flight Result Card - flight search result card
 // ============================================================================
 
 const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
@@ -1601,7 +1601,7 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 18 }}>🛫</span>
                     <span style={{ color: colors.text1, fontWeight: 600, fontSize: 14 }}>
-                        航班推荐
+                        Flight recommendations
                     </span>
                     <span style={{
                         background: colors.positiveMuted,
@@ -1611,10 +1611,10 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
                         fontSize: 11,
                         fontWeight: 500,
                     }}>
-                        实时数据
+                        Live data
                     </span>
                 </div>
-                <span style={{ color: colors.text3, fontSize: 12 }}>{flights.length} 个航班</span>
+                <span style={{ color: colors.text3, fontSize: 12 }}>{flights.length} flights</span>
             </div>
 
             {/* Flight List */}
@@ -1628,7 +1628,7 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
                         color: colors.text2,
                         fontSize: 12,
                     }}>
-                        暂未返回可展示的航班详情，请使用下方比价入口继续查看。
+                        No displayable flight details returned yet. Use the comparison links below to continue.
                     </div>
                 )}
                 {flights.slice(0, 4).map((flight: any, i: number) => (
@@ -1641,7 +1641,7 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{ color: colors.text1, fontWeight: 600, fontSize: 13 }}>
-                                    {flight.airline || flight.carrier || '航班'}
+                                    {flight.airline || flight.carrier || 'Flight'}
                                 </span>
                                 {(flight.flightNumber || flight.flightNo) && (
                                     <span style={{ color: colors.text3, fontSize: 11 }}>
@@ -1658,9 +1658,9 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
                             </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.text2, fontSize: 12 }}>
-                            <span>{flight.departure_time || flight.departureTime || flight.departure || '时刻待确认'}</span>
+                            <span>{flight.departure_time || flight.departureTime || flight.departure || 'Time pending'}</span>
                             <span style={{ color: colors.text3 }}>→</span>
-                            <span>{flight.arrival_time || flight.arrivalTime || flight.arrival || '时刻待确认'}</span>
+                            <span>{flight.arrival_time || flight.arrivalTime || flight.arrival || 'Time pending'}</span>
                             {flight.duration && (
                                 <span style={{ color: colors.text3, marginLeft: 'auto', fontSize: 11 }}>
                                     {flight.duration}
@@ -1669,7 +1669,7 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
                             <span style={{ color: colors.text3, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>
-                                {flight.source || '实时来源'}
+                                {flight.source || 'Live source'}
                             </span>
                             {flight.bookingUrl && (
                                 <a
@@ -1689,7 +1689,7 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
                                         background: colors.primaryMuted,
                                     }}
                                 >
-                                    去预订
+                                    Book
                                     <ExternalLink size={10} />
                                 </a>
                             )}
@@ -1704,7 +1704,7 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
                     padding: '8px 10px 10px',
                     borderTop: `1px solid ${colors.border}`,
                 }}>
-                    <div style={{ color: colors.text3, fontSize: 11, marginBottom: 6 }}>对比预订 →</div>
+                    <div style={{ color: colors.text3, fontSize: 11, marginBottom: 6 }}>Compare bookings →</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {comparisonLinks.slice(0, 4).map((link: any, i: number) => (
                             <a
@@ -1725,7 +1725,7 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
                                     gap: 4,
                                 }}
                             >
-                                {link.provider || link.name || link.title || '比价入口'}
+                                {link.provider || link.name || link.title || 'Comparison link'}
                                 <ExternalLink size={10} />
                             </a>
                         ))}
@@ -1748,21 +1748,21 @@ const FlightResultCard: React.FC<{ data: any }> = ({ data }) => {
     );
 };
 
-// 通用技能结果卡片 - 智能格式化
+// Generic skill result card - smart formatting
 const GenericSkillCard: React.FC<{ skillName: string; data: any; icon: any }> = ({
     skillName, data, icon: Icon
 }) => {
-    // 尝试智能渲染数据结构
+    // Try smart rendering by data structure
     const renderDataContent = () => {
         if (typeof data === 'string') {
             return <div style={{ color: colors.text2, fontSize: 14 }}>{data}</div>;
         }
 
-        // 如果有 results 数组，优先渲染为列表
+        // If results array exists, render it as a list first
         if (data?.results && Array.isArray(data.results)) {
             return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {/* 产品header */}
+                    {/* Product header */}
                     {data.product && (
                         <div style={{
                             color: colors.text2,
@@ -1774,7 +1774,7 @@ const GenericSkillCard: React.FC<{ skillName: string; data: any; icon: any }> = 
                             🏷️ {data.product} {data.category && `· ${data.category}`}
                         </div>
                     )}
-                    {/* 结果列表 */}
+                    {/* Result list */}
                     {data.results.slice(0, 6).map((item: any, i: number) => (
                         <div
                             key={i}
@@ -1790,7 +1790,7 @@ const GenericSkillCard: React.FC<{ skillName: string; data: any; icon: any }> = 
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <span style={{ fontSize: 16 }}>{item.icon || '📍'}</span>
                                 <span style={{ color: colors.text1, fontWeight: 500 }}>
-                                    {item.platform || item.name || item.title || `结果 ${i + 1}`}
+                                    {item.platform || item.name || item.title || `Result ${i + 1}`}
                                 </span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1807,13 +1807,13 @@ const GenericSkillCard: React.FC<{ skillName: string; data: any; icon: any }> = 
                                         borderRadius: 8,
                                         fontSize: 11,
                                     }}>
-                                        省¥{item.savings}
+                                        Save ¥{item.savings}
                                     </span>
                                 )}
                             </div>
                         </div>
                     ))}
-                    {/* 推荐信息 */}
+                    {/* Recommendation */}
                     {data.recommendation && (
                         <div style={{
                             marginTop: 4,
@@ -1834,7 +1834,7 @@ const GenericSkillCard: React.FC<{ skillName: string; data: any; icon: any }> = 
             );
         }
 
-        // 其他对象类型，尝试格式化显示关键字段
+        // Other object types: format key-value pairs
         if (typeof data === 'object' && data !== null) {
             const entries = Object.entries(data).filter(([k, v]) =>
                 v !== null && v !== undefined && typeof v !== 'object'
@@ -1853,7 +1853,7 @@ const GenericSkillCard: React.FC<{ skillName: string; data: any; icon: any }> = 
             }
         }
 
-        // 兜底：原始 JSON
+        // Fallback: raw JSON
         return (
             <pre style={{
                 color: colors.text3,
@@ -1954,7 +1954,7 @@ const ThreeStagePlanCard: React.FC<ThreeStagePlanCardProps> = ({ plan, onActionE
                 marginBottom: 12,
             }}>
                 <ListChecks size={18} color={colors.primary} />
-                <span style={{ color: colors.text1, fontWeight: 600 }}>执行计划</span>
+                <span style={{ color: colors.text1, fontWeight: 600 }}>Execution plan</span>
                 <span style={{
                     background: colors.primaryMuted,
                     color: colors.primary,
@@ -1962,7 +1962,7 @@ const ThreeStagePlanCard: React.FC<ThreeStagePlanCardProps> = ({ plan, onActionE
                     borderRadius: 12,
                     fontSize: 12,
                 }}>
-                    {plan.plan.steps.length} 步骤 · 约 {plan.plan.estimated_time_minutes} 分钟
+                    {plan.plan.steps.length} steps · ~{plan.plan.estimated_time_minutes} min
                 </span>
             </div>
 
@@ -2047,7 +2047,7 @@ const ThreeStagePlanCard: React.FC<ThreeStagePlanCardProps> = ({ plan, onActionE
                                         color: colors.text3,
                                         fontSize: 12,
                                     }}>
-                                        ~{step.estimated_minutes}分钟
+                                        ~{step.estimated_minutes}min
                                     </span>
                                 )}
 
@@ -2090,7 +2090,7 @@ const ThreeStagePlanCard: React.FC<ThreeStagePlanCardProps> = ({ plan, onActionE
                                             }}
                                         >
                                             <Play size={12} />
-                                            执行此步骤
+                                            Execute this step
                                         </button>
                                     )}
                                 </div>
@@ -2141,7 +2141,7 @@ const ThreeStagePlanCard: React.FC<ThreeStagePlanCardProps> = ({ plan, onActionE
                             }}
                         >
                             <Play size={16} />
-                            {executeLoading ? '执行中...' : plan.execute.cta_label}
+                            {executeLoading ? 'Running...' : plan.execute.cta_label}
                         </button>
                     </div>
                 </div>
@@ -2162,7 +2162,7 @@ const ThreeStagePlanCard: React.FC<ThreeStagePlanCardProps> = ({ plan, onActionE
                     }}>
                         <Bell size={14} color={colors.text3} />
                         <span style={{ color: colors.text2, fontSize: 13, fontWeight: 500 }}>
-                            后续跟进
+                            Follow-up
                         </span>
                     </div>
 
@@ -2263,8 +2263,8 @@ function scoreSourceConfidence(
 
     let score = baseMap[sourceType];
     const hintText = `${title || ''} ${sourceName || ''}`.toLowerCase();
-    if (hintText.includes('official') || hintText.includes('官方')) score += 0.04;
-    if (hintText.includes('blog') || hintText.includes('论坛') || hintText.includes('community')) score -= 0.04;
+    if (hintText.includes('official') || hintText.includes('Official')) score += 0.04;
+    if (hintText.includes('blog') || hintText.includes('forum') || hintText.includes('\u8bba\u575b') || hintText.includes('community')) score -= 0.04;
     return Math.max(0.45, Math.min(0.99, score));
 }
 
@@ -2288,7 +2288,7 @@ function collectSourcePreviews(result: SuperAgentResult): SourcePreview[] {
         seen.add(url);
         const { domain, sourceType, confidence } = classifySource(url, title, sourceName);
         previews.push({
-            title: title || '来源链接',
+            title: title || 'Source link',
             url,
             sourceName: sourceName || domain,
             domain,
@@ -2381,18 +2381,18 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
         background: string;
         icon: React.ComponentType<{ size?: number; color?: string }>;
     }> = {
-        official: { label: '官方', color: '#10B981', background: 'rgba(16, 185, 129, 0.18)', icon: ShieldCheck },
-        news: { label: '媒体', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.18)', icon: Newspaper },
-        search: { label: '搜索', color: '#0EA5E9', background: 'rgba(14, 165, 233, 0.18)', icon: Search },
+        official: { label: 'Official', color: '#10B981', background: 'rgba(16, 185, 129, 0.18)', icon: ShieldCheck },
+        news: { label: 'News', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.18)', icon: Newspaper },
+        search: { label: 'Search', color: '#0EA5E9', background: 'rgba(14, 165, 233, 0.18)', icon: Search },
         ugc: { label: 'UGC', color: '#A78BFA', background: 'rgba(167, 139, 250, 0.18)', icon: Users },
-        other: { label: '网页', color: '#94A3B8', background: 'rgba(148, 163, 184, 0.18)', icon: Globe },
+        other: { label: 'Web', color: '#94A3B8', background: 'rgba(148, 163, 184, 0.18)', icon: Globe },
     };
 
     const skillFilters = React.useMemo(() => {
         const counts = new Map<string, { id: string; label: string; count: number }>();
         validResults.forEach((item, index) => {
             const id = item.skillId || item.skillName || `skill_${index}`;
-            const label = item.skillName || item.skillId || `技能 ${index + 1}`;
+            const label = item.skillName || item.skillId || `Skill ${index + 1}`;
             const current = counts.get(id);
             if (current) {
                 current.count += 1;
@@ -2436,17 +2436,18 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
     const renderSkillResult = (skillResult: SkillResultData, index: number) => {
         const skillId = skillResult.skillId || `skill_${index}`;
         const resultKey = `${skillId}_${index}`;
-        const skillName = skillResult.skillName || '技能结果';
+        const skillName = skillResult.skillName || 'Skill result';
         const Icon = skillIcons[skillId] || MessageCircle;
         const data = skillResult.data;
 
-        // 调试日志
+        // Debug log
         console.log('[SuperAgentResultPanel] Rendering skill:', skillId, 'Data:', data);
 
-        // P0: Live Search - 实时搜索结果 (优先级最高)
+        // P0: Live Search (highest priority)
         const isLiveSearch =
             skillId === 'live_search' ||
-            skillName?.includes('实时搜索') ||
+            skillName?.toLowerCase().includes('live search') ||
+            skillName?.includes('\u5b9e\u65f6\u641c\u7d22') ||
             (data && data.is_live && data.items);
 
         if (isLiveSearch && data) {
@@ -2454,10 +2455,11 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
             return <LiveSearchResultCard key={resultKey} data={data} />;
         }
 
-        // 搜索结果 - 通过 skillId 检测 (优先检测，因为 web_search 也有 results 和 query)
+        // Search results: detect by skillId and data shape
         const isWebSearch =
             skillId === 'web_search' ||
-            skillName?.includes('搜索') ||
+            skillName?.toLowerCase().includes('search') ||
+            skillName?.includes('\u641c\u7d22') ||
             (data && data.results && data.query && !data.product && !data.products && !data.lowestPrice);
 
         if (isWebSearch && data) {
@@ -2465,11 +2467,12 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
             return <SearchResultCard key={resultKey} data={data} />;
         }
 
-        // LIX 意图交易 - 通过 skillId 或数据结构检测
+        // LIX intent trade: detect by skillId or data shape
         const isBroadcastIntent =
             skillId === 'broadcast_intent' ||
-            skillName?.includes('LIX') ||
-            skillName?.includes('意图交易') ||
+            skillName?.toLowerCase().includes('lix') ||
+            skillName?.toLowerCase().includes('intent trade') ||
+            skillName?.includes('\u610f\u56fe\u4ea4\u6613') ||
             (data && data.intentId && data.offers && Array.isArray(data.offers));
 
         // Domain Guard: Block market cards for non-purchase domains
@@ -2487,10 +2490,12 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
             return null;  // Complete hide - do not damage trust with any e-commerce reference
         }
 
-        // 价格对比 - 通过 skillId 或数据结构检测
+        // Price comparison: detect by skillId or data shape
         const isPriceCompare =
             skillId === 'price_compare' ||
-            skillName?.includes('比价') ||
+            skillName?.toLowerCase().includes('price') ||
+            skillName?.toLowerCase().includes('compare') ||
+            skillName?.includes('\u6bd4\u4ef7') ||
             (data && (data.products || data.prices) && (data.product || data.lowestPrice));
 
         if (isPriceCompare && data) {
@@ -2498,12 +2503,12 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
             return <PriceCompareCard key={resultKey} data={data} />;
         }
 
-        // 跳过空数据或只有基础信息的结果
+        // Skip empty/placeholder data
         if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
             return null;
         }
 
-        // 如果是记忆相关且没有找到结果，跳过
+        // Skip memory skill results with no hits
         if (skillId === 'memory' && data.found === 0) {
             return null;
         }
@@ -2530,7 +2535,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
             return <FlightResultCard key={resultKey} data={data} />;
         }
 
-        // 其他技能通用展示
+        // Generic renderer for other skills
         if (skillResult.success && data) {
             return (
                 <GenericSkillCard
@@ -2563,7 +2568,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Sparkles size={20} color={colors.primary} />
                     <span style={{ color: colors.text1, fontWeight: 600, fontSize: 16 }}>
-                        Super Agent 结果
+                        Super Agent Results
                     </span>
                 </div>
                 <div style={{
@@ -2578,7 +2583,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                         borderRadius: 12,
                         fontSize: 12,
                     }}>
-                        置信度 {(result.confidence * 100).toFixed(0)}%
+                        Confidence {(result.confidence * 100).toFixed(0)}%
                     </span>
                     <span style={{ color: colors.text3, fontSize: 12 }}>
                         {result.executionTimeMs}ms
@@ -2609,7 +2614,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                         fontWeight: 600,
                     }}
                 >
-                    解答视图
+                    Answer View
                 </button>
                 <button
                     onClick={() => setActiveView('details')}
@@ -2624,7 +2629,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                         fontWeight: 600,
                     }}
                 >
-                    证据与数据
+                    Evidence & Data
                 </button>
             </div>
 
@@ -2642,7 +2647,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                     marginBottom: 4
                 }}>
                     <span style={{ color: colors.text3, fontSize: 12 }}>
-                        您的问题
+                        Your Question
                     </span>
                     {/* v0.3: Domain Badge */}
                     {result.routeResult && (
@@ -2692,7 +2697,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     <CheckCircle size={16} color={colors.primary} />
                                     <span style={{ color: colors.primary, fontWeight: 600, fontSize: 13 }}>
-                                        最优解答
+                                        Best Answer
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', gap: 8 }}>
@@ -2708,7 +2713,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                                             cursor: 'pointer',
                                         }}
                                     >
-                                        {copyState === 'copied' ? '已复制' : '复制答案'}
+                                        {copyState === 'copied' ? 'Copied' : 'Copy Answer'}
                                     </button>
                                     <button
                                         onClick={() => setAnswerExpanded((prev) => !prev)}
@@ -2722,7 +2727,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                                             cursor: 'pointer',
                                         }}
                                     >
-                                        {answerExpanded ? '收起' : '展开'}
+                                        {answerExpanded ? 'Collapse' : 'Expand'}
                                     </button>
                                     <button
                                         onClick={() => setActiveView('details')}
@@ -2736,7 +2741,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                                             cursor: 'pointer',
                                         }}
                                     >
-                                        查看证据
+                                        View Evidence
                                     </button>
                                 </div>
                             </div>
@@ -2763,8 +2768,8 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                                 justifyContent: 'space-between',
                                 marginBottom: 10,
                             }}>
-                                <span style={{ color: colors.text1, fontWeight: 600, fontSize: 13 }}>证据来源</span>
-                                <span style={{ color: colors.text3, fontSize: 12 }}>{sourcePreviews.length} 条</span>
+                                <span style={{ color: colors.text1, fontWeight: 600, fontSize: 13 }}>Sources</span>
+                                <span style={{ color: colors.text3, fontSize: 12 }}>{sourcePreviews.length} results</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                 {sourcePreviews.slice(0, 3).map((source, index) => (
@@ -2817,7 +2822,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                                                 padding: '2px 7px',
                                                 flexShrink: 0,
                                             }}>
-                                                可信度 {(source.confidence * 100).toFixed(0)}%
+                                                Confidence {(source.confidence * 100).toFixed(0)}%
                                             </span>
                                         </div>
                                         <div style={{
@@ -2887,7 +2892,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                                 cursor: 'pointer',
                             }}
                         >
-                            全部
+                            All
                         </button>
                         {skillFilters.map((filter) => (
                             <button
@@ -2915,7 +2920,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                         textTransform: 'uppercase',
                         letterSpacing: 1,
                     }}>
-                        详细数据
+                        Detailed Data
                     </div>
 
                     {filteredResults.length === 0 ? (
@@ -2927,7 +2932,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                             fontSize: 13,
                             textAlign: 'center',
                         }}>
-                            当前筛选下暂无详细数据
+                            No detailed data for the current filter
                         </div>
                     ) : (
                         filteredResults.map(renderSkillResult)
@@ -2938,21 +2943,21 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
             {/* Follow-up Suggestions */}
             {
                 onFollowUp && (() => {
-                    // 从结果中提取原始查询/产品名称
+                    // Extract original query/product name from result
                     const originalQuery = result.question ||
                         result.results?.find(r => r.data?.query || r.data?.product)?.data?.query ||
                         result.results?.find(r => r.data?.query || r.data?.product)?.data?.product ||
                         '';
 
-                    // 根据原始查询生成智能的 follow-up 建议
+                    // Generate smart follow-up suggestions from original query
                     const followUpSuggestions = originalQuery ? [
-                        `${originalQuery} 有哪些型号`,
-                        `${originalQuery} 用户评价`,
-                        `帮我找 ${originalQuery} 的优惠券`
+                        `${originalQuery} models`,
+                        `${originalQuery} reviews`,
+                        `Find coupons for ${originalQuery}`
                     ] : [
-                        '查看更多详情',
-                        '相关产品推荐',
-                        '帮我继续查询'
+                        'Show more details',
+                        'Related product recommendations',
+                        'Continue searching for me'
                     ];
 
                     return (
@@ -2962,7 +2967,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                                 fontSize: 12,
                                 marginBottom: 8
                             }}>
-                                继续提问
+                                Ask a follow-up
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                                 {followUpSuggestions.map((q, i) => (
@@ -2984,7 +2989,7 @@ export const SuperAgentResultPanel: React.FC<SuperAgentResultPanelProps> = ({
                                 ))}
                             </div>
 
-                            {/* 🆕 自由输入框 - 继续与 Agent 对话 */}
+                            {/* Free-form input for continuing the agent conversation */}
                             <FollowUpInput onSubmit={onFollowUp} />
                         </div>
                     );

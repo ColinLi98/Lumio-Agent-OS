@@ -1,8 +1,8 @@
 /**
- * Destiny Navigator - 命运导航系统
- * 
- * 设计理念：专业级人生决策仪表盘
- * 视觉风格：Bloomberg Terminal / 投行级工具
+ * Destiny Navigator
+ *
+ * Design goal: professional life-decision dashboard.
+ * Visual style: Bloomberg Terminal inspired decision tool.
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -28,11 +28,11 @@ import {
 // ============================================================================
 
 const colors = {
-    // 主色调 - 克制的蓝绿色
+    // Primary tone.
     primary: '#0EA5E9',
     primaryMuted: 'rgba(14, 165, 233, 0.15)',
 
-    // 语义色
+    // Semantic colors.
     positive: '#10B981',
     positiveMuted: 'rgba(16, 185, 129, 0.15)',
     negative: '#EF4444',
@@ -41,17 +41,17 @@ const colors = {
     warningMuted: 'rgba(245, 158, 11, 0.15)',
     neutral: '#6B7280',
 
-    // 背景层次
+    // Background layers.
     bg1: '#0F172A',
     bg2: '#1E293B',
     bg3: '#334155',
 
-    // 文字
+    // Text colors.
     text1: '#F8FAFC',
     text2: '#94A3B8',
     text3: '#64748B',
 
-    // 边框
+    // Borders.
     border: 'rgba(148, 163, 184, 0.1)',
     borderHover: 'rgba(148, 163, 184, 0.2)',
 };
@@ -151,7 +151,7 @@ const StatusIndicator: React.FC<{
 // ============================================================================
 
 /**
- * 核心指标卡片
+ * Core metric card
  */
 const MetricCard: React.FC<{
     label: string;
@@ -190,16 +190,16 @@ const MetricCard: React.FC<{
 };
 
 /**
- * 当前状态仪表盘
+ * Current state overview
  */
 const StateOverview: React.FC<{
     position: LifeSnapshot;
 }> = ({ position }) => {
     const metrics = [
-        { key: 'wealth', label: '财务资本', value: position.wealth, color: '#10B981' },
-        { key: 'health', label: '健康资本', value: position.health, color: '#F59E0B' },
-        { key: 'network', label: '社会资本', value: position.networkQuality, color: '#6366F1' },
-        { key: 'fulfillment', label: '实现度', value: position.fulfillment, color: '#EC4899' },
+        { key: 'wealth', label: 'Financial capital', value: position.wealth, color: '#10B981' },
+        { key: 'health', label: 'Health capital', value: position.health, color: '#F59E0B' },
+        { key: 'network', label: 'Social capital', value: position.networkQuality, color: '#6366F1' },
+        { key: 'fulfillment', label: 'Fulfillment', value: position.fulfillment, color: '#EC4899' },
     ];
 
     return (
@@ -217,12 +217,12 @@ const StateOverview: React.FC<{
                         <Crosshair size={16} style={{ color: colors.primary }} />
                     </div>
                     <div>
-                        <h3 className="text-sm font-semibold" style={{ color: colors.text1 }}>当前状态</h3>
-                        <p className="text-xs" style={{ color: colors.text3 }}>{position.age} 岁</p>
+                        <h3 className="text-sm font-semibold" style={{ color: colors.text1 }}>Current state</h3>
+                        <p className="text-xs" style={{ color: colors.text3 }}>{position.age} yrs</p>
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className="text-xs" style={{ color: colors.text3 }}>综合评分</div>
+                    <div className="text-xs" style={{ color: colors.text3 }}>Composite score</div>
                     <div className="text-xl font-mono font-semibold" style={{ color: colors.primary }}>
                         {Math.round((position.wealth + position.health + position.networkQuality + position.fulfillment) / 4)}
                     </div>
@@ -248,7 +248,7 @@ const StateOverview: React.FC<{
 };
 
 /**
- * 最优行动建议
+ * Optimal action recommendation
  */
 const OptimalAction: React.FC<{
     advice: NavigationAdvice;
@@ -270,7 +270,7 @@ const OptimalAction: React.FC<{
                     <RefreshCw size={14} className="animate-spin" style={{ color: colors.warning }} />
                     <div>
                         <span className="text-xs font-medium" style={{ color: colors.warning }}>
-                            重新计算中
+                            Recomputing
                         </span>
                         <span className="text-xs ml-2" style={{ color: colors.text3 }}>
                             {advice.reroutingReason}
@@ -284,7 +284,7 @@ const OptimalAction: React.FC<{
                 <div className="flex items-center gap-2 mb-1">
                     <Target size={14} style={{ color: colors.positive }} />
                     <span className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.positive }}>
-                        最优行动
+                        Optimal action
                     </span>
                 </div>
                 <h3 className="text-lg font-semibold" style={{ color: colors.text1 }}>
@@ -299,21 +299,21 @@ const OptimalAction: React.FC<{
                 </p>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
                     <div>
-                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>时间成本</div>
+                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>Time cost</div>
                         <div className="font-mono font-semibold" style={{ color: colors.text1 }}>
-                            {action.timeCost} <span className="text-xs font-normal" style={{ color: colors.text3 }}>年</span>
+                            {action.timeCost} <span className="text-xs font-normal" style={{ color: colors.text3 }}>yrs</span>
                         </div>
                     </div>
                     <div>
-                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>成功概率</div>
+                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>Success rate</div>
                         <div className="font-mono font-semibold" style={{ color: colors.positive }}>
                             {Math.round(action.baseSuccessProbability * 100)}%
                         </div>
                     </div>
                     <div>
-                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>风险等级</div>
+                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>Risk level</div>
                         <div className="font-mono font-semibold" style={{
                             color: (action.impacts.risk || 0) > 50 ? colors.negative :
                                 (action.impacts.risk || 0) > 30 ? colors.warning : colors.positive
@@ -326,7 +326,7 @@ const OptimalAction: React.FC<{
                 {/* Opportunity Cost */}
                 {action.opportunityCost.length > 0 && (
                     <div className="mb-4">
-                        <div className="text-xs mb-2" style={{ color: colors.text3 }}>机会成本</div>
+                        <div className="text-xs mb-2" style={{ color: colors.text3 }}>Opportunity cost</div>
                         <div className="flex flex-wrap gap-2">
                             {action.opportunityCost.map((cost, idx) => (
                                 <span
@@ -350,7 +350,7 @@ const OptimalAction: React.FC<{
                         border: `1px solid ${colors.primary}30`
                     }}
                 >
-                    查看详细分析
+                    View detailed analysis
                     <ArrowRight size={14} />
                 </button>
             </div>
@@ -359,7 +359,7 @@ const OptimalAction: React.FC<{
 };
 
 /**
- * 价值投影
+ * Value projection
  */
 const ValueProjection: React.FC<{
     currentValue: number;
@@ -375,22 +375,22 @@ const ValueProjection: React.FC<{
             className="rounded-xl p-5"
             style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
         >
-            <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4">
                 <TrendingUp size={14} style={{ color: colors.primary }} />
                 <span className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.text3 }}>
-                    价值投影
+                    Value projection
                 </span>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
                 <div>
-                    <div className="text-xs mb-1" style={{ color: colors.text3 }}>当前价值</div>
+                    <div className="text-xs mb-1" style={{ color: colors.text3 }}>Current value</div>
                     <div className="text-2xl font-mono font-semibold" style={{ color: colors.text1 }}>
                         {currentValue.toFixed(0)}
                     </div>
                 </div>
                 <div>
-                    <div className="text-xs mb-1" style={{ color: colors.text3 }}>预期价值 (60岁)</div>
+                    <div className="text-xs mb-1" style={{ color: colors.text3 }}>Projected value (age 60)</div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl font-mono font-semibold" style={{ color: colors.positive }}>
                             {projectedValue.toFixed(0)}
@@ -405,21 +405,21 @@ const ValueProjection: React.FC<{
             <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${colors.border}` }}>
                 <div className="flex items-center justify-between">
                     <div>
-                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>后悔最小化指数</div>
+                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>Regret minimization index</div>
                         <div className="flex items-center gap-2">
                             <span className="text-lg font-mono font-semibold" style={{ color: colors.text1 }}>
                                 {regretMinimization.toFixed(0)}%
                             </span>
                             <StatusIndicator
                                 status={regretMinimization > 80 ? 'positive' : regretMinimization > 50 ? 'warning' : 'negative'}
-                                label={regretMinimization > 80 ? '优秀' : regretMinimization > 50 ? '良好' : '需改进'}
+                                label={regretMinimization > 80 ? 'Excellent' : regretMinimization > 50 ? 'Good' : 'Needs improvement'}
                             />
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>预计达成</div>
+                        <div className="text-xs mb-1" style={{ color: colors.text3 }}>ETA</div>
                         <span className="text-lg font-mono font-semibold" style={{ color: colors.text1 }}>
-                            {etaToGoal} 年
+                            {etaToGoal} yrs
                         </span>
                     </div>
                 </div>
@@ -429,7 +429,7 @@ const ValueProjection: React.FC<{
 };
 
 /**
- * 风险与机会
+ * Risks and opportunities
  */
 const RiskOpportunity: React.FC<{
     risks: string[];
@@ -444,7 +444,7 @@ const RiskOpportunity: React.FC<{
             >
                 <div className="flex items-center gap-2 mb-3">
                     <AlertTriangle size={14} style={{ color: colors.negative }} />
-                    <span className="text-xs font-medium" style={{ color: colors.negative }}>风险提示</span>
+                    <span className="text-xs font-medium" style={{ color: colors.negative }}>Risk alerts</span>
                 </div>
                 <div className="space-y-2">
                     {risks.length > 0 ? risks.slice(0, 3).map((risk, idx) => (
@@ -453,7 +453,7 @@ const RiskOpportunity: React.FC<{
                             <span className="text-xs leading-relaxed" style={{ color: colors.text2 }}>{risk}</span>
                         </div>
                     )) : (
-                        <span className="text-xs" style={{ color: colors.text3 }}>暂无重大风险</span>
+                        <span className="text-xs" style={{ color: colors.text3 }}>No major risks</span>
                     )}
                 </div>
             </div>
@@ -465,7 +465,7 @@ const RiskOpportunity: React.FC<{
             >
                 <div className="flex items-center gap-2 mb-3">
                     <Check size={14} style={{ color: colors.positive }} />
-                    <span className="text-xs font-medium" style={{ color: colors.positive }}>机会窗口</span>
+                    <span className="text-xs font-medium" style={{ color: colors.positive }}>Opportunity windows</span>
                 </div>
                 <div className="space-y-2">
                     {opportunities.length > 0 ? opportunities.slice(0, 3).map((opp, idx) => (
@@ -474,7 +474,7 @@ const RiskOpportunity: React.FC<{
                             <span className="text-xs leading-relaxed" style={{ color: colors.text2 }}>{opp}</span>
                         </div>
                     )) : (
-                        <span className="text-xs" style={{ color: colors.text3 }}>持续积累中</span>
+                        <span className="text-xs" style={{ color: colors.text3 }}>Building steadily</span>
                     )}
                 </div>
             </div>
@@ -483,7 +483,7 @@ const RiskOpportunity: React.FC<{
 };
 
 /**
- * 路径可视化
+ * Path visualization
  */
 const PathVisualization: React.FC<{
     path: SimulatedPath;
@@ -508,11 +508,11 @@ const PathVisualization: React.FC<{
                 <div className="flex items-center gap-2">
                     <Activity size={14} style={{ color: colors.primary }} />
                     <span className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.text3 }}>
-                        价值曲线预测
+                        Value curve projection
                     </span>
                 </div>
                 <div className="text-xs" style={{ color: colors.text3 }}>
-                    基于 1000 次蒙特卡洛模拟
+                    Based on 1,000 Monte Carlo simulations
                 </div>
             </div>
 
@@ -586,7 +586,7 @@ const PathVisualization: React.FC<{
             {/* Key Decisions */}
             {path.decisions.length > 0 && (
                 <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${colors.border}` }}>
-                    <div className="text-xs mb-2" style={{ color: colors.text3 }}>路径关键节点</div>
+                    <div className="text-xs mb-2" style={{ color: colors.text3 }}>Key path milestones</div>
                     <div className="flex flex-wrap gap-2">
                         {path.decisions.slice(0, 4).map((d, idx) => (
                             <span
@@ -605,7 +605,7 @@ const PathVisualization: React.FC<{
 };
 
 /**
- * 决策分析弹窗
+ * Decision analysis modal
  */
 const DecisionAnalysisModal: React.FC<{
     decision: LifeDecision;
@@ -631,7 +631,7 @@ const DecisionAnalysisModal: React.FC<{
                     className="sticky top-0 px-5 py-4 flex items-center justify-between"
                     style={{ backgroundColor: colors.bg1, borderBottom: `1px solid ${colors.border}` }}
                 >
-                    <h3 className="font-semibold" style={{ color: colors.text1 }}>决策分析</h3>
+                    <h3 className="font-semibold" style={{ color: colors.text1 }}>Decision analysis</h3>
                     <button
                         onClick={onClose}
                         className="p-1 rounded hover:bg-slate-800 transition-colors"
@@ -659,7 +659,7 @@ const DecisionAnalysisModal: React.FC<{
                         <>
                             {/* Expected Value */}
                             <div className="p-4 rounded-lg" style={{ backgroundColor: colors.bg2 }}>
-                                <div className="text-xs mb-2" style={{ color: colors.text3 }}>累计期望价值</div>
+                                <div className="text-xs mb-2" style={{ color: colors.text3 }}>Cumulative expected value</div>
                                 <div className="text-3xl font-mono font-semibold" style={{ color: colors.positive }}>
                                     {analysis.expectedValue.toFixed(1)}
                                 </div>
@@ -667,11 +667,11 @@ const DecisionAnalysisModal: React.FC<{
 
                             {/* Risk */}
                             <div>
-                                <div className="text-xs mb-2" style={{ color: colors.text3 }}>风险评估</div>
+                                <div className="text-xs mb-2" style={{ color: colors.text3 }}>Risk assessment</div>
                                 <StatusIndicator
                                     status={
-                                        analysis.riskAssessment === '高风险' ? 'negative' :
-                                            analysis.riskAssessment === '中等风险' ? 'warning' : 'positive'
+                                        analysis.riskAssessment === 'High risk' ? 'negative' :
+                                            analysis.riskAssessment === 'Medium risk' ? 'warning' : 'positive'
                                     }
                                     label={analysis.riskAssessment}
                                     size="md"
@@ -680,7 +680,7 @@ const DecisionAnalysisModal: React.FC<{
 
                             {/* Long Term Impact */}
                             <div>
-                                <div className="text-xs mb-2" style={{ color: colors.text3 }}>长期影响</div>
+                                <div className="text-xs mb-2" style={{ color: colors.text3 }}>Long-term impact</div>
                                 <p className="text-sm" style={{ color: colors.text2 }}>
                                     {analysis.longTermImpact}
                                 </p>
@@ -727,7 +727,7 @@ export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark 
                 style={{ color: colors.text3 }}
             >
                 <RefreshCw className="animate-spin" size={24} />
-                <div className="text-sm">正在计算最优路径...</div>
+                <div className="text-sm">Computing the optimal path...</div>
             </div>
         );
     }
@@ -735,7 +735,7 @@ export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark 
     if (!advice) {
         return (
             <div className="text-center py-8" style={{ color: colors.text3 }}>
-                无法获取导航数据
+                Unable to load navigation data
             </div>
         );
     }
@@ -762,10 +762,10 @@ export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark 
                             </div>
                             <div>
                                 <h3 className="font-semibold" style={{ color: colors.text1 }}>
-                                    LIX 意图市场
+                                    LIX Intent Market
                                 </h3>
                                 <p className="text-xs" style={{ color: colors.text3 }}>
-                                    发布需求 · 获取全网最优报价
+                                    Publish requirements · get the best market offers
                                 </p>
                             </div>
                         </div>
@@ -789,10 +789,10 @@ export const DestinyNavigatorPanel: React.FC<DestinyNavigatorProps> = ({ isDark 
                         </div>
                         <div>
                             <h2 className="text-lg font-semibold" style={{ color: colors.text1 }}>
-                                命运导航
+                                Destiny Navigator
                             </h2>
                             <p className="text-xs" style={{ color: colors.text3 }}>
-                                Bellman 最优化引擎 · γ = 0.92
+                                Bellman optimization engine · gamma = 0.92
                             </p>
                         </div>
                     </div>

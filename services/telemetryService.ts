@@ -80,6 +80,53 @@ const STORAGE_KEYS = {
     METRICS_CACHE: 'lumi_telemetry_metrics_cache',
 } as const;
 
+// In non-browser environments (e.g. Node tests), localStorage may be unavailable.
+// Fall back to an in-memory store to keep telemetry side-effects non-fatal.
+const inMemoryStore = new Map<string, string>();
+
+function resolveStorage():
+    | { getItem: (key: string) => string | null; setItem: (key: string, value: string) => void }
+    | null {
+    try {
+        const storage = (globalThis as any)?.localStorage;
+        if (
+            storage
+            && typeof storage.getItem === 'function'
+            && typeof storage.setItem === 'function'
+        ) {
+            return storage;
+        }
+    } catch {
+        // ignore and use in-memory fallback
+    }
+    return null;
+}
+
+function readStorageItem(key: string): string | null {
+    const storage = resolveStorage();
+    if (storage) {
+        try {
+            return storage.getItem(key);
+        } catch {
+            // ignore and use in-memory fallback
+        }
+    }
+    return inMemoryStore.has(key) ? String(inMemoryStore.get(key)) : null;
+}
+
+function writeStorageItem(key: string, value: string): void {
+    const storage = resolveStorage();
+    if (storage) {
+        try {
+            storage.setItem(key, value);
+            return;
+        } catch {
+            // ignore and write to in-memory fallback
+        }
+    }
+    inMemoryStore.set(key, value);
+}
+
 // ============================================================================
 // Session Management
 // ============================================================================
@@ -91,7 +138,7 @@ const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
  */
 export function getCurrentSession(): Session {
     try {
-        const stored = localStorage.getItem(STORAGE_KEYS.CURRENT_SESSION);
+        const stored = readStorageItem(STORAGE_KEYS.CURRENT_SESSION);
         if (stored) {
             const session = JSON.parse(stored) as Session;
 
@@ -122,7 +169,7 @@ export function getCurrentSession(): Session {
  */
 function saveSession(session: Session): void {
     try {
-        localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(session));
+        writeStorageItem(STORAGE_KEYS.CURRENT_SESSION, JSON.stringify(session));
 
         // Also append to sessions history
         const sessions = getSessions();
@@ -135,7 +182,7 @@ function saveSession(session: Session): void {
 
         // Keep only last 50 sessions
         const trimmed = sessions.slice(-50);
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(trimmed));
+        writeStorageItem(STORAGE_KEYS.SESSIONS, JSON.stringify(trimmed));
     } catch (e) {
         console.error('[Telemetry] Error saving session:', e);
     }
@@ -146,7 +193,7 @@ function saveSession(session: Session): void {
  */
 export function getSessions(): Session[] {
     try {
-        const stored = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+        const stored = readStorageItem(STORAGE_KEYS.SESSIONS);
         return stored ? JSON.parse(stored) : [];
     } catch (e) {
         console.error('[Telemetry] Error loading sessions:', e);
@@ -398,7 +445,7 @@ export function cleanupTelemetry(): { deletedSessions: number; deletedEvents: nu
         .filter(s => s.startedAt < thirtyDaysAgo)
         .reduce((sum, s) => sum + s.events.length, 0);
 
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(recentSessions));
+    writeStorageItem(STORAGE_KEYS.SESSIONS, JSON.stringify(recentSessions));
 
     return { deletedSessions, deletedEvents };
 }

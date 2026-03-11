@@ -1,7 +1,7 @@
 /**
- * Life Coach Panel - 人生教练面板
- * 
- * 设计理念：专业的决策辅助界面
+ * Life Coach Panel
+ *
+ * Design goal: professional decision-support interface.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -108,7 +108,7 @@ const InsightCard: React.FC<{
                         {insight.message}
                     </p>
                     <p className="text-xs" style={{ color: colors.text3 }}>
-                        建议：{insight.suggestion}
+                        Suggestion: {insight.suggestion}
                     </p>
                 </div>
             </div>
@@ -126,22 +126,22 @@ const RecommendationCard: React.FC<{
 
     const getDomainLabel = (domain: string) => {
         const labels: Record<string, string> = {
-            health: '健康',
-            career: '事业',
-            finance: '财务',
-            social: '社交',
-            learning: '学习',
-            immediate: '即时',
+            health: 'Health',
+            career: 'Career',
+            finance: 'Finance',
+            social: 'Social',
+            learning: 'Learning',
+            immediate: 'Immediate',
         };
         return labels[domain] || domain;
     };
 
     const getTimeLabel = (horizon: string) => {
         const labels: Record<string, string> = {
-            immediate: '立即',
-            short: '短期',
-            medium: '中期',
-            long: '长期',
+            immediate: 'Now',
+            short: 'Short-term',
+            medium: 'Mid-term',
+            long: 'Long-term',
         };
         return labels[horizon] || horizon;
     };
@@ -202,13 +202,13 @@ const RecommendationCard: React.FC<{
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="p-3 rounded-lg" style={{ backgroundColor: colors.bg3 }}>
-                                <div className="text-xs mb-1" style={{ color: colors.text3 }}>置信度</div>
+                                <div className="text-xs mb-1" style={{ color: colors.text3 }}>Confidence</div>
                                 <div className="font-mono font-semibold" style={{ color: colors.text1 }}>
                                     {Math.round(confidence * 100)}%
                                 </div>
                             </div>
                             <div className="p-3 rounded-lg" style={{ backgroundColor: colors.bg3 }}>
-                                <div className="text-xs mb-1" style={{ color: colors.text3 }}>预期收益</div>
+                                <div className="text-xs mb-1" style={{ color: colors.text3 }}>Expected gain</div>
                                 <div className="font-mono font-semibold" style={{ color: colors.positive }}>
                                     +{qValue.toFixed(1)}
                                 </div>
@@ -216,12 +216,12 @@ const RecommendationCard: React.FC<{
                         </div>
 
                         <div>
-                            <div className="text-xs mb-2" style={{ color: colors.text3 }}>决策理由</div>
+                            <div className="text-xs mb-2" style={{ color: colors.text3 }}>Why this recommendation</div>
                             <p className="text-sm" style={{ color: colors.text2 }}>{reasoning}</p>
                         </div>
 
                         <div>
-                            <div className="text-xs mb-2" style={{ color: colors.text3 }}>预期结果</div>
+                            <div className="text-xs mb-2" style={{ color: colors.text3 }}>Expected outcome</div>
                             <p className="text-sm" style={{ color: colors.text2 }}>{expectedOutcome}</p>
                         </div>
 
@@ -230,7 +230,7 @@ const RecommendationCard: React.FC<{
                                 className="p-3 rounded-lg"
                                 style={{ backgroundColor: colors.positiveMuted }}
                             >
-                                <div className="text-xs mb-1" style={{ color: colors.positive }}>心理建议</div>
+                                <div className="text-xs mb-1" style={{ color: colors.positive }}>Stress support</div>
                                 <p className="text-sm" style={{ color: colors.text2 }}>{anxietyRelief}</p>
                             </div>
                         )}
@@ -245,7 +245,7 @@ const RecommendationCard: React.FC<{
                             }}
                         >
                             <CheckCircle size={16} />
-                            标记完成
+                            Mark as done
                         </button>
                     </div>
                 </div>
@@ -293,7 +293,7 @@ export const LifeCoachPanel: React.FC<LifeCoachPanelProps> = ({ isDark = true })
     };
 
     const handleComplete = (rec: ActionRecommendation) => {
-        // TODO: 实际保存逻辑
+        // TODO: Persist completion state.
         setExpandedId(null);
     };
 
@@ -322,10 +322,10 @@ export const LifeCoachPanel: React.FC<LifeCoachPanelProps> = ({ isDark = true })
                         </div>
                         <div>
                             <h2 className="text-lg font-semibold" style={{ color: colors.text1 }}>
-                                人生教练
+                                Life Coach
                             </h2>
                             <p className="text-xs" style={{ color: colors.text3 }}>
-                                基于 Bellman 优化的决策建议
+                                Decision advice powered by Bellman optimization
                             </p>
                         </div>
                     </div>
@@ -339,10 +339,10 @@ export const LifeCoachPanel: React.FC<LifeCoachPanelProps> = ({ isDark = true })
 
                 {/* State Overview */}
                 <div className="grid grid-cols-4 gap-2">
-                    <StateBadge label="精力" value={lifeState.energy} />
-                    <StateBadge label="情绪" value={lifeState.emotion} />
-                    <StateBadge label="财务" value={lifeState.financial} />
-                    <StateBadge label="社交" value={lifeState.social} />
+                    <StateBadge label="Energy" value={lifeState.energy} />
+                    <StateBadge label="Mood" value={lifeState.emotion} />
+                    <StateBadge label="Finance" value={lifeState.financial} />
+                    <StateBadge label="Social" value={lifeState.social} />
                 </div>
             </div>
 
@@ -365,7 +365,7 @@ export const LifeCoachPanel: React.FC<LifeCoachPanelProps> = ({ isDark = true })
             {insights.length > 0 && (
                 <div className="space-y-2">
                     <h3 className="text-xs font-medium uppercase tracking-wider px-1" style={{ color: colors.text3 }}>
-                        洞察提醒
+                        Insight alerts
                     </h3>
                     {insights.slice(0, 2).map((insight, idx) => (
                         <InsightCard key={idx} insight={insight} />
@@ -381,7 +381,7 @@ export const LifeCoachPanel: React.FC<LifeCoachPanelProps> = ({ isDark = true })
                 <div className="flex items-center gap-2 mb-3">
                     <MessageCircle size={14} style={{ color: colors.primary }} />
                     <span className="text-xs font-medium" style={{ color: colors.text3 }}>
-                        咨询决策
+                        Ask for guidance
                     </span>
                 </div>
                 <div className="flex gap-2">
@@ -390,7 +390,7 @@ export const LifeCoachPanel: React.FC<LifeCoachPanelProps> = ({ isDark = true })
                         value={question}
                         onChange={(e) => setQuestion(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAskQuestion()}
-                        placeholder="输入你的问题..."
+                        placeholder="Type your question..."
                         className="flex-1 px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50"
                         style={{ 
                             backgroundColor: colors.bg3, 
@@ -417,7 +417,7 @@ export const LifeCoachPanel: React.FC<LifeCoachPanelProps> = ({ isDark = true })
             {customRecommendation && (
                 <div className="space-y-2">
                     <h3 className="text-xs font-medium uppercase tracking-wider px-1" style={{ color: colors.text3 }}>
-                        针对性建议
+                        Tailored recommendation
                     </h3>
                     <RecommendationCard
                         recommendation={customRecommendation}
@@ -431,7 +431,7 @@ export const LifeCoachPanel: React.FC<LifeCoachPanelProps> = ({ isDark = true })
             {/* Top Recommendations */}
             <div className="space-y-2">
                 <h3 className="text-xs font-medium uppercase tracking-wider px-1" style={{ color: colors.text3 }}>
-                    推荐行动
+                    Recommended actions
                 </h3>
                 {recommendations.map((rec) => (
                     <RecommendationCard

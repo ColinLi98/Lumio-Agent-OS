@@ -1,6 +1,6 @@
 /**
- * Tool Registry - 工具注册中心
- * 
+ * Tool Registry
+ *
  * Converts skills into Gemini FunctionDeclaration format for autonomous agent use.
  * This enables the "Brain" to dynamically select tools without hardcoded logic.
  */
@@ -53,6 +53,10 @@ export interface Tool {
         avg_latency_ms?: number;
         success_rate?: number;
         cost_tier?: CostTier;
+        policy_tags?: string[];
+        required_permissions?: string[];
+        safety_level?: 'decision_support_only' | 'bounded_execution' | 'standard';
+        last_verified_at?: number;
     };
 }
 
@@ -95,34 +99,33 @@ export function setToolRegistryApiKey(apiKey: string) {
 
 const priceCompareTool: Tool = {
     name: 'price_compare',
-    description: `搜索【电商实物商品】在各大平台（京东、淘宝、拼多多）的价格并进行对比。
+    description: `Compare prices for purchasable physical products across e-commerce platforms (JD, Taobao, Pinduoduo).
 
-⚠️ 仅用于可购买的实物商品，例如：手机、耳机、电脑、家电、服装等。
+⚠️ Use only for real physical goods (phones, headphones, laptops, appliances, clothing, etc.).
 
-❌ 不适用于：
-- 金融产品：黄金、期货、股票、基金、比特币、外汇
-- 虚拟服务：会员、流量、游戏充值
-- 无法在电商购买的东西
+❌ Not suitable for:
+- Financial assets (gold, futures, stocks, funds, crypto, FX)
+- Virtual services (memberships, mobile data, game top-ups)
+- Non-purchasable items
 
-使用场景：
-- 用户询问某【实物商品】的价格（例如"iPhone 多少钱"、"AirPods 价格"）
-- 用户想比较不同电商平台的商品价格
-- 用户询问某商品是否值得购买、贵不贵
-关键词：买、购买、某某多少钱（必须是实物商品）`,
+Typical use cases:
+- User asks product price (e.g. "How much is iPhone 15?")
+- User wants cross-platform price comparison
+- User asks whether a product is worth buying`,
     parameters: {
         type: 'object',
         properties: {
             product: {
                 type: 'string',
-                description: '要查询价格的商品名称，例如"iPhone 15"、"AirPods Pro"、"索尼降噪耳机"'
+                description: 'Product name to compare, e.g. "iPhone 15", "AirPods Pro", "Sony noise-canceling headphones"'
             },
             budget: {
                 type: 'number',
-                description: '可选的预算上限（人民币）'
+                description: 'Optional budget cap (CNY)'
             },
             platform: {
                 type: 'string',
-                description: '可选的指定平台',
+                description: 'Optional platform filter',
                 enum: ['all', 'jd', 'taobao', 'pdd', 'amazon']
             }
         },
@@ -139,30 +142,30 @@ const priceCompareTool: Tool = {
             const ai = new GoogleGenAI({ apiKey: globalApiKey });
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-preview',
-                contents: `我需要查询 "${product}" 在中国电商平台的价格信息。
+                contents: `I need current price information for "${product}" from major Chinese e-commerce platforms.
 
-请搜索各电商平台（京东、淘宝、拼多多）上 "${product}" 的当前售价。
+Please search JD, Taobao, and Pinduoduo for current prices of "${product}".
 
-必须返回以下 JSON 格式：
+Return strictly in this JSON format:
 {
     "products": [
         {
             "model": "${product}",
-            "specs": "主要规格",
+            "specs": "main specs",
             "platforms": [
-                {"name": "京东", "price": 数字, "url": "https://search.jd.com/Search?keyword=${encodeURIComponent(product)}"},
-                {"name": "淘宝", "price": 数字, "url": "https://s.taobao.com/search?q=${encodeURIComponent(product)}"},
-                {"name": "拼多多", "price": 数字, "url": "https://mobile.pinduoduo.com/search_result.html?search_key=${encodeURIComponent(product)}"}
+                {"name": "JD", "price": 1234, "url": "https://search.jd.com/Search?keyword=${encodeURIComponent(product)}"},
+                {"name": "Taobao", "price": 1234, "url": "https://s.taobao.com/search?q=${encodeURIComponent(product)}"},
+                {"name": "Pinduoduo", "price": 1234, "url": "https://mobile.pinduoduo.com/search_result.html?search_key=${encodeURIComponent(product)}"}
             ]
         }
     ],
-    "category": "类别",
-    "brand": "品牌"
+    "category": "category",
+    "brand": "brand"
 }
 
-注意：price 必须是数字，不是字符串。`,
+Important: "price" must be a number, not a string.`,
                 config: {
-                    systemInstruction: '你是一个电商价格查询助手。返回纯 JSON 格式，不要有任何解释文字。',
+                    systemInstruction: 'You are an e-commerce price lookup assistant. Return pure JSON only, with no explanation.',
                     tools: [{ googleSearch: {} }]
                 }
             });
@@ -202,30 +205,23 @@ const priceCompareTool: Tool = {
 
 const webSearchTool: Tool = {
     name: 'web_search',
-    description: `搜索互联网获取最新信息、新闻、知识、行情和解答。
+    description: `Search the web for latest information, news, knowledge, market data, and explanations.
 
-✅ 适用于：
-- 金融行情：黄金价格、期货、股票、比特币、汇率
-- 知识问答：某人是谁、某个概念是什么
-- 实时信息：新闻、热点、天气
-- 教程搜索：如何做某事、wiki
-
-使用场景：
-- 用户询问金融产品价格（例如\"黄金多少钱\"、\"茅台股价\"、\"比特币行情\"）
-- 用户询问某人或某事物是谁/是什么
-- 用户想了解某个梗、热点、新闻
-- 用户寻找教程、wiki、解释
-关键词：价格（非实物商品）、行情、是谁、什么梗、含义、新闻`,
+✅ Suitable for:
+- Financial markets (gold, stocks, crypto, FX)
+- Knowledge Q&A ("who is", "what is")
+- Real-time info (news, weather, trends)
+- Tutorials and wiki-style lookups`,
     parameters: {
         type: 'object',
         properties: {
             query: {
                 type: 'string',
-                description: '搜索关键词或问题'
+                description: 'Search query or question'
             },
             topic: {
                 type: 'string',
-                description: '可选的主题分类',
+                description: 'Optional topic category',
                 enum: ['general', 'news', 'tech', 'entertainment', 'science']
             }
         },
@@ -280,28 +276,27 @@ const webSearchTool: Tool = {
 
 const knowledgeQATool: Tool = {
     name: 'knowledge_qa',
-    description: `提供高情商回复、润色文字、帮助用户措辞得体。
-使用场景：
-- 用户询问如何回复某条消息
-- 用户想润色自己的表达
-- 用户想礼貌地拒绝或同意某事
-- 用户需要帮助写一段得体的回复
-关键词：怎么回、润色、礼貌一点、拒绝他、同意、措辞`,
+    description: `Help draft socially appropriate replies, rewrite phrasing, and improve tone.
+Use cases:
+- User asks how to reply to a message
+- User wants text polishing
+- User needs a polite decline/accept response
+- User needs tactful communication options`,
     parameters: {
         type: 'object',
         properties: {
             context: {
                 type: 'string',
-                description: '需要回复的消息或场景描述'
+                description: 'Message context or scenario to respond to'
             },
             tone: {
                 type: 'string',
-                description: '期望的语气',
+                description: 'Desired tone',
                 enum: ['polite', 'firm', 'friendly', 'professional', 'casual']
             },
             intent: {
                 type: 'string',
-                description: '回复的意图',
+                description: 'Reply intent',
                 enum: ['accept', 'decline', 'ask', 'clarify', 'thank', 'apologize']
             }
         },
@@ -311,26 +306,26 @@ const knowledgeQATool: Tool = {
         const { context, tone = 'polite', intent = 'clarify' } = args;
 
         if (!globalApiKey) {
-            return { success: true, reply: `关于"${context}"，我建议你可以这样回复...` };
+            return { success: true, reply: `For "${context}", you could reply like this...` };
         }
 
         try {
             const ai = new GoogleGenAI({ apiKey: globalApiKey });
             const response = await ai.models.generateContent({
                 model: 'gemini-3-pro-preview',
-                contents: `帮我写一个${tone === 'polite' ? '礼貌' : tone === 'firm' ? '坚定' : '得体'}的回复：
+                contents: `Write a ${tone} reply for this context.
 
-场景/原消息：${context}
-意图：${intent === 'decline' ? '婉拒' : intent === 'accept' ? '接受' : '回应'}
+Scenario / original message: ${context}
+Intent: ${intent}
 
-请提供3个不同风格的回复选项，返回 JSON：
+Provide 3 reply options in different styles and return JSON:
 {
     "replies": [
-        { "style": "简洁版", "text": "回复内容" },
-        { "style": "温和版", "text": "回复内容" },
-        { "style": "专业版", "text": "回复内容" }
+        { "style": "Concise", "text": "reply text" },
+        { "style": "Warm", "text": "reply text" },
+        { "style": "Professional", "text": "reply text" }
     ],
-    "tips": "回复建议"
+    "tips": "reply suggestions"
 }`
             });
 
@@ -348,7 +343,7 @@ const knowledgeQATool: Tool = {
         return {
             success: true,
             replies: [
-                { style: '参考回复', text: `好的，我明白了。关于这件事，我会再考虑一下。` }
+                { style: 'Reference reply', text: 'Understood. I will think this through and get back to you.' }
             ]
         };
     },
@@ -467,44 +462,42 @@ function hasStructuredFlightEvidence(
 
 const liveSearchTool: Tool = {
     name: 'live_search',
-    description: `获取【实时数据】，适用于需要最新信息的查询。
+    description: `Fetch real-time data for freshness-sensitive queries.
 
-⚠️ 必须用于以下场景（needs_live_data=true）：
-- 机票/航班查询：伦敦到大连的机票、北京飞上海多少钱
-- 火车票/高铁：北京到上海的高铁票
-- 酒店住宿：某地今晚的酒店
-- 金融行情：股票、黄金、比特币价格
-- 实时票价：最新价格、今天的价格
+⚠️ Must be used when needs_live_data=true, including:
+- Flight or rail ticket pricing/schedules
+- Hotel availability for specific dates
+- Financial quotes (stocks, gold, crypto)
+- "today/latest/current price" style requests
 
-✅ 返回内容：
-- 实时搜索结果（带时间戳和TTL）
-- 来源链接和置信度
+✅ Returns:
+- Live search results with timestamp and TTL
+- Source links and confidence
 
-使用规则：
-- 凡是涉及"机票/车票/航班/时刻表/价格/今天/最新"必须调用此工具
-- 不可编造价格或链接，必须使用返回的实时数据
-- 如果搜索失败，返回缺失约束的提示，不要编造答案`,
+Rules:
+- Do not fabricate prices or links
+- If search fails, report missing constraints and ask for required inputs`,
     parameters: {
         type: 'object',
         properties: {
             query: {
                 type: 'string',
-                description: '用户的原始查询，例如"北京到上海的机票"'
+                description: 'Original user query, e.g. "flight from Beijing to Shanghai"'
             },
             intent_domain: {
                 type: 'string',
-                description: '意图领域',
+                description: 'Intent domain',
                 enum: ['travel.flight', 'travel.train', 'travel.hotel', 'ecommerce.product', 'local.service', 'knowledge', 'finance', 'news']
             },
             locale: {
                 type: 'string',
-                description: '语言区域，默认zh-CN'
+                description: 'Locale, default zh-CN'
             }
         },
         required: ['query']
     },
     execute: async (args) => {
-        const { query, intent_domain, locale = 'zh-CN' } = args;
+        const { query, intent_domain, locale = 'en-GB' } = args;
 
         // Auto-detect domain if not provided
         const routeDecision = classifyFreshness(query);
@@ -549,7 +542,7 @@ const liveSearchTool: Tool = {
                     success: false,
                     error: {
                         code: 'UPSTREAM_NON_JSON',
-                        message: 'live-search 返回了非 JSON 响应',
+                        message: 'live-search returned a non-JSON response',
                         retryable: true,
                         reason_code: 'parse_error',
                     },
@@ -562,7 +555,7 @@ const liveSearchTool: Tool = {
                     success: false,
                     error: {
                         code: result?.error?.code || `HTTP_${response.status}`,
-                        message: result?.error?.message || `live-search 服务异常（${response.status}）`,
+                        message: result?.error?.message || `live-search service error (${response.status})`,
                         retryable: true,
                         reason_code: result?.error?.reason_code || 'provider_error',
                     },
@@ -582,7 +575,7 @@ const liveSearchTool: Tool = {
                         dep_time: quote.dep_time,
                         arr_time: quote.arr_time,
                         price_text: `${quote.currency} ${quote.price}`,
-                        transfers_text: quote.transfers > 0 ? `${quote.transfers} 次中转` : '直飞',
+                        transfers_text: quote.transfers > 0 ? `${quote.transfers} transfer(s)` : 'Nonstop',
                         source_url: quote.source_url,
                         fetched_at: quote.fetched_at,
                         objective_score: quote.objective_score,
@@ -596,7 +589,7 @@ const liveSearchTool: Tool = {
                     : evidence.notes?.confidence ?? 0.8;
                 // Format fetched_at for display
                 const fetchedAtDate = new Date(evidence.fetched_at);
-                const fetchedAtDisplay = fetchedAtDate.toLocaleTimeString('zh-CN', {
+                const fetchedAtDisplay = fetchedAtDate.toLocaleTimeString('en-GB', {
                     hour: '2-digit',
                     minute: '2-digit'
                 });
@@ -604,7 +597,7 @@ const liveSearchTool: Tool = {
                 return {
                     success: true,
                     skillId: 'live_search',
-                    skillName: '实时搜索',
+                    skillName: 'Live Search',
                     evidence,
                     fetched_at: evidence.fetched_at,
                     fetched_at_display: fetchedAtDisplay,
@@ -649,7 +642,7 @@ const liveSearchTool: Tool = {
                 return {
                     success: false,
                     skillId: 'live_search',
-                    skillName: '实时搜索',
+                    skillName: 'Live Search',
                     error: result.error || { code: 'UNKNOWN', message: 'Search failed' },
                     fallback,
                     action_links: (result.action_links?.length ? result.action_links : generatedActionLinks).map((link) => ({
@@ -658,7 +651,7 @@ const liveSearchTool: Tool = {
                     })),
                     is_live: false,
                     route_decision: result.route_decision || routeDecision,
-                    instruction: '搜索失败，请不要编造价格或链接。向用户展示缺失的约束条件，并请求补充信息。'
+                    instruction: 'Search failed. Do not fabricate prices or links. Show missing constraints and request required details.'
                 };
             }
         } catch (fetchError) {
@@ -674,7 +667,7 @@ const liveSearchTool: Tool = {
             return {
                 success: false,
                 skillId: 'live_search',
-                skillName: '实时搜索',
+                skillName: 'Live Search',
                 error: {
                     code: 'NETWORK_ERROR',
                     message: fetchError instanceof Error ? fetchError.message : 'Network error',
@@ -686,7 +679,7 @@ const liveSearchTool: Tool = {
                 })),
                 is_live: false,
                 route_decision: routeDecision,
-                instruction: '网络错误，请不要编造价格或链接。'
+                instruction: 'Network error. Do not fabricate prices or links.'
             };
         }
     },
@@ -741,39 +734,39 @@ interface WebExecAPIResponse {
 
 const webExecTool: Tool = {
     name: 'web_exec',
-    description: `执行浏览器自动化任务（仅支持只读操作）。
+    description: `Execute browser automation tasks in read-only mode.
 
-⚠️ 使用场景（live_search 失败后的备选）：
-- 需要在特定网站查询信息（如携程机票查询页面）
-- 提取结构化数据（航班列表、价格表）
-- 任务型查询需要交互但不涉及登录/支付
+⚠️ Use as fallback when live_search is insufficient:
+- Query specific websites
+- Extract structured data (lists, tables, prices)
+- Handle task-like interactions without login/payment
 
-✅ 支持的操作（只读）：
-- 导航到指定URL
-- 提取页面内容
-- 截取页面快照
+✅ Supported operations:
+- Navigate to URL
+- Extract page content
+- Capture page snapshots
 
-❌ 不支持（需用户授权）：
-- 登录、支付、下单、提交表单
+❌ Not supported without explicit user approval:
+- Login, payment, order submission, form submission
 
-返回内容：
-- steps[]: 执行的步骤序列
-- artifacts[]: DOM快照、截图等
-- evidence.items[]: 提取的结构化信息`,
+Returns:
+- steps[]: execution step sequence
+- artifacts[]: snapshots/screenshots
+- evidence.items[]: extracted structured data`,
     parameters: {
         type: 'object',
         properties: {
             task_description: {
                 type: 'string',
-                description: '任务描述，例如"查询北京到上海的航班"'
+                description: 'Task description, e.g. "search flights from Beijing to Shanghai"'
             },
             target_url: {
                 type: 'string',
-                description: '目标网站URL，例如"https://ctrip.com"'
+                description: 'Target website URL, e.g. "https://ctrip.com"'
             },
             step_budget: {
                 type: 'number',
-                description: '最大步骤数（默认10）'
+                description: 'Maximum steps (default 10)'
             }
         },
         required: ['task_description', 'target_url']
@@ -802,28 +795,28 @@ const webExecTool: Tool = {
                 return {
                     success: true,
                     skillId: 'web_exec',
-                    skillName: '浏览器执行',
+                    skillName: 'Web Executor',
                     trace_id: result.trace_id,
                     steps: result.steps,
                     artifacts: result.artifacts,
                     evidence: result.evidence,
                     extracted: result.extracted,
                     is_live: true,
-                    instruction: '使用 evidence.items 中的数据回答用户问题，并引用来源。'
+                    instruction: 'Answer using data from evidence.items and cite sources.'
                 };
             } else {
                 // Execution blocked or failed
                 return {
                     success: false,
                     skillId: 'web_exec',
-                    skillName: '浏览器执行',
+                    skillName: 'Web Executor',
                     trace_id: result.trace_id,
                     error: result.error,
                     blocked_reason: result.blocked_reason,
                     requires_approval: result.requires_approval,
                     steps: result.steps,
                     is_live: false,
-                    instruction: result.error?.retry_suggestions?.join(' ') || '执行失败，请不要编造数据。'
+                    instruction: result.error?.retry_suggestions?.join(' ') || 'Execution failed. Do not fabricate data.'
                 };
             }
         } catch (fetchError) {
@@ -831,15 +824,15 @@ const webExecTool: Tool = {
             return {
                 success: false,
                 skillId: 'web_exec',
-                skillName: '浏览器执行',
+                skillName: 'Web Executor',
                 error: {
                     code: 'NETWORK_ERROR',
                     message: fetchError instanceof Error ? fetchError.message : 'Network error',
                     retryable: true,
-                    retry_suggestions: ['检查网络连接', '稍后重试']
+                    retry_suggestions: ['Check network connection', 'Try again later']
                 },
                 is_live: false,
-                instruction: '网络错误，请不要编造数据。'
+                instruction: 'Network error. Do not fabricate data.'
             };
         }
     },
@@ -864,34 +857,27 @@ import type { IntentCategory } from './lixTypes.js';
 
 const broadcastIntentTool: Tool = {
     name: 'broadcast_intent',
-    description: `将用户的需求意图广播到 Lumi 意图交易市场（LIX），获取来自商家(B2C)和其他用户(C2C)的报价/合作offer。
+    description: `Broadcast user intent to the Lumi Intent Exchange (LIX) to collect B2C and C2C offers.
 
-适用场景：
-1. **购买意向** (purchase): 用户想购买商品，广播到多个平台获取最优报价
-2. **求职/招聘** (job): 用户在找工作或寻找人才
-3. **合作/技能交换** (collaboration): 用户寻求设计、开发等服务，支持技能交换
-
-使用时机：
-- 用户说"我想买..."、"帮我找..."、"谁能帮我..."
-- 用户表达预算有限、想找人合作
-- 用户寻求专业服务（设计、开发、翻译等）
-
-关键词：找人、合作、外包、设计、预算有限、技能交换、招聘`,
+Scenarios:
+1. purchase: user wants to buy a product and compare offers
+2. job: user is looking for jobs or candidates
+3. collaboration: user seeks services (design, development, translation, etc.)`,
     parameters: {
         type: 'object',
         properties: {
             category: {
                 type: 'string',
-                description: '意图类别：purchase(购买)、job(求职招聘)、collaboration(合作)',
+                description: 'Intent category: purchase, job, collaboration',
                 enum: ['purchase', 'job', 'collaboration']
             },
             item: {
                 type: 'string',
-                description: '具体需求描述，例如"Logo设计"、"iPhone 16"、"React前端开发"'
+                description: 'Requirement description, e.g. "Logo design", "iPhone 16", "React frontend development"'
             },
             budget: {
                 type: 'number',
-                description: '可选：预算上限（人民币）'
+                description: 'Optional budget cap (CNY)'
             }
         },
         required: ['category', 'item']
@@ -913,8 +899,8 @@ const broadcastIntentTool: Tool = {
                 reason: 'DOMAIN_GUARD',
                 success: false,
                 skillId: 'broadcast_intent',
-                skillName: 'LIX 意图交易',
-                message: `此类需求（${category}）建议使用专业渠道，已为您生成计划步骤。`,
+                skillName: 'LIX Intent Exchange',
+                message: `This request category (${category}) should use specialized channels. A structured plan has been generated.`,
                 domain_guard_blocked: true,
                 blocked_category: category,
                 // Contract layer: explicit debug info
@@ -933,8 +919,8 @@ const broadcastIntentTool: Tool = {
             return {
                 success: false,
                 skillId: 'broadcast_intent',
-                skillName: 'LIX 意图交易',
-                message: '暂无匹配的报价，您的需求已广播到市场，稍后可能会有回应。',
+                skillName: 'LIX Intent Exchange',
+                message: 'No matching offers yet. Your request has been broadcast and new responses may arrive later.',
                 broadcastReach: response.broadcast_reach,
                 intentId: response.intent_id
             };
@@ -962,7 +948,7 @@ const broadcastIntentTool: Tool = {
         return {
             success: true,
             skillId: 'broadcast_intent',
-            skillName: 'LIX 意图交易',
+            skillName: 'LIX Intent Exchange',
             intentId: response.intent_id,
             traceId: response.trace.trace_id,  // End-to-end trace
             totalOffers: response.total_offers_received,
@@ -970,7 +956,7 @@ const broadcastIntentTool: Tool = {
             latencyMs: response.latency_ms,
             providerSource: response.provider_source,  // 'real' | 'mock' | 'mixed'
             offers,
-            message: `已广播到 ${response.broadcast_reach}+ 个潜在服务方，收到 ${response.total_offers_received} 个报价`
+            message: `Broadcast reached ${response.broadcast_reach}+ potential providers and received ${response.total_offers_received} offer(s).`
         };
     },
     // 🔥 High-Value Profiling: Trading intent reveals true needs and spending power
@@ -992,22 +978,22 @@ const broadcastIntentTool: Tool = {
 
 const broadcastAgentRequirementTool: Tool = {
     name: 'broadcast_agent_requirement',
-    description: `当 Agent Marketplace 没有足够可用 agent 时，将需求发布到 LIX 专家市场，寻求“可交付的新 agent 方案”。`,
+    description: `When Agent Marketplace lacks suitable agents, publish requirements to LIX expert market for deliverable new-agent solutions.`,
     parameters: {
         type: 'object',
         properties: {
             query: {
                 type: 'string',
-                description: '用户原始需求描述',
+                description: 'Original user requirement',
             },
             domain: {
                 type: 'string',
-                description: '需求领域（可选）',
+                description: 'Requirement domain (optional)',
                 enum: ['recruitment', 'travel', 'finance', 'health', 'legal', 'education', 'shopping', 'productivity', 'local_service', 'general'],
             },
             required_capabilities: {
                 type: 'array',
-                description: '希望新 agent 覆盖的能力标签',
+                description: 'Capability labels expected from the new agent',
                 items: {
                     type: 'string',
                     description: 'capability',
@@ -1015,11 +1001,11 @@ const broadcastAgentRequirementTool: Tool = {
             },
             requester_agent_id: {
                 type: 'string',
-                description: '触发发布需求的 agent_id（可选）',
+                description: 'Requesting agent ID (optional)',
             },
             requester_agent_name: {
                 type: 'string',
-                description: '触发发布需求的 agent 名称（可选）',
+                description: 'Requesting agent name (optional)',
             },
         },
         required: ['query'],
@@ -1030,10 +1016,10 @@ const broadcastAgentRequirementTool: Tool = {
             return {
                 success: false,
                 skillId: 'broadcast_agent_requirement',
-                skillName: 'LIX 专家交付',
+                skillName: 'LIX Expert Delivery',
                 error: {
                     code: 'INVALID_ARGS',
-                    message: 'query 不能为空',
+                    message: 'query cannot be empty',
                 },
             };
         }
@@ -1064,7 +1050,7 @@ const broadcastAgentRequirementTool: Tool = {
                 return {
                     success: false,
                     skillId: 'broadcast_agent_requirement',
-                    skillName: 'LIX 专家交付',
+                    skillName: 'LIX Expert Delivery',
                     error: {
                         code: `HTTP_${response.status}`,
                         message: payload?.error || 'broadcast_failed',
@@ -1075,18 +1061,18 @@ const broadcastAgentRequirementTool: Tool = {
             return {
                 success: true,
                 skillId: 'broadcast_agent_requirement',
-                skillName: 'LIX 专家交付',
+                skillName: 'LIX Expert Delivery',
                 intentId: payload.intent_id,
                 offersCount: payload.offers_count || 0,
                 status: payload.status,
                 intent: payload.intent,
-                message: '需求已发布到 LIX 专家市场，可选择方案并交付新 agent',
+                message: 'Requirement has been published to LIX expert market. You can review offers and proceed to delivery.',
             };
         } catch (error) {
             return {
                 success: false,
                 skillId: 'broadcast_agent_requirement',
-                skillName: 'LIX 专家交付',
+                skillName: 'LIX Expert Delivery',
                 error: {
                     code: 'NETWORK_ERROR',
                     message: error instanceof Error ? error.message : 'network_error',
@@ -1357,14 +1343,14 @@ function formatPriceResult(data: any, product: string): any {
         success: true,
         query: product,
         brand: data.brand || '',
-        category: data.category || '商品',
+        category: data.category || 'product',
         products,
         lowestPrice: lowestPrice === Infinity ? null : lowestPrice,
         lowestPlatform,
         lowestModel,
         recommendation: lowestPrice !== Infinity
-            ? `${lowestModel} 最低价 ¥${lowestPrice} 在${lowestPlatform}`
-            : '暂无价格信息'
+            ? `${lowestModel} lowest price: ¥${lowestPrice} on ${lowestPlatform}`
+            : 'No price data available'
     };
 }
 
@@ -1374,11 +1360,14 @@ function formatPriceResult(data: any, product: string): any {
 function generateSearchUrl(platform: string, product: string): string {
     const encoded = encodeURIComponent(product);
     switch (platform) {
+        case 'JD':
         case '京东': return `https://www.google.com/search?q=${encoded}+site:jd.com`;
+        case 'Taobao':
         case '淘宝': return `https://www.google.com/search?q=${encoded}+site:taobao.com`;
+        case 'Pinduoduo':
         case '拼多多': return `https://www.google.com/search?q=${encoded}+site:pinduoduo.com`;
         case 'Amazon': return `https://www.amazon.com/s?k=${encoded}`;
-        default: return `https://www.google.com/search?q=${encoded}+购买`;
+        default: return `https://www.google.com/search?q=${encoded}+buy`;
     }
 }
 
@@ -1386,7 +1375,7 @@ function generateSearchUrl(platform: string, product: string): string {
  * Fallback price data when API fails
  */
 function generateFallbackPriceData(product: string, budget?: number): any {
-    const platforms = ['京东', '淘宝', '拼多多'];
+    const platforms = ['JD', 'Taobao', 'Pinduoduo'];
     const basePrice = estimatePrice(product);
 
     const results = platforms.map(platform => ({
@@ -1401,22 +1390,22 @@ function generateFallbackPriceData(product: string, budget?: number): any {
         query: product,
         products: [{
             model: product,
-            specs: '点击链接查看详情',
+            specs: 'Click link to view details',
             platforms: results
         }],
         lowestPrice: results[0].price,
         lowestPlatform: results[0].name,
-        recommendation: `${product} 预估最低价 ¥${results[0].price}`,
+        recommendation: `${product} estimated lowest price: ¥${results[0].price}`,
         isEstimate: true
     };
 }
 
 function estimatePrice(product: string): number {
     const lower = product.toLowerCase();
-    if (/airpods|耳机/.test(lower)) return 1500;
-    if (/iphone|手机/.test(lower)) return 7000;
-    if (/ipad|平板/.test(lower)) return 4000;
-    if (/macbook|笔记本/.test(lower)) return 9000;
+    if (/airpods|earbuds|headphones|耳机/.test(lower)) return 1500;
+    if (/iphone|phone|smartphone|手机/.test(lower)) return 7000;
+    if (/ipad|tablet|平板/.test(lower)) return 4000;
+    if (/macbook|laptop|notebook|笔记本/.test(lower)) return 9000;
     return 1000;
 }
 
@@ -1428,12 +1417,12 @@ function generateFallbackSearchData(query: string): any {
         success: true,
         query,
         results: [{
-            title: `搜索 "${query}"`,
-            snippet: '点击查看 Google 搜索结果',
+            title: `Search "${query}"`,
+            snippet: 'Click to view Google search results',
             url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
             source: 'Google'
         }],
-        summary: `请点击链接查看 "${query}" 的搜索结果`
+        summary: `Click the link to view search results for "${query}".`
     };
 }
 

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { PhoneSimulator } from './components/PhoneSimulator';
 import { LumiAppView } from './components/LumiAppView';
+import { EnterprisePlatformView } from './components/EnterprisePlatformView';
+import { StandaloneTrialJoinView } from './components/StandaloneTrialJoinView';
+import { PlatformErrorBoundary } from './components/PlatformErrorBoundary';
 import { OnboardingOverlay, shouldShowOnboarding } from './components/OnboardingOverlay';
 import { DigitalSoulOnboarding } from './components/DigitalSoulOnboarding';
 import { SoulMatrix, PolicyConfig, DecisionMeta } from './types';
@@ -18,10 +21,10 @@ import {
 import { useApiKey } from './services/apiKeyManager';
 import { useTheme } from './services/themeManager';
 import { getDestinyEngine } from './services/dtoe/destinyEngine';
-import { Smartphone, AppWindow, AlertTriangle, X, Moon, Sun, Settings } from 'lucide-react';
+import { AlertTriangle, X, Moon, Sun, Building2 } from 'lucide-react';
 import { NavigatorOutput } from './prompts/personalNavigator';
 
-// 命运模拟结果类型
+// Destiny simulation result type
 export interface DestinySimulationResult {
   query: string;
   intentType: string;
@@ -30,20 +33,37 @@ export interface DestinySimulationResult {
 }
 
 // Application mode type
-type AppMode = 'keyboard' | 'app';
+type AppMode = 'keyboard' | 'app' | 'platform' | 'trial-join';
+
+function readImeDemoEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('imeDemo') === '1';
+}
+
+function resolveInitialAppMode(imeDemoEnabled: boolean): AppMode {
+  if (typeof window === 'undefined') return 'platform';
+  const params = new URLSearchParams(window.location.search);
+  const explicit = (params.get('surface') || params.get('mode') || '').trim().toLowerCase();
+  if (explicit === 'app') return 'app';
+  if (explicit === 'platform') return 'platform';
+  if (explicit === 'trial-join') return 'trial-join';
+  if (explicit === 'keyboard') return 'keyboard';
+  return 'platform';
+}
 
 const App: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSoulOnboarding, setShowSoulOnboarding] = useState(false);
-  const [appMode, setAppMode] = useState<AppMode>('keyboard');
   const [latestDecision, setLatestDecision] = useState<DecisionMeta | null>(null);
   const [destinyResult, setDestinyResult] = useState<DestinySimulationResult | null>(null);
   const [pendingAgentQuery, setPendingAgentQuery] = useState<string | null>(null);
   const [forceAppTab, setForceAppTab] = useState<string | null>(null);
   const { apiKeyState, setApiKey, setPersist, saveAndValidate, clearApiKey } = useApiKey();
   const { theme, toggleTheme } = useTheme();
+  const [imeDemoEnabled, setImeDemoEnabled] = useState<boolean>(() => readImeDemoEnabled());
+  const [appMode, setAppMode] = useState<AppMode>(() => resolveInitialAppMode(readImeDemoEnabled()));
 
   // Check for onboarding on mount
   useEffect(() => {
@@ -83,22 +103,20 @@ const App: React.FC = () => {
     setLogs(prev => [log, ...prev].slice(0, 50));
   };
 
-  const handleOpenApp = () => {
-    setAppMode('app');
-  };
+  const handleOpenApp = () => setAppMode('app');
 
   const handleOpenKeyboard = () => {
     setAppMode('keyboard');
   };
 
-  // 处理命运模拟结果 - 切换到App模式并显示结果
+  // Handle destiny simulation result: switch to App mode and show result
   const handleDestinyResult = (result: DestinySimulationResult) => {
     setDestinyResult(result);
-    setAppMode('app'); // 自动切换到 App 模式
-    handleLog(`[Destiny] 命运模拟完成，已切换到 Lumi App 查看结果`);
+    setAppMode('app'); // Auto-switch to App mode
+    handleLog('[Destiny] Simulation completed. Switched to Lumi App to view results.');
   };
 
-  // 关闭命运模拟结果
+  // Close destiny simulation result
   const handleCloseDestinyResult = () => {
     setDestinyResult(null);
   };
@@ -116,20 +134,49 @@ const App: React.FC = () => {
     setForceAppTab(null);
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncFromUrl = () => {
+      const nextImeDemoEnabled = readImeDemoEnabled();
+      setImeDemoEnabled(nextImeDemoEnabled);
+      const nextMode = resolveInitialAppMode(nextImeDemoEnabled);
+      const params = new URLSearchParams(window.location.search);
+      const hasExplicitSurface = Boolean((params.get('surface') || params.get('mode') || '').trim());
+      setAppMode((current) => {
+        if (hasExplicitSurface) return nextMode;
+        if (!nextImeDemoEnabled && current === 'keyboard') return 'platform';
+        return current;
+      });
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('surface', appMode);
+    if (appMode !== 'keyboard') {
+      url.searchParams.delete('mode');
+    }
+    window.history.replaceState({}, '', url.toString());
+  }, [appMode]);
+
   const hasValidApiKey = apiKeyState.status === 'valid';
   const isDark = theme === 'dark';
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
       {/* Onboarding Overlay */}
-      {showOnboarding && (
+      {showOnboarding && appMode !== 'platform' && appMode !== 'trial-join' && (
         <OnboardingOverlay
           onComplete={() => setShowOnboarding(false)}
           onSkip={() => setShowOnboarding(false)}
         />
       )}
 
-      {showSoulOnboarding && (
+      {showSoulOnboarding && appMode !== 'platform' && appMode !== 'trial-join' && (
         <DigitalSoulOnboarding
           onComplete={(soulConfig, source) => {
             const bootstrapSource: DigitalSoulBootstrapSource = source === 'import' ? 'import' : 'questionnaire';
@@ -208,47 +255,21 @@ const App: React.FC = () => {
               Lumi.AI
             </h1>
             <span className={`text-[10px] font-medium tracking-wider uppercase ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-              Personal Destiny Engine
+              Agent OS
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Premium Mode Toggle */}
-          <div className={`mode-toggle flex p-1 rounded-xl ${isDark ? 'bg-slate-800/80' : 'bg-gray-100'
-            }`} style={{ backdropFilter: 'blur(8px)' }}>
-            <button
-              onClick={() => setAppMode('keyboard')}
-              className={`px-4 py-2 flex items-center gap-2 text-sm font-medium rounded-lg transition-all duration-300 ${appMode === 'keyboard'
-                ? 'text-white shadow-lg'
-                : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              style={appMode === 'keyboard' ? {
-                background: 'linear-gradient(135deg, #3B82F6 0%, #0EA5E9 100%)',
-                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
-              } : {}}
-              title="Keyboard Mode"
-            >
-              <Smartphone size={16} />
-              <span className="hidden sm:inline">Keyboard</span>
-            </button>
-            <button
-              onClick={() => setAppMode('app')}
-              className={`px-4 py-2 flex items-center gap-2 text-sm font-medium rounded-lg transition-all duration-300 ${appMode === 'app'
-                ? 'text-white shadow-lg'
-                : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              style={appMode === 'app' ? {
-                background: 'linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%)',
-                boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)'
-              } : {}}
-              title="App Mode"
-            >
-              <AppWindow size={16} />
-              <span className="hidden sm:inline">App</span>
-            </button>
+          <div className={`rounded-xl px-4 py-2.5 ${isDark ? 'bg-cyan-950/40 border border-cyan-800/50 text-cyan-100' : 'bg-cyan-50 border border-cyan-200 text-cyan-900'}`}>
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Building2 size={16} />
+              Enterprise Platform
+            </div>
+            <div className={`mt-0.5 text-[11px] ${isDark ? 'text-cyan-200/80' : 'text-cyan-700'}`}>
+              Primary workspace console for enterprise users
+            </div>
           </div>
-
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
@@ -263,6 +284,14 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      <div className={`w-full px-6 py-2 text-center text-xs ${isDark ? 'bg-slate-800/70 text-slate-300' : 'bg-blue-50 text-blue-900'} border-b ${isDark ? 'border-slate-700/60' : 'border-blue-100'}`}>
+        {appMode === 'platform'
+          ? 'Enterprise Platform is the product. Legacy app-style surfaces remain compatibility paths only.'
+          : appMode === 'trial-join'
+            ? 'Trial Join is a standalone B-end entry point for shared enterprise sandbox access.'
+          : 'Legacy app-style and IME demo surfaces remain URL-only compatibility paths and are not the primary enterprise entry.'}
+      </div>
+
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center p-4">
         {appMode === 'keyboard' ? (
@@ -270,7 +299,10 @@ const App: React.FC = () => {
           <div className="flex flex-col items-center w-full max-w-md">
             <div className={`mb-3 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               <p className="text-sm">
-                Long press <span className={`font-bold px-1 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>Space</span> to toggle Agent Mode
+                Long press <span className={`font-bold px-1 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>Space</span> to open the IME agent entry
+              </p>
+              <p className="text-xs mt-1">
+                Web keyboard is one demo surface. The primary product is the Android Agent OS runtime across App and IME.
               </p>
             </div>
 
@@ -288,9 +320,17 @@ const App: React.FC = () => {
             />
 
             <div className={`mt-4 text-xs max-w-xs text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-              <p><strong>Tip:</strong> In Agent Mode (Blue), your text is processed by Lumi AI.</p>
+              <p><strong>Tip:</strong> Agent Mode is one entry into Lumi&apos;s broader execution runtime.</p>
             </div>
           </div>
+        ) : appMode === 'platform' ? (
+          <PlatformErrorBoundary scope="workspace shell" resetKey="platform">
+            <EnterprisePlatformView isDark={isDark} />
+          </PlatformErrorBoundary>
+        ) : appMode === 'trial-join' ? (
+          <PlatformErrorBoundary scope="trial join shell" resetKey="trial-join">
+            <StandaloneTrialJoinView isDark={isDark} />
+          </PlatformErrorBoundary>
         ) : (
           /* App Mode - Data Center & Settings */
           <LumiAppView

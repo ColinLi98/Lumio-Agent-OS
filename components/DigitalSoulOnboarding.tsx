@@ -61,32 +61,32 @@ interface ParsedProfile {
 }
 
 // ============================================================================
-// Constants - 场景化问题设计
+// Constants - Scenario Question Design
 // ============================================================================
 
 const TEXTS = {
     zh: {
-        welcome: '让我更懂你',
-        welcomeSubtitle: '通过几个小场景，建立你的数字分身',
-        methodQuestion: '选择初始化方式',
-        questionnaire: '回答几个场景问题',
-        questionnaireDesc: '像朋友聊天一样，2分钟了解你',
-        import: '从你的文字中学习',
-        importDesc: '导入聊天记录或笔记（本地分析）',
-        back: '上一步',
-        next: '继续',
-        complete: '开始使用',
-        skip: '跳过，慢慢了解我',
-        analyzing: '正在本地分析你的文字风格...',
-        analysisComplete: '分析完成',
-        selectFile: '选择文件',
-        dragDrop: '或拖拽文件到此处',
-        privacyNote: '所有数据仅在本地处理',
-        importError: '分析失败，请重试',
-        confidence: '了解程度',
-        useAnalysis: '就是这样的我',
-        adjustManually: '我来调整',
-        scenario: '想象一下...'
+        welcome: 'Let Me Know You',
+        welcomeSubtitle: 'A few scenarios to build your digital soul',
+        methodQuestion: 'How would you like to start?',
+        questionnaire: 'Answer Some Scenarios',
+        questionnaireDesc: 'Like chatting with a friend, 2 mins',
+        import: 'Learn from Your Writing',
+        importDesc: 'Import chat history or notes (local analysis)',
+        back: 'Back',
+        next: 'Continue',
+        complete: 'Get Started',
+        skip: 'Skip, learn about me later',
+        analyzing: 'Analyzing your writing style locally...',
+        analysisComplete: 'Analysis Complete',
+        selectFile: 'Select File',
+        dragDrop: 'or drag and drop here',
+        privacyNote: 'All data processed locally',
+        importError: 'Analysis failed, please retry',
+        confidence: 'Understanding',
+        useAnalysis: "That's me",
+        adjustManually: 'Let me adjust',
+        scenario: 'Imagine this...'
     },
     en: {
         welcome: 'Let Me Know You',
@@ -113,41 +113,41 @@ const TEXTS = {
     }
 };
 
-// 场景化问题 - 更符合人类思维
+// Scenario questions.
 const SCENARIO_QUESTIONS: ScenarioQuestion[] = [
     {
         id: 'morning_message',
-        scenarioZh: '早上 9 点，你收到一条工作消息，同事问你昨天的方案进展。',
+        scenarioZh: "It's 9 AM. A colleague messages you asking about yesterday's project progress.",
         scenarioEn: "It's 9 AM. A colleague messages you asking about yesterday's project progress.",
-        questionZh: '你会怎么回复？',
+        questionZh: 'How would you reply?',
         questionEn: 'How would you reply?',
         icon: <Coffee size={28} className="text-amber-400" />,
         choices: [
             {
                 id: 'formal',
                 emoji: '📋',
-                textZh: '"您好，目前进度已完成 80%，预计今天下午可以交付初稿。"',
+                textZh: '"Hello, progress is at 80%. I expect to deliver the first draft this afternoon."',
                 textEn: '"Hello, progress is at 80%. I expect to deliver the first draft this afternoon."',
                 implication: { style: 'Professional' }
             },
             {
                 id: 'friendly',
                 emoji: '😊',
-                textZh: '"早啊！昨天搞到挺晚的，大概完成了八成，今天应该能出初稿～"',
+                textZh: '"Morning! Worked late yesterday, about 80% done. Should have a draft today~"',
                 textEn: '"Morning! Worked late yesterday, about 80% done. Should have a draft today~"',
                 implication: { style: 'Friendly' }
             },
             {
                 id: 'concise',
                 emoji: '⚡',
-                textZh: '"80%，今天出稿。"',
+                textZh: '"80%. Draft today."',
                 textEn: '"80%. Draft today."',
                 implication: { style: 'Concise' }
             },
             {
                 id: 'casual',
                 emoji: '😄',
-                textZh: '"哈哈别催啦～今天肯定搞定！"',
+                textZh: '"Haha don\'t rush~ Definitely getting it done today!"',
                 textEn: '"Haha don\'t rush~ Definitely getting it done today!"',
                 implication: { style: 'Casual' }
             }
@@ -155,30 +155,30 @@ const SCENARIO_QUESTIONS: ScenarioQuestion[] = [
     },
     {
         id: 'weekend_plan',
-        scenarioZh: '周末想买一双新跑鞋。你打开购物 App...',
+        scenarioZh: "Weekend. You want to buy new running shoes. You open a shopping app...",
         scenarioEn: "Weekend. You want to buy new running shoes. You open a shopping app...",
-        questionZh: '你的第一反应是？',
+        questionZh: "What's your first instinct?",
         questionEn: "What's your first instinct?",
         icon: <ShoppingBag size={28} className="text-emerald-400" />,
         choices: [
             {
                 id: 'price_first',
                 emoji: '💰',
-                textZh: '先按价格排序，看看有没有性价比高的选择',
+                textZh: 'Sort by price first, look for good value options',
                 textEn: 'Sort by price first, look for good value options',
                 implication: { spending: 'PriceFirst' }
             },
             {
                 id: 'balanced',
                 emoji: '⚖️',
-                textZh: '看看评价和价格，找一个综合最优的',
+                textZh: 'Check reviews and price, find the best overall',
                 textEn: 'Check reviews and price, find the best overall',
                 implication: { spending: 'Balanced' }
             },
             {
                 id: 'quality_first',
                 emoji: '✨',
-                textZh: '直接看热门品牌，跑鞋还是要买好的',
+                textZh: 'Go straight to top brands, running shoes should be quality',
                 textEn: 'Go straight to top brands, running shoes should be quality',
                 implication: { spending: 'QualityFirst' }
             }
@@ -186,30 +186,30 @@ const SCENARIO_QUESTIONS: ScenarioQuestion[] = [
     },
     {
         id: 'friend_request',
-        scenarioZh: '一个陌生人通过朋友圈加你微信，说是朋友的朋友。',
+        scenarioZh: "A stranger adds you on WeChat, saying they're a friend of a friend.",
         scenarioEn: "A stranger adds you on WeChat, saying they're a friend of a friend.",
-        questionZh: '你会怎么做？',
+        questionZh: 'What would you do?',
         questionEn: 'What would you do?',
         icon: <Shield size={28} className="text-blue-400" />,
         choices: [
             {
                 id: 'strict',
                 emoji: '🔒',
-                textZh: '不加。不认识的人一律不通过',
+                textZh: "Don't add. I don't add people I don't know",
                 textEn: "Don't add. I don't add people I don't know",
                 implication: { privacy: 'Strict' }
             },
             {
                 id: 'balanced',
                 emoji: '🤔',
-                textZh: '先问问那个朋友是不是真的认识，再决定',
+                textZh: 'Ask my friend first if they really know them, then decide',
                 textEn: 'Ask my friend first if they really know them, then decide',
                 implication: { privacy: 'Balanced' }
             },
             {
                 id: 'open',
                 emoji: '👋',
-                textZh: '加呗，多个朋友多条路',
+                textZh: 'Sure, more friends more possibilities',
                 textEn: 'Sure, more friends more possibilities',
                 implication: { privacy: 'Open' }
             }
@@ -217,30 +217,30 @@ const SCENARIO_QUESTIONS: ScenarioQuestion[] = [
     },
     {
         id: 'career_choice',
-        scenarioZh: '有两个工作机会：A 是稳定的大公司，B 是有潜力的创业公司。',
+        scenarioZh: 'Two job offers: A is a stable big company, B is a promising startup.',
         scenarioEn: 'Two job offers: A is a stable big company, B is a promising startup.',
-        questionZh: '你倾向于？',
+        questionZh: 'Which would you lean towards?',
         questionEn: 'Which would you lean towards?',
         icon: <Briefcase size={28} className="text-purple-400" />,
         choices: [
             {
                 id: 'conservative',
                 emoji: '🏢',
-                textZh: '选 A，稳定是第一位的，风险太大承受不起',
+                textZh: "Choose A. Stability comes first, can't afford big risks",
                 textEn: "Choose A. Stability comes first, can't afford big risks",
                 implication: { risk: 'Low' }
             },
             {
                 id: 'balanced',
                 emoji: '🤝',
-                textZh: '要看具体条件，两边都有可能',
+                textZh: 'Depends on the details, either could work',
                 textEn: 'Depends on the details, either could work',
                 implication: { risk: 'Medium' }
             },
             {
                 id: 'adventurous',
                 emoji: '🚀',
-                textZh: '选 B，年轻就该拼一把，大不了重来',
+                textZh: 'Choose B. Should take risks while young, can always start over',
                 textEn: 'Choose B. Should take risks while young, can always start over',
                 implication: { risk: 'High' }
             }
@@ -248,30 +248,30 @@ const SCENARIO_QUESTIONS: ScenarioQuestion[] = [
     },
     {
         id: 'late_night',
-        scenarioZh: '晚上 11 点，明天有重要的事，但你今天的任务还没完成。',
+        scenarioZh: "It's 11 PM. You have something important tomorrow, but today's task isn't done.",
         scenarioEn: "It's 11 PM. You have something important tomorrow, but today's task isn't done.",
-        questionZh: '你会怎么做？',
+        questionZh: 'What would you do?',
         questionEn: 'What would you do?',
         icon: <Clock size={28} className="text-indigo-400" />,
         choices: [
             {
                 id: 'finish',
                 emoji: '💪',
-                textZh: '熬夜也要完成，欠债的感觉太难受',
+                textZh: 'Stay up and finish. Hate leaving things incomplete',
                 textEn: 'Stay up and finish. Hate leaving things incomplete',
                 implication: { style: 'Professional', risk: 'Low' }
             },
             {
                 id: 'prioritize',
                 emoji: '🧠',
-                textZh: '先睡，明天的事更重要，今天的可以调整',
+                textZh: "Sleep first. Tomorrow's more important, today's can be adjusted",
                 textEn: "Sleep first. Tomorrow's more important, today's can be adjusted",
                 implication: { style: 'Concise', risk: 'Medium' }
             },
             {
                 id: 'relax',
                 emoji: '😌',
-                textZh: '先放松一下，状态好了再决定',
+                textZh: 'Relax a bit first, decide when in better state',
                 textEn: 'Relax a bit first, decide when in better state',
                 implication: { style: 'Casual', risk: 'Medium' }
             }
@@ -282,38 +282,38 @@ const SCENARIO_QUESTIONS: ScenarioQuestion[] = [
 const IMPORTABLE_DATA: ImportableData[] = [
     {
         type: 'wechat',
-        name: '微信聊天记录',
+        name: 'WeChat Chat History',
         nameEn: 'WeChat Chat History',
         icon: '💬',
         acceptTypes: '.txt,.html,.json',
-        description: '导出的聊天记录文件',
+        description: 'Exported chat history file',
         descriptionEn: 'Exported chat history file'
     },
     {
         type: 'notes',
-        name: '备忘录/笔记',
+        name: 'Notes/Memos',
         nameEn: 'Notes/Memos',
         icon: '📝',
         acceptTypes: '.txt,.md,.json',
-        description: '你的日常笔记',
+        description: 'Your daily notes',
         descriptionEn: 'Your daily notes'
     },
     {
         type: 'journal',
-        name: '日记/随笔',
+        name: 'Journal/Diary',
         nameEn: 'Journal/Diary',
         icon: '📔',
         acceptTypes: '.txt,.md,.json',
-        description: '个人日记或随笔',
+        description: 'Personal journal entries',
         descriptionEn: 'Personal journal entries'
     },
     {
         type: 'custom',
-        name: '其他文本',
+        name: 'Other Text',
         nameEn: 'Other Text',
         icon: '📄',
         acceptTypes: '.txt,.md,.csv,.json',
-        description: '任何包含你写作内容的文件',
+        description: 'Any file with your writing',
         descriptionEn: 'Any file with your writing'
     }
 ];
@@ -336,24 +336,24 @@ function analyzeTextLocally(text: string): ParsedProfile {
     const emojiMatches = text.match(emojiRegex) || [];
     const emojiDensity = emojiMatches.length / (text.length / 100);
 
-    const formalWords = ['您', '贵', '敬请', '谨此', 'Dear', 'Regards', 'Sincerely', '感谢', '请'];
-    const casualWords = ['哈哈', '嘻嘻', '呀', '啦', '嘛', '哦', 'lol', 'haha', '666', '牛', '绝了'];
+    const formalWords = ['dear', 'regards', 'sincerely', 'thank you', 'please'];
+    const casualWords = ['haha', 'lol', 'bro', 'omg', 'gonna', 'wanna', 'cool'];
     
     const formalCount = formalWords.reduce((count, word) => 
         count + (text.match(new RegExp(word, 'gi')) || []).length, 0);
     const casualCount = casualWords.reduce((count, word) => 
         count + (text.match(new RegExp(word, 'gi')) || []).length, 0);
 
-    const priceWords = ['便宜', '优惠', '打折', '省钱', '性价比', 'cheap', 'discount', 'budget', '划算'];
-    const qualityWords = ['品质', '高端', '奢侈', '最好', '顶级', 'premium', 'luxury', 'best', '体验'];
+    const priceWords = ['cheap', 'discount', 'budget', 'value', 'deal', 'save money'];
+    const qualityWords = ['premium', 'luxury', 'best', 'quality', 'high-end', 'experience'];
     
     const priceCount = priceWords.reduce((count, word) => 
         count + (text.match(new RegExp(word, 'gi')) || []).length, 0);
     const qualityCount = qualityWords.reduce((count, word) => 
         count + (text.match(new RegExp(word, 'gi')) || []).length, 0);
 
-    const privacyWords = ['隐私', '安全', '不想', '保密', 'privacy', 'secure', '不要分享'];
-    const openWords = ['分享', '推荐', '大家', '公开', 'share', 'recommend', 'everyone'];
+    const privacyWords = ['privacy', 'secure', 'private', 'confidential', 'do not share'];
+    const openWords = ['share', 'recommend', 'everyone', 'public', 'open'];
     
     const privacyCount = privacyWords.reduce((count, word) => 
         count + (text.match(new RegExp(word, 'gi')) || []).length, 0);
@@ -515,7 +515,7 @@ const DataImportPanel: React.FC<DataImportPanelProps> = ({ lang, onAnalysisCompl
             const profile = analyzeTextLocally(text);
             
             if (profile.confidence < 20) {
-                setError(lang === 'zh' ? '文本内容太少，请提供更多数据' : 'Not enough text content');
+                setError('Not enough text content');
                 setIsAnalyzing(false);
                 return;
             }
@@ -557,7 +557,7 @@ const DataImportPanel: React.FC<DataImportPanelProps> = ({ lang, onAnalysisCompl
             {!selectedType ? (
                 <>
                     <h3 className="text-lg font-medium text-slate-300 text-center mb-4">
-                        {lang === 'zh' ? '选择数据类型' : 'Select Data Type'}
+                        Select Data Type
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
                         {IMPORTABLE_DATA.map(data => (
@@ -584,7 +584,7 @@ const DataImportPanel: React.FC<DataImportPanelProps> = ({ lang, onAnalysisCompl
                         className="flex items-center gap-1 text-slate-400 hover:text-white text-sm mb-4"
                     >
                         <ChevronLeft size={16} />
-                        {lang === 'zh' ? '返回选择' : 'Back'}
+                        Back
                     </button>
                     
                     <div
@@ -650,20 +650,20 @@ const AnalysisResultPanel: React.FC<AnalysisResultPanelProps> = ({ lang, profile
     
     const labels = {
         style: {
-            Professional: { zh: '专业严谨', en: 'Professional', emoji: '👔' },
-            Friendly: { zh: '亲切温暖', en: 'Friendly', emoji: '😊' },
-            Concise: { zh: '简洁高效', en: 'Concise', emoji: '⚡' },
-            Casual: { zh: '轻松随意', en: 'Casual', emoji: '😄' }
+            Professional: { zh: 'Professional', en: 'Professional', emoji: '👔' },
+            Friendly: { zh: 'Friendly', en: 'Friendly', emoji: '😊' },
+            Concise: { zh: 'Concise', en: 'Concise', emoji: '⚡' },
+            Casual: { zh: 'Casual', en: 'Casual', emoji: '😄' }
         },
         spending: {
-            PriceFirst: { zh: '精打细算', en: 'Value-focused', emoji: '💰' },
-            Balanced: { zh: '理性消费', en: 'Balanced', emoji: '⚖️' },
-            QualityFirst: { zh: '品质至上', en: 'Quality-first', emoji: '✨' }
+            PriceFirst: { zh: 'Value-focused', en: 'Value-focused', emoji: '💰' },
+            Balanced: { zh: 'Balanced', en: 'Balanced', emoji: '⚖️' },
+            QualityFirst: { zh: 'Quality-first', en: 'Quality-first', emoji: '✨' }
         },
         privacy: {
-            Strict: { zh: '注重隐私', en: 'Privacy-focused', emoji: '🔒' },
-            Balanced: { zh: '适度开放', en: 'Balanced', emoji: '🤝' },
-            Open: { zh: '乐于分享', en: 'Open', emoji: '👋' }
+            Strict: { zh: 'Privacy-focused', en: 'Privacy-focused', emoji: '🔒' },
+            Balanced: { zh: 'Balanced', en: 'Balanced', emoji: '🤝' },
+            Open: { zh: 'Open', en: 'Open', emoji: '👋' }
         }
     };
 
@@ -702,24 +702,24 @@ const AnalysisResultPanel: React.FC<AnalysisResultPanelProps> = ({ lang, profile
             
             <div className="space-y-3">
                 <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/50">
-                    <div className="text-slate-400 text-xs mb-1">{lang === 'zh' ? '沟通风格' : 'Communication'}</div>
+                    <div className="text-slate-400 text-xs mb-1">Communication</div>
                     <div className="flex items-center gap-2">
                         <span className="text-xl">{styleLabel.emoji}</span>
-                        <span className="text-white font-medium">{lang === 'zh' ? styleLabel.zh : styleLabel.en}</span>
+                        <span className="text-white font-medium">{styleLabel.en}</span>
                     </div>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/50">
-                    <div className="text-slate-400 text-xs mb-1">{lang === 'zh' ? '消费偏好' : 'Spending'}</div>
+                    <div className="text-slate-400 text-xs mb-1">Spending</div>
                     <div className="flex items-center gap-2">
                         <span className="text-xl">{spendingLabel.emoji}</span>
-                        <span className="text-white font-medium">{lang === 'zh' ? spendingLabel.zh : spendingLabel.en}</span>
+                        <span className="text-white font-medium">{spendingLabel.en}</span>
                     </div>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/50">
-                    <div className="text-slate-400 text-xs mb-1">{lang === 'zh' ? '隐私态度' : 'Privacy'}</div>
+                    <div className="text-slate-400 text-xs mb-1">Privacy</div>
                     <div className="flex items-center gap-2">
                         <span className="text-xl">{privacyLabel.emoji}</span>
-                        <span className="text-white font-medium">{lang === 'zh' ? privacyLabel.zh : privacyLabel.en}</span>
+                        <span className="text-white font-medium">{privacyLabel.en}</span>
                     </div>
                 </div>
             </div>
@@ -741,7 +741,7 @@ const AnalysisResultPanel: React.FC<AnalysisResultPanelProps> = ({ lang, profile
 // ============================================================================
 
 export const DigitalSoulOnboarding: React.FC<DigitalSoulOnboardingProps> = ({ onComplete, onSkip }) => {
-    const [lang, setLang] = useState<Language>('zh');
+    const [lang] = useState<Language>('en');
     const [method, setMethod] = useState<InitMethod>(null);
     const [step, setStep] = useState(0);
     const [choices, setChoices] = useState<Record<string, string>>({});
@@ -842,14 +842,11 @@ export const DigitalSoulOnboarding: React.FC<DigitalSoulOnboardingProps> = ({ on
             </div>
 
             <div className={`relative w-[500px] max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900/95 via-indigo-950/95 to-slate-900/95 rounded-3xl p-8 shadow-2xl border border-indigo-500/20 transition-all duration-300 ${isAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
-                {/* Language toggle */}
-                <button
-                    onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
-                    className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-slate-800/60 text-xs font-medium text-slate-300 hover:bg-slate-700/60 transition-colors flex items-center gap-1.5"
-                >
+                {/* Language indicator */}
+                <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-slate-800/60 text-xs font-medium text-slate-300 flex items-center gap-1.5">
                     <Globe size={14} />
-                    {lang === 'zh' ? 'EN' : '中文'}
-                </button>
+                    EN
+                </div>
 
                 {/* Close button */}
                 <button

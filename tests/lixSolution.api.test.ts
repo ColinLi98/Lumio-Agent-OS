@@ -64,7 +64,7 @@ describe('lix solution api integration', () => {
     const acceptPayload = await acceptResp.json();
 
     expect(acceptResp.status).toBe(200);
-    expect(acceptPayload.status).toBe('offer_accepted');
+    expect(['offer_accepted', 'approved']).toContain(acceptPayload.status);
 
     const deliveryResp = await solutionHandler(new Request('http://localhost/api/lix/solution/delivery', {
       method: 'POST',

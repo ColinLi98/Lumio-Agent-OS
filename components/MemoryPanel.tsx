@@ -15,8 +15,8 @@ interface MemoryPanelProps {
 }
 
 /**
- * Memory Panel - 本地知识图谱面板
- * 展示用户保存的记忆，分类统计，支持导出
+ * Memory Panel - Local memory graph panel
+ * Shows saved memories, category stats, and export actions
  */
 export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
     const [memories, setMemories] = useState<MemoryItem[]>([]);
@@ -43,7 +43,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
     }, []);
 
     const handleClear = () => {
-        if (confirm('确定要清空所有记忆吗？此操作不可恢复。')) {
+        if (confirm('Clear all memories? This action cannot be undone.')) {
             localStorage.removeItem('lumi_memory_graph');
             localStorage.removeItem('lumi_calendar_events');
             localStorage.removeItem('lumi_reminders');
@@ -81,8 +81,8 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
     // Export to Markdown
     const handleExportMarkdown = () => {
         const typeLabels: Record<string, string> = {
-            event: '📅 日程', task: '✅ 待办', note: '📝 笔记',
-            link: '🔗 链接', contact: '👤 联系人', interest: '💡 兴趣'
+            event: '📅 Event', task: '✅ Task', note: '📝 Note',
+            link: '🔗 Link', contact: '👤 Contact', interest: '💡 Interest'
         };
 
         const grouped = memories.reduce((acc, m) => {
@@ -91,17 +91,17 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
             return acc;
         }, {} as Record<string, MemoryItem[]>);
 
-        let md = `# Lumi 知识图谱导出\n\n`;
-        md += `导出时间: ${new Date().toLocaleString()}\n`;
-        md += `共 ${memories.length} 条记忆\n\n---\n\n`;
+        let md = `# Lumi Memory Graph Export\n\n`;
+        md += `Exported at: ${new Date().toLocaleString()}\n`;
+        md += `Total memories: ${memories.length}\n\n---\n\n`;
 
         for (const [type, items] of Object.entries(grouped)) {
             md += `## ${typeLabels[type] || type}\n\n`;
             for (const item of items) {
                 md += `### ${item.title}\n`;
-                md += `- 内容: ${item.content}\n`;
-                md += `- 来源: ${item.source}\n`;
-                md += `- 时间: ${new Date(item.createdAt).toLocaleString()}\n\n`;
+                md += `- Content: ${item.content}\n`;
+                md += `- Source: ${item.source}\n`;
+                md += `- Time: ${new Date(item.createdAt).toLocaleString()}\n\n`;
             }
         }
 
@@ -117,12 +117,12 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
     };
 
     const typeConfig: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-        event: { icon: <Calendar size={14} />, label: '日程', color: 'bg-orange-500' },
-        task: { icon: <CheckSquare size={14} />, label: '待办', color: 'bg-green-500' },
-        note: { icon: <FileText size={14} />, label: '笔记', color: 'bg-blue-500' },
-        link: { icon: <Link size={14} />, label: '链接', color: 'bg-purple-500' },
-        contact: { icon: <User size={14} />, label: '联系人', color: 'bg-pink-500' },
-        interest: { icon: <Sparkles size={14} />, label: '兴趣', color: 'bg-yellow-500' }
+        event: { icon: <Calendar size={14} />, label: 'Event', color: 'bg-orange-500' },
+        task: { icon: <CheckSquare size={14} />, label: 'Task', color: 'bg-green-500' },
+        note: { icon: <FileText size={14} />, label: 'Note', color: 'bg-blue-500' },
+        link: { icon: <Link size={14} />, label: 'Link', color: 'bg-purple-500' },
+        contact: { icon: <User size={14} />, label: 'Contact', color: 'bg-pink-500' },
+        interest: { icon: <Sparkles size={14} />, label: 'Interest', color: 'bg-yellow-500' }
     };
 
     // Count by type
@@ -145,14 +145,14 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Brain size={18} className="text-cyan-400" />
-                    <span className="font-semibold text-white">知识图谱</span>
-                    <span className="text-xs text-slate-400">({memories.length} 条记忆)</span>
+                    <span className="font-semibold text-white">Memory Graph</span>
+                    <span className="text-xs text-slate-400">({memories.length} memories)</span>
                 </div>
                 <div className="flex gap-2 relative">
                     <button
                         onClick={loadMemories}
                         className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
-                        title="刷新"
+                        title="Refresh"
                     >
                         <RefreshCw size={14} />
                     </button>
@@ -161,7 +161,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
                             <button
                                 onClick={() => setShowExportMenu(!showExportMenu)}
                                 className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded transition-colors"
-                                title="导出数据"
+                                title="Export data"
                             >
                                 <Download size={14} />
                             </button>
@@ -184,7 +184,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
                             <button
                                 onClick={handleClear}
                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                title="清空全部"
+                                title="Clear all"
                             >
                                 <Trash2 size={14} />
                             </button>
@@ -203,7 +203,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                         }`}
                 >
-                    全部 ({memories.length})
+                    All ({memories.length})
                 </button>
                 {Object.entries(typeConfig).map(([type, config]) => {
                     const count = typeCounts[type] || 0;
@@ -230,8 +230,8 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
                 {sortedMemories.length === 0 ? (
                     <div className="text-center py-6 text-slate-500">
                         <Brain size={24} className="mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">暂无记忆</p>
-                        <p className="text-xs mt-1">使用「帮我记」保存信息</p>
+                        <p className="text-sm">No memories yet</p>
+                        <p className="text-xs mt-1">Use "Help me remember" to save information</p>
                     </div>
                 ) : (
                     sortedMemories.slice(0, 10).map(memory => {
@@ -266,7 +266,7 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
                 )}
                 {sortedMemories.length > 10 && (
                     <div className="text-center text-xs text-slate-500 py-1">
-                        还有 {sortedMemories.length - 10} 条记忆...
+                        {sortedMemories.length - 10} more memories...
                     </div>
                 )}
             </div>
@@ -275,8 +275,8 @@ export const MemoryPanel: React.FC<MemoryPanelProps> = ({ onLog }) => {
             {memories.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-slate-700">
                     <div className="flex items-center justify-between text-xs text-slate-400">
-                        <span>本地存储</span>
-                        <span>数据仅保存在您的设备上</span>
+                        <span>Local storage</span>
+                        <span>Data stays on your device only</span>
                     </div>
                 </div>
             )}

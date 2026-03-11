@@ -28,7 +28,7 @@ type TravelPreferenceSnapshot = {
 };
 
 function normalizeDestinationLabel(destination?: string): string {
-    if (!destination) return '目的地';
+    if (!destination) return 'destination';
     const cleaned = destination.replace(/^(中国|中国大陆|中国地区)\s*/g, '').trim();
     return cleaned || destination;
 }
@@ -181,16 +181,16 @@ function scoreFlights(
             + timeScore * weights.time;
 
         const matchReasons: string[] = [];
-        if (priceScore >= 80) matchReasons.push('价格优势明显');
-        if (stopScore >= 100) matchReasons.push('直飞更省心');
-        if (durationScore >= 80) matchReasons.push('航程更短');
-        if (efficiencyWeight >= 0.7 && durationScore >= 70) matchReasons.push('效率优先匹配');
+        if (priceScore >= 80) matchReasons.push('Strong price advantage');
+        if (stopScore >= 100) matchReasons.push('Nonstop is more convenient');
+        if (durationScore >= 80) matchReasons.push('Shorter travel time');
+        if (efficiencyWeight >= 0.7 && durationScore >= 70) matchReasons.push('Aligned with efficiency-first preference');
 
         if (departureHour !== null) {
             if (preferences.chronotype === 'night_owl' && departureHour >= 12) {
-                matchReasons.push('出发时间更符合晚睡习惯');
+                matchReasons.push('Departure time fits a night-owl schedule');
             } else if (preferences.chronotype === 'morning_person' && departureHour <= 10) {
-                matchReasons.push('出发时间更符合早起习惯');
+                matchReasons.push('Departure time fits an early-riser schedule');
             }
         }
 
@@ -247,15 +247,15 @@ function scoreHotels(hotels: any[], preferences: TravelPreferenceSnapshot): any[
         let matchScore = priceScore * priceWeight + qualityScore * qualityWeight;
         const matchReasons: string[] = [];
 
-        if (priceScore >= 80 && preferences.priceVsQuality < 0) matchReasons.push('更符合预算');
-        if (qualityScore >= 80 && preferences.priceVsQuality >= 0) matchReasons.push('口碑与星级优秀');
+        if (priceScore >= 80 && preferences.priceVsQuality < 0) matchReasons.push('Better budget fit');
+        if (qualityScore >= 80 && preferences.priceVsQuality >= 0) matchReasons.push('Strong rating and star quality');
         if (hotel.locationType && preferredLocation !== 'balanced' && hotel.locationType === preferredLocation) {
             matchScore += 6;
-            matchReasons.push('位置偏好匹配');
+            matchReasons.push('Matches location preference');
         }
         if (hotel.amenities?.some((a: string) => /温泉|SPA|健身房|管家/.test(a))) {
             matchScore += 4;
-            matchReasons.push('设施品质突出');
+            matchReasons.push('High-quality amenities');
         }
 
         matchScore = Math.max(0, Math.min(100, Math.round(matchScore)));
@@ -277,24 +277,24 @@ function scoreRestaurants(restaurants: any[], preferences: TravelPreferenceSnaps
 
         if (preferences.cuisinePreferences.some(pref => cuisine.includes(pref))) {
             matchScore += 20;
-            matchReasons.push(`符合口味偏好：${preferences.cuisinePreferences[0]}`);
+            matchReasons.push(`Cuisine preference match: ${preferences.cuisinePreferences[0]}`);
         }
 
         if (priceLevel === preferences.diningPriceRange) {
             matchScore += 15;
-            matchReasons.push('价格区间匹配');
+            matchReasons.push('Price range match');
         } else if (preferences.diningPriceRange === 'budget' && priceLevel !== 'budget') {
             matchScore -= 8;
         }
 
         if (restaurant.atmosphere && preferences.atmospherePreference.some(pref => restaurant.atmosphere.includes(pref))) {
             matchScore += 8;
-            matchReasons.push('氛围贴合偏好');
+            matchReasons.push('Atmosphere preference match');
         }
 
         if (restaurant.rating >= 4.7) {
             matchScore += 10;
-            matchReasons.push('高评分口碑');
+            matchReasons.push('High user rating');
         }
 
         matchScore = Math.max(0, Math.min(100, Math.round(matchScore)));
@@ -309,8 +309,8 @@ function scoreRestaurants(restaurants: any[], preferences: TravelPreferenceSnaps
 
 function parseRecommendHours(recommendTime?: string): number | null {
     if (!recommendTime) return null;
-    if (recommendTime.includes('半天')) return 4;
-    const match = recommendTime.match(/(\d+)(?:-(\d+))?小时/);
+    if (recommendTime.includes('半天') || /half day/i.test(recommendTime)) return 4;
+    const match = recommendTime.match(/(\d+)(?:-(\d+))?\s*(小时|hours?)/i);
     if (!match) return null;
     const start = parseInt(match[1], 10);
     const end = match[2] ? parseInt(match[2], 10) : start;
@@ -330,13 +330,13 @@ function scoreAttractions(attractions: any[], preferences: TravelPreferenceSnaps
 
         if (stylePreference === 'mixed' || attraction.style === stylePreference) {
             matchScore += 15;
-            matchReasons.push(stylePreference === 'offbeat' ? '偏好小众体验' : '热门选择');
+            matchReasons.push(stylePreference === 'offbeat' ? 'Offbeat exploration match' : 'Popular destination fit');
         }
 
         if (prefersLowCrowd) {
-            if (attraction.crowdLevel === '低') {
+            if (/^(low|低)$/i.test(String(attraction.crowdLevel || ''))) {
                 matchScore += 8;
-                matchReasons.push('人流舒适');
+                matchReasons.push('Lower crowd level');
             } else {
                 matchScore -= 6;
             }
@@ -346,17 +346,17 @@ function scoreAttractions(attractions: any[], preferences: TravelPreferenceSnaps
         if (hours !== null) {
             if (prefersPacked && hours <= 3) {
                 matchScore += 6;
-                matchReasons.push('节奏紧凑');
+                matchReasons.push('Fits a compact schedule');
             } else if (!prefersPacked && hours >= 3) {
                 matchScore += 6;
-                matchReasons.push('节奏从容');
+                matchReasons.push('Fits a relaxed schedule');
             }
         }
 
-        if (weatherHint && /雨|雪|雷暴/.test(weatherHint)) {
+        if (weatherHint && /(rain|snow|thunderstorm|雨|雪|雷暴)/i.test(weatherHint)) {
             if (attraction.indoor) {
                 matchScore += 6;
-                matchReasons.push('天气不佳时更合适');
+                matchReasons.push('Better fit for poor weather');
             } else {
                 matchScore -= 6;
             }
@@ -385,23 +385,23 @@ function scoreTransportOptions(options: any[], preferences: TravelPreferenceSnap
         if (/打车|网约车|Taxi|Express/i.test(mode)) {
             if (prefersComfort) {
                 score += 20;
-                reasons.push('舒适省心');
+                reasons.push('Comfort-first option');
             }
         }
         if (/地铁|轻轨|地铁|Subway/i.test(mode)) {
             if (prefersEfficiency) {
                 score += 15;
-                reasons.push('时间稳定');
+                reasons.push('More predictable travel time');
             }
             if (prefersBudget) {
                 score += 8;
-                reasons.push('预算友好');
+                reasons.push('Budget-friendly');
             }
         }
         if (/巴士|大巴|Bus/i.test(mode)) {
             if (prefersBudget) {
                 score += 18;
-                reasons.push('最省钱');
+                reasons.push('Lowest cost option');
             }
         }
 
@@ -437,7 +437,7 @@ const flightBookingAgent: SpecializedAgentImpl = {
         if (!task.params.destination) {
             return {
                 success: false,
-                data: { error: '缺少目的地' },
+                data: { error: 'Missing destination' },
                 suggestions: [],
                 appliedFilters: task.appliedPreferences,
                 source: 'Input'
@@ -446,7 +446,7 @@ const flightBookingAgent: SpecializedAgentImpl = {
         if (!task.params.origin) {
             return {
                 success: false,
-                data: { error: '缺少出发地' },
+                data: { error: 'Missing origin' },
                 suggestions: [],
                 appliedFilters: task.appliedPreferences,
                 source: 'Input'
@@ -481,7 +481,9 @@ const flightBookingAgent: SpecializedAgentImpl = {
             destination,
             departureDate: departureDateStr,
             travelClass: flightClass as 'economy' | 'business' | 'first',
-            currency: /[\u4e00-\u9fa5]/.test(`${origin}${destination}`) ? 'CNY' : 'USD',
+            currency: typeof task.params.currency === 'string' && task.params.currency.trim()
+                ? task.params.currency.trim().toUpperCase()
+                : (/[\u4e00-\u9fa5]/.test(`${origin}${destination}`) ? 'CNY' : 'USD'),
             departureTimePreference,
             timePriorityMode,
         };
@@ -518,7 +520,7 @@ const flightBookingAgent: SpecializedAgentImpl = {
                         origin,
                         destination,
                         departureDate: departureDateStr,
-                        error: searchResult.error || '未获取到可验证的实时航班证据',
+                        error: searchResult.error || 'No verifiable real-time flight evidence was found',
                         realtimeRequired: true,
                         realtimeStatus: searchResult.realtime || {
                             verified: false,
@@ -526,10 +528,10 @@ const flightBookingAgent: SpecializedAgentImpl = {
                             coverage_scope: 'none',
                         },
                         priceComparisonLinks,
-                        nextAction: '请稍后重试实时搜索，或通过多平台入口手动筛选并比价。'
+                        nextAction: 'Retry real-time search later, or compare manually via multi-platform links.'
                     },
                     suggestions: [],
-                    personalizedNote: `⚠️ 当前未获取到 ${origin} → ${destination} 的可验证实时票价，已返回多平台入口用于人工复核`,
+                    personalizedNote: `⚠️ No verifiable real-time fare found for ${origin} → ${destination}. Multi-platform links are provided for manual verification.`,
                     appliedFilters: task.appliedPreferences,
                     source: 'NoRealtimeEvidence'
                 };
@@ -585,8 +587,8 @@ const flightBookingAgent: SpecializedAgentImpl = {
             const dataSourceLabel = realtimeProvider === 'multi_aggregated'
                 ? 'Realtime Multi-source (SerpApi + LiveSearch)'
                 : realtimeProvider === 'live_search_grounding'
-                    ? 'Live Search Grounding (实时)'
-                    : 'SerpApi (Google Flights, 实时)';
+                    ? 'Live Search Grounding (Realtime)'
+                    : 'SerpApi (Google Flights, Realtime)';
 
             return {
                 success: true,
@@ -613,15 +615,15 @@ const flightBookingAgent: SpecializedAgentImpl = {
                     },
                     globalOptimalReason: bestOption
                         ? (searchResult.realtime?.coverage_scope === 'multi_provider'
-                            ? `基于多平台实时数据综合评分最高（匹配度 ${bestOption.matchScore || 0}%）`
-                            : `当前为单一实时源的最优候选（匹配度 ${bestOption.matchScore || 0}%），建议结合多平台入口复核全局最优`)
-                        : '暂无可排序航班，建议使用外部平台继续比价',
+                            ? `Top-ranked by combined real-time multi-platform signals (match score ${bestOption.matchScore || 0}%)`
+                            : `Best candidate from a single real-time source (match score ${bestOption.matchScore || 0}%). Use multi-platform links to validate global optimum.`)
+                        : 'No ranked flights available. Continue comparison through external platforms.',
                     searchError: searchResult.error,
                     dataSource: dataSourceLabel,
                     realtimeStatus: searchResult.realtime
                 },
                 suggestions: scoredFlights,
-                personalizedNote: `✅ 实时搜索 ${origin} → ${destination} (${departureDateStr})，已按偏好排序`,
+                personalizedNote: `✅ Real-time results for ${origin} → ${destination} (${departureDateStr}) have been ranked by your preferences.`,
                 appliedFilters: task.appliedPreferences,
                 source: dataSourceLabel
             };
@@ -647,7 +649,7 @@ const flightBookingAgent: SpecializedAgentImpl = {
 const hotelBookingAgent: SpecializedAgentImpl = {
     name: 'hotel_booking',
     execute: async (task, apiKey) => {
-        const { searchHotels } = await import('./hotelSearchService');
+        const { searchHotels } = await import('./hotelSearchService.js');
         const destination = normalizeDestinationLabel(task.params.destination);
         const preferences = getTravelPreferences();
         const preferredStars = preferences.priceVsQuality > 30
@@ -697,7 +699,7 @@ const hotelBookingAgent: SpecializedAgentImpl = {
                     comparisonLinks: searchResult.comparisonLinks,
                 },
                 suggestions: [],
-                personalizedNote: searchResult.error || '未找到实时酒店数据，请通过以下链接手动搜索',
+                personalizedNote: searchResult.error || 'No real-time hotel results were found. Please use the links below for manual search.',
                 appliedFilters: task.appliedPreferences,
             };
         }
@@ -720,7 +722,7 @@ const hotelBookingAgent: SpecializedAgentImpl = {
                 realtime: searchResult.realtime,
             },
             suggestions: sorted,
-            personalizedNote: `已从 Google Hotels 获取 ${sorted.length} 家实时酒店数据，筛选${starLevel.join('/')}星级，优先${location === 'city_center' ? '市中心' : '安静'}位置`,
+            personalizedNote: `Fetched ${sorted.length} real-time hotels from Google Hotels, filtered to ${starLevel.join('/')} stars with priority on ${location === 'city_center' ? 'city center' : 'quieter'} areas.`,
             appliedFilters: task.appliedPreferences,
         };
     }
@@ -735,267 +737,267 @@ const restaurantAgent: SpecializedAgentImpl = {
     execute: async (task, apiKey) => {
         const destination = normalizeDestinationLabel(task.params.destination);
         const preferences = getTravelPreferences();
-        const cuisines = task.params.cuisines || preferences.cuisinePreferences || ['当地菜'];
+        const cuisines = task.params.cuisines || preferences.cuisinePreferences || ['Local cuisine'];
         const priceLevel = task.params.priceLevel || preferences.diningPriceRange || 'mid';
 
         const restaurants = isTokyoDestination(destination)
             ? [
                 {
                     id: 'rest_1',
-                    name: '鮨 さいとう',
-                    type: '寿司 · 米其林三星',
-                    cuisine: '寿司',
-                    atmosphere: ['安静', '精致', '吧台体验'],
+                    name: 'Sushi Saito',
+                    type: 'Sushi · Michelin 3-Star',
+                    cuisine: 'Sushi',
+                    atmosphere: ['Quiet', 'Refined', 'Counter experience'],
                     rating: 4.9,
                     reviewCount: 1280,
-                    priceRange: '¥50,000+/人',
-                    address: '东京都港区六本木',
-                    highlights: ['米其林三星', '座位稀少', '食材讲究'],
-                    signature: ['大腹握', '海胆手卷', '赤身炙烧'],
+                    priceRange: '¥50,000+ / person',
+                    address: 'Roppongi, Minato City, Tokyo',
+                    highlights: ['Michelin 3-star', 'Limited seats', 'Premium ingredients'],
+                    signature: ['Otoro nigiri', 'Uni hand roll', 'Seared lean tuna'],
                     photos: [
                         'https://images.unsplash.com/photo-1541542684-4a9c1f8f1a62?auto=format&fit=crop&w=900&q=60',
                         'https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=900&q=60'
                     ],
                     menu: [
-                        { name: 'Omakase 套餐', price: '¥50,000+', note: '主厨定制' },
-                        { name: '季节刺身拼盘', price: '¥18,000', note: '视当日食材' }
+                        { name: 'Omakase course', price: '¥50,000+', note: 'Chef-curated' },
+                        { name: 'Seasonal sashimi platter', price: '¥18,000', note: 'Varies by daily catch' }
                     ],
                     reviewHighlights: [
-                        { author: 'Takumi', rating: 4.9, text: '每一贯的细节都很讲究，体验感拉满。' },
-                        { author: 'Lynn', rating: 4.8, text: '食材新鲜度极高，服务节奏舒适。' }
+                        { author: 'Takumi', rating: 4.9, text: 'Every piece is meticulously crafted and the experience is exceptional.' },
+                        { author: 'Lynn', rating: 4.8, text: 'Top-tier freshness and very comfortable service pacing.' }
                     ],
                     hours: '17:00-22:00',
-                    reservation: '需提前3个月预约',
+                    reservation: 'Reserve about 3 months in advance',
                 },
                 {
                     id: 'rest_2',
-                    name: '一兰拉面 涩谷店',
-                    type: '拉面',
-                    cuisine: '拉面',
-                    atmosphere: ['热闹', '深夜食堂', '一人友好'],
+                    name: 'Ichiran Ramen Shibuya',
+                    type: 'Ramen',
+                    cuisine: 'Ramen',
+                    atmosphere: ['Lively', 'Late-night', 'Solo-friendly'],
                     rating: 4.6,
                     reviewCount: 8421,
-                    priceRange: '¥1,000-2,000/人',
-                    address: '东京都涩谷区宇田川町',
-                    highlights: ['24小时营业', '博多豚骨', '翻台快'],
-                    signature: ['经典豚骨拉面', '溏心蛋', '辣味秘制酱'],
+                    priceRange: '¥1,000-2,000 / person',
+                    address: 'Udagawacho, Shibuya, Tokyo',
+                    highlights: ['Open 24 hours', 'Hakata tonkotsu', 'Fast turnover'],
+                    signature: ['Classic tonkotsu ramen', 'Soft-boiled egg', 'Spicy secret sauce'],
                     photos: [
                         'https://images.unsplash.com/photo-1526318896980-cf78c088247c?auto=format&fit=crop&w=900&q=60',
                         'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=900&q=60'
                     ],
                     menu: [
-                        { name: '经典豚骨拉面', price: '¥980', note: '口味可定制' },
-                        { name: '叉烧加量', price: '¥350', note: '推荐搭配' }
+                        { name: 'Classic tonkotsu ramen', price: '¥980', note: 'Customizable flavor profile' },
+                        { name: 'Extra chashu', price: '¥350', note: 'Recommended add-on' }
                     ],
                     reviewHighlights: [
-                        { author: 'Mika', rating: 4.6, text: '口味稳定，深夜来一碗很满足。' },
-                        { author: 'Chen', rating: 4.5, text: '排队不算久，出餐速度快。' }
+                        { author: 'Mika', rating: 4.6, text: 'Very consistent taste, perfect for late-night cravings.' },
+                        { author: 'Chen', rating: 4.5, text: 'Queue is manageable and service is quick.' }
                     ],
-                    hours: '24小时',
-                    reservation: '无需预约',
+                    hours: '24 hours',
+                    reservation: 'No reservation required',
                 },
                 {
                     id: 'rest_3',
-                    name: '筑地场外市场',
-                    type: '海鲜市场',
-                    cuisine: '海鲜',
-                    atmosphere: ['热闹', '市集体验', '早市'],
+                    name: 'Tsukiji Outer Market',
+                    type: 'Seafood Market',
+                    cuisine: 'Seafood',
+                    atmosphere: ['Lively', 'Market experience', 'Morning crowd'],
                     rating: 4.7,
                     reviewCount: 5630,
-                    priceRange: '¥2,000-5,000/人',
-                    address: '东京都中央区筑地',
-                    highlights: ['现捞海鲜', '摊位选择多', '适合早逛'],
-                    signature: ['海鲜丼', '牡蛎烧', '玉子烧'],
+                    priceRange: '¥2,000-5,000 / person',
+                    address: 'Tsukiji, Chuo City, Tokyo',
+                    highlights: ['Fresh seafood', 'Many vendor options', 'Best in the morning'],
+                    signature: ['Seafood rice bowl', 'Grilled oysters', 'Japanese omelet'],
                     photos: [
                         'https://images.unsplash.com/photo-1498654896293-37aacf113fd9?auto=format&fit=crop&w=900&q=60',
                         'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=900&q=60'
                     ],
                     menu: [
-                        { name: '海鲜丼', price: '¥2,800', note: '现切刺身' },
-                        { name: '炭烤牡蛎', price: '¥800', note: '现烤现吃' }
+                        { name: 'Seafood rice bowl', price: '¥2,800', note: 'Fresh-cut sashimi' },
+                        { name: 'Char-grilled oysters', price: '¥800', note: 'Grilled to order' }
                     ],
                     reviewHighlights: [
-                        { author: 'Leo', rating: 4.7, text: '适合早上来逛，选择丰富。' },
-                        { author: 'Nana', rating: 4.6, text: '海鲜很新鲜，但人多要早点去。' }
+                        { author: 'Leo', rating: 4.7, text: 'Great place to visit early with lots of choices.' },
+                        { author: 'Nana', rating: 4.6, text: 'Seafood is very fresh, but go early to avoid heavy crowds.' }
                     ],
                     hours: '05:00-14:00',
-                    reservation: '无需预约',
+                    reservation: 'No reservation required',
                 }
             ]
             : isDalianDestination(destination)
                 ? [
                     {
                         id: 'rest_dl_1',
-                        name: '星海广场海鲜酒楼',
-                        type: '海鲜 · 本地人气',
-                        cuisine: '海鲜',
-                        atmosphere: ['热闹', '家庭聚餐', '海边风味'],
+                        name: 'Xinghai Square Seafood House',
+                        type: 'Seafood · Local Favorite',
+                        cuisine: 'Seafood',
+                        atmosphere: ['Lively', 'Family dining', 'Coastal flavors'],
                         rating: 4.7,
                         reviewCount: 2160,
-                        priceRange: '¥150-300/人',
-                        address: '大连市沙河口区星海广场',
-                        highlights: ['现捞海鲜', '靠近星海广场', '适合多人聚餐'],
-                        signature: ['清蒸扇贝', '蒜蓉大虾', '葱油海参'],
+                        priceRange: '¥150-300 / person',
+                        address: 'Xinghai Square, Shahekou District, Dalian',
+                        highlights: ['Fresh seafood', 'Near Xinghai Square', 'Great for groups'],
+                        signature: ['Steamed scallops', 'Garlic prawns', 'Sea cucumber with scallion oil'],
                         photos: [
                             'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=60',
                             'https://images.unsplash.com/photo-1541542684-4a9c1f8f1a62?auto=format&fit=crop&w=900&q=60'
                         ],
                         menu: [
-                            { name: '清蒸扇贝', price: '¥68', note: '鲜甜弹牙' },
-                            { name: '蒜蓉大虾', price: '¥128', note: '蒜香浓郁' },
-                            { name: '葱油海参', price: '¥198', note: '口感软糯' }
+                            { name: 'Steamed scallops', price: '¥68', note: 'Sweet and tender' },
+                            { name: 'Garlic prawns', price: '¥128', note: 'Rich garlic aroma' },
+                            { name: 'Sea cucumber with scallion oil', price: '¥198', note: 'Soft and silky texture' }
                         ],
                         reviewHighlights: [
-                            { author: '海风', rating: 4.8, text: '海鲜非常新鲜，适合第一次来大连。' },
-                            { author: '欣欣', rating: 4.7, text: '服务热情，推荐点清蒸和蒜蓉系列。' }
+                            { author: 'SeaBreeze', rating: 4.8, text: 'Very fresh seafood and perfect for first-time visitors to Dalian.' },
+                            { author: 'Xinxin', rating: 4.7, text: 'Warm service; the steamed and garlic dishes are highly recommended.' }
                         ],
                         hours: '11:00-22:00',
-                        waitTime: '晚高峰排队30-40分钟',
-                        reservation: '建议晚餐提前排队',
+                        waitTime: '30-40 minutes at dinner peak',
+                        reservation: 'Queue early for dinner',
                     },
                     {
                         id: 'rest_dl_2',
-                        name: '中山广场烤肉馆',
-                        type: '烧烤',
-                        cuisine: '烧烤',
-                        atmosphere: ['热闹', '朋友聚会', '烟火气'],
+                        name: 'Zhongshan Square Grill House',
+                        type: 'BBQ',
+                        cuisine: 'BBQ',
+                        atmosphere: ['Lively', 'Friends gathering', 'Street-food vibe'],
                         rating: 4.5,
                         reviewCount: 980,
-                        priceRange: '¥80-150/人',
-                        address: '大连市中山区中山广场附近',
-                        highlights: ['本地风味烤肉拼盘', '蘸料独特', '翻台快'],
-                        signature: ['原切牛肋条', '秘制羊肉串', '大连特色蘸料'],
+                        priceRange: '¥80-150 / person',
+                        address: 'Near Zhongshan Square, Zhongshan District, Dalian',
+                        highlights: ['Local-style grilled platters', 'Unique dipping sauces', 'Fast service'],
+                        signature: ['Hand-cut beef ribs', 'House lamb skewers', 'Dalian-style dipping sauce'],
                         photos: [
                             'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=60',
                             'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=60'
                         ],
                         menu: [
-                            { name: '原切牛肋条', price: '¥88', note: '推荐三分熟' },
-                            { name: '秘制羊肉串', price: '¥6/串', note: '外焦里嫩' },
-                            { name: '烤鱿鱼', price: '¥28', note: '海味十足' }
+                            { name: 'Hand-cut beef ribs', price: '¥88', note: 'Best medium-rare' },
+                            { name: 'House lamb skewer', price: '¥6 / skewer', note: 'Crisp outside, juicy inside' },
+                            { name: 'Grilled squid', price: '¥28', note: 'Rich ocean flavor' }
                         ],
                         reviewHighlights: [
-                            { author: '阿泽', rating: 4.6, text: '肉质不错，蘸料很有大连味道。' },
-                            { author: 'Jane', rating: 4.4, text: '适合朋友聚会，性价比高。' }
+                            { author: 'Aze', rating: 4.6, text: 'Great meat quality, and the sauces feel very local.' },
+                            { author: 'Jane', rating: 4.4, text: 'Great for group dinners with strong value for money.' }
                         ],
                         hours: '10:30-23:00',
-                        waitTime: '晚餐时段排队20分钟左右',
-                        reservation: '无需预约',
+                        waitTime: 'About 20 minutes at dinner peak',
+                        reservation: 'No reservation required',
                     },
                     {
                         id: 'rest_dl_3',
-                        name: '旅顺口老味道馆',
-                        type: '东北菜',
-                        cuisine: '东北菜',
-                        atmosphere: ['舒适', '家常', '家庭聚餐'],
+                        name: 'Lushunkou Classic Northeast Kitchen',
+                        type: 'Northeast Chinese',
+                        cuisine: 'Northeast Chinese',
+                        atmosphere: ['Comfortable', 'Home-style', 'Family dining'],
                         rating: 4.6,
                         reviewCount: 1260,
-                        priceRange: '¥60-120/人',
-                        address: '大连市旅顺口区',
-                        highlights: ['锅包肉口碑好', '份量足', '性价比高'],
-                        signature: ['锅包肉', '地三鲜', '小鸡炖蘑菇'],
+                        priceRange: '¥60-120 / person',
+                        address: 'Lushunkou District, Dalian',
+                        highlights: ['Great sweet-and-sour pork reputation', 'Generous portions', 'Excellent value'],
+                        signature: ['Sweet-and-sour crispy pork', 'Di San Xian', 'Stewed chicken with mushrooms'],
                         photos: [
                             'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=60',
                             'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=60'
                         ],
                         menu: [
-                            { name: '锅包肉', price: '¥58', note: '酸甜酥脆' },
-                            { name: '地三鲜', price: '¥38', note: '家常口味' },
-                            { name: '小鸡炖蘑菇', price: '¥68', note: '汤汁浓郁' }
+                            { name: 'Sweet-and-sour crispy pork', price: '¥58', note: 'Crunchy with balanced sweet-sour flavor' },
+                            { name: 'Di San Xian', price: '¥38', note: 'Classic home-style taste' },
+                            { name: 'Stewed chicken with mushrooms', price: '¥68', note: 'Rich savory broth' }
                         ],
                         reviewHighlights: [
-                            { author: '北北', rating: 4.7, text: '菜量很足，锅包肉很地道。' },
-                            { author: 'Cathy', rating: 4.5, text: '适合带长辈来吃，味道不重。' }
+                            { author: 'Beibei', rating: 4.7, text: 'Large portions and very authentic sweet-and-sour pork.' },
+                            { author: 'Cathy', rating: 4.5, text: 'Great for family meals, especially with older relatives.' }
                         ],
                         hours: '11:00-21:30',
-                        waitTime: '周末中午排队10-15分钟',
-                        reservation: '无需预约',
+                        waitTime: '10-15 minutes at weekend lunch',
+                        reservation: 'No reservation required',
                     }
                 ]
                 : [
                     {
                         id: 'rest_generic_1',
-                        name: `${destination}本地招牌餐厅`,
-                        type: '当地菜',
-                        cuisine: '当地菜',
-                        atmosphere: ['舒适', '初次到访', '口碑稳定'],
+                        name: `${destination} Signature Local Restaurant`,
+                        type: 'Local Cuisine',
+                        cuisine: 'Local cuisine',
+                        atmosphere: ['Comfortable', 'First-time friendly', 'Consistent quality'],
                         rating: 4.6,
                         reviewCount: 880,
-                        priceRange: '¥80-160/人',
-                        address: `${destination}市中心`,
-                        highlights: ['口碑稳定', '交通方便', '服务到位'],
-                        signature: ['招牌菜A', '当地特色小炒', '时令汤'],
+                        priceRange: '¥80-160 / person',
+                        address: `${destination} city center`,
+                        highlights: ['Consistent ratings', 'Easy access', 'Reliable service'],
+                        signature: ['House signature dish', 'Local stir-fry special', 'Seasonal soup'],
                         photos: [
                             'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=900&q=60',
                             'https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=900&q=60'
                         ],
                         menu: [
-                            { name: '招牌菜A', price: '¥68', note: '到店必点' },
-                            { name: '时令汤品', price: '¥36', note: '每日更新' }
+                            { name: 'House signature dish', price: '¥68', note: 'Must-try item' },
+                            { name: 'Seasonal soup', price: '¥36', note: 'Updated daily' }
                         ],
                         reviewHighlights: [
-                            { author: 'Kevin', rating: 4.6, text: '服务细致，菜品稳定。' },
-                            { author: 'Mia', rating: 4.5, text: '位置方便，适合第一次来。' }
+                            { author: 'Kevin', rating: 4.6, text: 'Attentive service and consistently good dishes.' },
+                            { author: 'Mia', rating: 4.5, text: 'Convenient location and great for first-time visitors.' }
                         ],
                         hours: '11:00-22:00',
-                        waitTime: '高峰期排队10-20分钟',
-                        reservation: '无需预约',
+                        waitTime: '10-20 minutes during peak hours',
+                        reservation: 'No reservation required',
                     },
                     {
                         id: 'rest_generic_2',
-                        name: `${destination}风味小馆`,
-                        type: '特色小吃',
-                        cuisine: '小吃',
-                        atmosphere: ['热闹', '街头氛围', '快速出餐'],
+                        name: `${destination} Flavor Bistro`,
+                        type: 'Local Snacks',
+                        cuisine: 'Snacks',
+                        atmosphere: ['Lively', 'Street vibe', 'Fast service'],
                         rating: 4.4,
                         reviewCount: 650,
-                        priceRange: '¥40-80/人',
-                        address: `${destination}老街区`,
-                        highlights: ['适合尝试当地小吃', '价格亲民', '出餐快'],
-                        signature: ['特色小吃拼盘', '招牌汤粉', '手工甜品'],
+                        priceRange: '¥40-80 / person',
+                        address: `${destination} old town`,
+                        highlights: ['Great for local snacks', 'Affordable pricing', 'Quick turnaround'],
+                        signature: ['Snack sampler platter', 'House noodle soup', 'Handmade dessert'],
                         photos: [
                             'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=60',
                             'https://images.unsplash.com/photo-1526318896980-cf78c088247c?auto=format&fit=crop&w=900&q=60'
                         ],
                         menu: [
-                            { name: '特色小吃拼盘', price: '¥48', note: '多人分享' },
-                            { name: '招牌汤粉', price: '¥28', note: '暖胃推荐' }
+                            { name: 'Snack sampler platter', price: '¥48', note: 'Great for sharing' },
+                            { name: 'House noodle soup', price: '¥28', note: 'Comfort-food favorite' }
                         ],
                         reviewHighlights: [
-                            { author: '小唐', rating: 4.4, text: '很有当地烟火气，价格实惠。' },
-                            { author: 'Allen', rating: 4.3, text: '排队不久，味道不错。' }
+                            { author: 'Xiao Tang', rating: 4.4, text: 'Authentic local vibe and very fair prices.' },
+                            { author: 'Allen', rating: 4.3, text: 'Short queue and reliably good flavors.' }
                         ],
                         hours: '10:00-21:00',
-                        waitTime: '晚餐高峰排队15分钟',
-                        reservation: '无需预约',
+                        waitTime: 'About 15 minutes at dinner peak',
+                        reservation: 'No reservation required',
                     },
                     {
                         id: 'rest_generic_3',
-                        name: `${destination}海景餐厅`,
-                        type: '海鲜',
-                        cuisine: '海鲜',
-                        atmosphere: ['安静', '景观位', '适合聚餐'],
+                        name: `${destination} Seaview Restaurant`,
+                        type: 'Seafood',
+                        cuisine: 'Seafood',
+                        atmosphere: ['Quiet', 'View seating', 'Group-friendly'],
                         rating: 4.5,
                         reviewCount: 720,
-                        priceRange: '¥120-220/人',
-                        address: `${destination}滨海区域`,
-                        highlights: ['景观位置佳', '适合聚餐', '环境舒适'],
-                        signature: ['海鲜拼盘', '清蒸鱼', '时令汤'],
+                        priceRange: '¥120-220 / person',
+                        address: `${destination} waterfront district`,
+                        highlights: ['Great scenic views', 'Ideal for groups', 'Comfortable environment'],
+                        signature: ['Seafood platter', 'Steamed fish', 'Seasonal soup'],
                         photos: [
                             'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=60',
                             'https://images.unsplash.com/photo-1541542684-4a9c1f8f1a62?auto=format&fit=crop&w=900&q=60'
                         ],
                         menu: [
-                            { name: '海鲜拼盘', price: '¥168', note: '适合多人' },
-                            { name: '清蒸鱼', price: '¥88', note: '口感鲜嫩' }
+                            { name: 'Seafood platter', price: '¥168', note: 'Good for sharing' },
+                            { name: 'Steamed fish', price: '¥88', note: 'Fresh and tender texture' }
                         ],
                         reviewHighlights: [
-                            { author: 'Rita', rating: 4.6, text: '景色不错，适合聚会。' },
-                            { author: 'Han', rating: 4.5, text: '味道偏清淡，海鲜新鲜。' }
+                            { author: 'Rita', rating: 4.6, text: 'Great view and ideal for social gatherings.' },
+                            { author: 'Han', rating: 4.5, text: 'Lighter seasoning with very fresh seafood.' }
                         ],
                         hours: '11:30-22:00',
-                        waitTime: '靠窗位需提前预约',
-                        reservation: '建议晚餐提前预约',
+                        waitTime: 'Window seats require advance booking',
+                        reservation: 'Reserve ahead for dinner',
                     }
                 ];
 
@@ -1014,7 +1016,7 @@ const restaurantAgent: SpecializedAgentImpl = {
                 }
             },
             suggestions: sorted,
-            personalizedNote: `推荐${destination}的特色美食，已根据您的口味偏好筛选`,
+            personalizedNote: `Recommended signature dining in ${destination}, filtered by your taste preferences.`,
             appliedFilters: task.appliedPreferences
         };
     }
@@ -1036,118 +1038,118 @@ const attractionAgent: SpecializedAgentImpl = {
             ? [
                 {
                     id: 'attr_1',
-                    name: '下北泽',
-                    type: '文艺街区',
+                    name: 'Shimokitazawa',
+                    type: 'Creative District',
                     style: 'offbeat',
                     indoor: false,
-                    description: '东京最具个性的文艺街区，独立咖啡店、古着店云集',
-                    highlights: ['古着购物', '独立音乐', '小众咖啡'],
-                    recommendTime: '半天',
-                    crowdLevel: '低',
+                    description: 'A highly distinctive Tokyo neighborhood known for vintage stores and indie cafes.',
+                    highlights: ['Vintage shopping', 'Indie music', 'Hidden cafes'],
+                    recommendTime: 'half day',
+                    crowdLevel: 'low',
                 },
                 {
                     id: 'attr_2',
-                    name: '谷中银座',
-                    type: '怀旧老街',
+                    name: 'Yanaka Ginza',
+                    type: 'Retro Shopping Street',
                     style: 'offbeat',
                     indoor: false,
-                    description: '保留昭和风情的老街，特色小店和地道美食',
-                    highlights: ['猫咪', '手工艺', '怀旧氛围'],
-                    recommendTime: '3小时',
-                    crowdLevel: '低',
+                    description: 'A nostalgic old street with local shops and traditional snacks.',
+                    highlights: ['Cat-themed corners', 'Crafts', 'Retro atmosphere'],
+                    recommendTime: '3 hours',
+                    crowdLevel: 'low',
                 },
                 {
                     id: 'attr_3',
                     name: 'teamLab Borderless',
-                    type: '数字艺术馆',
+                    type: 'Digital Art Museum',
                     style: 'popular',
                     indoor: true,
-                    description: '全球知名的沉浸式数字艺术体验空间',
-                    highlights: ['拍照', '沉浸体验', '艺术'],
-                    recommendTime: '3-4小时',
-                    crowdLevel: '高',
+                    description: 'A world-famous immersive digital art space.',
+                    highlights: ['Photo spots', 'Immersive experiences', 'Art installations'],
+                    recommendTime: '3-4 hours',
+                    crowdLevel: 'high',
                 },
                 {
                     id: 'attr_4',
-                    name: '浅草寺',
-                    type: '历史文化',
+                    name: 'Senso-ji Temple',
+                    type: 'Historic Culture',
                     style: 'popular',
                     indoor: false,
-                    description: '东京最古老的寺庙，体验传统日本文化',
-                    highlights: ['雷门', '仲见世通', '和服体验'],
-                    recommendTime: '2-3小时',
-                    crowdLevel: '高',
+                    description: 'Tokyo’s oldest temple and a strong introduction to traditional Japanese culture.',
+                    highlights: ['Kaminarimon Gate', 'Nakamise Street', 'Kimono experience'],
+                    recommendTime: '2-3 hours',
+                    crowdLevel: 'high',
                 }
             ]
             : isDalianDestination(destination)
                 ? [
                     {
                         id: 'attr_dl_1',
-                        name: '星海广场',
-                        type: '城市地标',
+                        name: 'Xinghai Square',
+                        type: 'City Landmark',
                         style: 'popular',
                         indoor: false,
-                        description: '大连标志性广场，海景视野开阔',
-                        highlights: ['海景', '夜景', '步行体验'],
-                        recommendTime: '2-3小时',
-                        crowdLevel: '中',
+                        description: 'An iconic Dalian square with broad seaside views.',
+                        highlights: ['Sea view', 'Night scenery', 'Walkable promenade'],
+                        recommendTime: '2-3 hours',
+                        crowdLevel: 'medium',
                     },
                     {
                         id: 'attr_dl_2',
-                        name: '老虎滩海洋公园',
-                        type: '海洋公园',
+                        name: 'Laohutan Ocean Park',
+                        type: 'Ocean Park',
                         style: 'popular',
                         indoor: true,
-                        description: '适合家庭出游的海洋主题乐园',
-                        highlights: ['海洋馆', '表演', '亲子'],
-                        recommendTime: '半天',
-                        crowdLevel: '高',
+                        description: 'A marine-themed park that works well for family trips.',
+                        highlights: ['Aquarium', 'Shows', 'Family activities'],
+                        recommendTime: 'half day',
+                        crowdLevel: 'high',
                     },
                     {
                         id: 'attr_dl_3',
-                        name: '棒棰岛',
-                        type: '海滨风光',
+                        name: 'Bangchuidao Scenic Area',
+                        type: 'Coastal Landscape',
                         style: 'offbeat',
                         indoor: false,
-                        description: '山海相伴的度假胜地，适合轻徒步',
-                        highlights: ['海岸线', '轻徒步', '摄影'],
-                        recommendTime: '半天',
-                        crowdLevel: '中',
+                        description: 'A mountain-and-sea retreat suitable for easy hiking.',
+                        highlights: ['Coastline', 'Light hiking', 'Photography'],
+                        recommendTime: 'half day',
+                        crowdLevel: 'medium',
                     }
                 ]
                 : [
                     {
                         id: 'attr_generic_1',
-                        name: `${destination}城市地标`,
-                        type: '地标',
+                        name: `${destination} City Landmark`,
+                        type: 'Landmark',
                         style: 'popular',
                         indoor: false,
-                        description: '适合首次到访打卡',
-                        highlights: ['拍照', '城市风景'],
-                        recommendTime: '2小时',
-                        crowdLevel: '中',
+                        description: 'A must-see checkpoint for first-time visitors.',
+                        highlights: ['Photography', 'City skyline'],
+                        recommendTime: '2 hours',
+                        crowdLevel: 'medium',
                     },
                     {
                         id: 'attr_generic_2',
-                        name: `${destination}文化街区`,
-                        type: '街区',
+                        name: `${destination} Cultural Quarter`,
+                        type: 'Neighborhood',
                         style: 'offbeat',
                         indoor: false,
-                        description: '本地特色店铺与街景体验',
-                        highlights: ['小店', '街拍'],
-                        recommendTime: '2-3小时',
-                        crowdLevel: '中',
+                        description: 'A local district with characteristic shops and street scenes.',
+                        highlights: ['Independent shops', 'Street photography'],
+                        recommendTime: '2-3 hours',
+                        crowdLevel: 'medium',
                     },
                     {
                         id: 'attr_generic_3',
-                        name: `${destination}博物馆`,
-                        type: '室内展馆',
+                        name: `${destination} Museum`,
+                        type: 'Indoor Venue',
                         style: 'popular',
                         indoor: true,
-                        description: '雨天首选室内活动',
-                        highlights: ['室内', '文化体验'],
-                        recommendTime: '2-3小时',
-                        crowdLevel: '低',
+                        description: 'A top indoor option, especially in rainy weather.',
+                        highlights: ['Indoor activity', 'Cultural experience'],
+                        recommendTime: '2-3 hours',
+                        crowdLevel: 'low',
                     }
                 ];
 
@@ -1166,10 +1168,10 @@ const attractionAgent: SpecializedAgentImpl = {
             },
             suggestions: sorted,
             personalizedNote: style === 'offbeat'
-                ? '根据您喜欢探索小众景点的习惯，推荐以下隐藏宝藏'
-                : weatherHint && /雨|雪|雷暴/.test(weatherHint)
-                    ? '根据天气情况，优先推荐室内或可避雨的体验'
-                    : '精选热门与小众景点混合推荐',
+                ? 'Based on your offbeat exploration preference, here are hidden gems.'
+                : weatherHint && /(rain|snow|thunderstorm|雨|雪|雷暴)/i.test(weatherHint)
+                    ? 'Given the weather, indoor and rain-safe experiences are prioritized.'
+                    : 'A balanced mix of popular spots and hidden gems is recommended.',
             appliedFilters: task.appliedPreferences
         };
     }
@@ -1213,27 +1215,27 @@ const CITY_COORDINATES: Record<string, { lat: number; lon: number; name: string 
 
 // Weather code to condition mapping
 const getWeatherCondition = (code: number): { condition: string; icon: string } => {
-    if (code === 0) return { condition: '晴朗', icon: '☀️' };
-    if (code <= 3) return { condition: '多云', icon: '⛅' };
-    if (code <= 48) return { condition: '雾霾', icon: '🌫️' };
-    if (code <= 57) return { condition: '毛毛雨', icon: '🌦️' };
-    if (code <= 67) return { condition: '雨', icon: '🌧️' };
-    if (code <= 77) return { condition: '雪', icon: '❄️' };
-    if (code <= 82) return { condition: '阵雨', icon: '🌧️' };
-    if (code <= 86) return { condition: '阵雪', icon: '🌨️' };
-    if (code <= 99) return { condition: '雷暴', icon: '⛈️' };
-    return { condition: '未知', icon: '❓' };
+    if (code === 0) return { condition: 'Clear', icon: '☀️' };
+    if (code <= 3) return { condition: 'Partly Cloudy', icon: '⛅' };
+    if (code <= 48) return { condition: 'Fog', icon: '🌫️' };
+    if (code <= 57) return { condition: 'Drizzle', icon: '🌦️' };
+    if (code <= 67) return { condition: 'Rain', icon: '🌧️' };
+    if (code <= 77) return { condition: 'Snow', icon: '❄️' };
+    if (code <= 82) return { condition: 'Showers', icon: '🌧️' };
+    if (code <= 86) return { condition: 'Snow Showers', icon: '🌨️' };
+    if (code <= 99) return { condition: 'Thunderstorm', icon: '⛈️' };
+    return { condition: 'Unknown', icon: '❓' };
 };
 
-const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function buildWeatherActionLinks(location: string, lat?: number, lon?: number): Array<{ title: string; url: string; provider: string }> {
     const links: Array<{ title: string; url: string; provider: string }> = [];
     const loc = String(location || '').trim();
     if (loc) {
         links.push({
-            title: `${loc} 天气`,
-            url: `https://www.google.com/search?q=${encodeURIComponent(`${loc} 天气`)}`,
+            title: `${loc} weather`,
+            url: `https://www.google.com/search?q=${encodeURIComponent(`${loc} weather`)}`,
             provider: 'google_weather',
         });
     }
@@ -1241,7 +1243,7 @@ function buildWeatherActionLinks(location: string, lat?: number, lon?: number): 
         const latFixed = Number(lat).toFixed(4);
         const lonFixed = Number(lon).toFixed(4);
         links.push({
-            title: '天气雷达',
+            title: 'Weather radar',
             url: `https://www.windy.com/${latFixed}/${lonFixed}?${latFixed},${lonFixed},7`,
             provider: 'windy',
         });
@@ -1268,16 +1270,16 @@ const weatherAgent: SpecializedAgentImpl = {
                     location: destination,
                     locationCN: destination,
                     forecast: [
-                        { day: '今天', temp: '15-22°C', condition: '多云', icon: '⛅' },
-                        { day: '明天', temp: '14-21°C', condition: '晴', icon: '☀️' },
-                        { day: '后天', temp: '13-20°C', condition: '晴', icon: '☀️' }
+                        { day: 'Today', temp: '15-22°C', condition: 'Partly Cloudy', icon: '⛅' },
+                        { day: 'Tomorrow', temp: '14-21°C', condition: 'Clear', icon: '☀️' },
+                        { day: 'Day 3', temp: '13-20°C', condition: 'Clear', icon: '☀️' }
                     ],
-                    tips: ['请添加该城市坐标以获取实时天气'],
+                    tips: ['Add this city to coordinates mapping to enable real-time weather.'],
                     dataSource: 'Mock (city not in database)',
                     action_links: buildWeatherActionLinks(destination),
                 },
                 suggestions: [],
-                personalizedNote: `${destination}天气预报 (模拟数据)`,
+                personalizedNote: `${destination} weather forecast (mock data)`,
                 appliedFilters: []
             };
         }
@@ -1299,7 +1301,7 @@ const weatherAgent: SpecializedAgentImpl = {
             // Transform API data to our format
             const forecast = data.daily.time.slice(0, 5).map((date: string, idx: number) => {
                 const dateObj = new Date(date);
-                const dayName = idx === 0 ? '今天' : idx === 1 ? '明天' : WEEKDAYS[dateObj.getDay()];
+                const dayName = idx === 0 ? 'Today' : idx === 1 ? 'Tomorrow' : WEEKDAYS[dateObj.getDay()];
                 const tempMin = Math.round(data.daily.temperature_2m_min[idx]);
                 const tempMax = Math.round(data.daily.temperature_2m_max[idx]);
                 const weatherCode = data.daily.weathercode[idx];
@@ -1324,11 +1326,11 @@ const weatherAgent: SpecializedAgentImpl = {
             const coldDays = forecast.filter((f: any) => f.tempMin < 10).length;
             const hotDays = forecast.filter((f: any) => f.tempMax > 30).length;
 
-            if (hasRain) tips.push('☔ 部分时间有雨，建议携带雨伞');
-            if (hasSnow) tips.push('❄️ 可能有雪，注意保暖和防滑');
-            if (coldDays >= 3) tips.push('🧥 天气偏凉，建议携带外套');
-            if (hotDays >= 3) tips.push('🌡️ 天气炎热，注意防晒和补水');
-            if (tips.length === 0) tips.push('✨ 天气良好，适合出行');
+            if (hasRain) tips.push('☔ Rain is expected during parts of the trip. Bring an umbrella.');
+            if (hasSnow) tips.push('❄️ Snow may occur. Prepare warm and non-slip footwear.');
+            if (coldDays >= 3) tips.push('🧥 Several days are cool. Bring a jacket.');
+            if (hotDays >= 3) tips.push('🌡️ Several days are hot. Use sun protection and hydrate.');
+            if (tips.length === 0) tips.push('✨ Weather looks favorable for travel.');
 
             return {
                 success: true,
@@ -1341,12 +1343,12 @@ const weatherAgent: SpecializedAgentImpl = {
                     },
                     forecast,
                     tips,
-                    dataSource: 'Open-Meteo API (实时数据)',
+                    dataSource: 'Open-Meteo API (Realtime)',
                     lastUpdated: new Date().toISOString(),
                     action_links: buildWeatherActionLinks(destination, cityInfo.lat, cityInfo.lon),
                 },
                 suggestions: forecast,
-                personalizedNote: `✅ ${cityInfo.name} 实时天气预报`,
+                personalizedNote: `✅ ${cityInfo.name} real-time weather forecast`,
                 appliedFilters: []
             };
         } catch (error) {
@@ -1359,17 +1361,17 @@ const weatherAgent: SpecializedAgentImpl = {
                     location: destination,
                     locationCN: destination,
                     forecast: [
-                        { day: '今天', temp: '15-22°C', condition: '多云', icon: '⛅' },
-                        { day: '明天', temp: '14-21°C', condition: '晴', icon: '☀️' },
-                        { day: '后天', temp: '16-23°C', condition: '晴', icon: '☀️' }
+                        { day: 'Today', temp: '15-22°C', condition: 'Partly Cloudy', icon: '⛅' },
+                        { day: 'Tomorrow', temp: '14-21°C', condition: 'Clear', icon: '☀️' },
+                        { day: 'Day 3', temp: '16-23°C', condition: 'Clear', icon: '☀️' }
                     ],
-                    tips: ['天气数据获取失败，显示预估数据'],
+                    tips: ['Weather fetch failed. Showing estimated data instead.'],
                     dataSource: 'Mock (API error)',
                     error: error instanceof Error ? error.message : 'Unknown error',
                     action_links: buildWeatherActionLinks(destination),
                 },
                 suggestions: [],
-                personalizedNote: `${destination}天气预报 (预估)`,
+                personalizedNote: `${destination} weather forecast (estimated)`,
                 appliedFilters: []
             };
         }
@@ -1398,39 +1400,39 @@ const itineraryAgent: SpecializedAgentImpl = {
         const indoorAttraction = attractions.find((a: any) => a.indoor);
 
         const activitySlots = pace === 'packed' ? 3 : pace === 'relaxed' ? 2 : 2;
-        const afternoonAttraction = weatherHint && /雨|雪|雷暴/.test(weatherHint) && indoorAttraction
+        const afternoonAttraction = weatherHint && /(rain|snow|thunderstorm|雨|雪|雷暴)/i.test(weatherHint) && indoorAttraction
             ? indoorAttraction
             : topAttraction;
 
-        // 基于之前的结果生成行程
+        // Build itinerary based on previous agent results
         const itinerary = {
-            summary: `${destination}5日游行程`,
+            summary: `${destination} 5-day itinerary`,
             days: [
                 {
                     day: 1,
-                    title: '抵达与探索',
+                    title: 'Arrival and Exploration',
                     activities: [
-                        { time: '下午', activity: `抵达机场，前往${hotel?.name || '酒店'}办理入住`, location: hotel?.location || '酒店' },
-                        { time: '傍晚', activity: topAttraction?.name ? `${topAttraction.name} 轻松走走` : '市区适应性散步', location: topAttraction?.name || destination },
-                        ...(activitySlots >= 3 ? [{ time: '晚上', activity: topRestaurant?.name ? `${topRestaurant.name} 晚餐` : '当地特色晚餐', location: topRestaurant?.address || destination }] : [])
+                        { time: 'Afternoon', activity: `Arrive at the airport and check in at ${hotel?.name || 'your hotel'}`, location: hotel?.location || 'Hotel' },
+                        { time: 'Evening', activity: topAttraction?.name ? `Light walk around ${topAttraction.name}` : 'Gentle city acclimation walk', location: topAttraction?.name || destination },
+                        ...(activitySlots >= 3 ? [{ time: 'Night', activity: topRestaurant?.name ? `Dinner at ${topRestaurant.name}` : 'Local signature dinner', location: topRestaurant?.address || destination }] : [])
                     ].slice(0, activitySlots)
                 },
                 {
                     day: 2,
-                    title: '文化体验日',
+                    title: 'Culture Day',
                     activities: [
-                        { time: '上午', activity: '城市文化体验', location: destination },
-                        { time: '中午', activity: topRestaurant?.name ? `${topRestaurant.name} 午餐` : '当地人气餐厅午餐', location: topRestaurant?.address || destination },
-                        { time: '下午', activity: afternoonAttraction?.name ? `${afternoonAttraction.name} 深度参观` : '特色景点体验', location: afternoonAttraction?.name || destination }
+                        { time: 'Morning', activity: 'City culture experience', location: destination },
+                        { time: 'Noon', activity: topRestaurant?.name ? `Lunch at ${topRestaurant.name}` : 'Lunch at a popular local restaurant', location: topRestaurant?.address || destination },
+                        { time: 'Afternoon', activity: afternoonAttraction?.name ? `In-depth visit to ${afternoonAttraction.name}` : 'Featured attraction experience', location: afternoonAttraction?.name || destination }
                     ].slice(0, activitySlots)
                 },
                 {
                     day: 3,
-                    title: '小众探索日',
+                    title: 'Offbeat Discovery Day',
                     activities: [
-                        { time: '上午', activity: attractions[1]?.name ? `${attractions[1].name} 探索` : '小众区域探索', location: attractions[1]?.name || destination },
-                        { time: '下午', activity: attractions[2]?.name ? `${attractions[2].name} 体验` : '自由活动', location: attractions[2]?.name || destination },
-                        ...(activitySlots >= 3 ? [{ time: '晚上', activity: restaurants[1]?.name ? `${restaurants[1].name} 晚餐` : '夜间美食体验', location: restaurants[1]?.address || destination }] : [])
+                        { time: 'Morning', activity: attractions[1]?.name ? `Explore ${attractions[1].name}` : 'Explore an offbeat district', location: attractions[1]?.name || destination },
+                        { time: 'Afternoon', activity: attractions[2]?.name ? `Experience ${attractions[2].name}` : 'Free exploration time', location: attractions[2]?.name || destination },
+                        ...(activitySlots >= 3 ? [{ time: 'Night', activity: restaurants[1]?.name ? `Dinner at ${restaurants[1].name}` : 'Night food exploration', location: restaurants[1]?.address || destination }] : [])
                     ].slice(0, activitySlots)
                 }
             ]
@@ -1440,7 +1442,7 @@ const itineraryAgent: SpecializedAgentImpl = {
             success: true,
             data: itinerary,
             suggestions: itinerary.days,
-            personalizedNote: `根据您的节奏偏好 (${pace === 'packed' ? '紧凑' : pace === 'relaxed' ? '慢节奏' : '平衡'}) 定制行程`,
+            personalizedNote: `Itinerary tailored to your pace preference (${pace === 'packed' ? 'packed' : pace === 'relaxed' ? 'relaxed' : 'balanced'}).`,
             appliedFilters: []
         };
     }
@@ -1453,8 +1455,8 @@ const itineraryAgent: SpecializedAgentImpl = {
 const transportationAgent: SpecializedAgentImpl = {
     name: 'transportation',
     execute: async (task, apiKey) => {
-        const origin = task.params.origin || '出发地';
-        const destination = task.params.destination || '目的地';
+        const origin = task.params.origin || 'origin';
+        const destination = task.params.destination || 'destination';
         const preferences = getTravelPreferences();
         const previousFlights = task.params.previousResults?.flight_booking;
         const bestFlight = previousFlights?.bestOption || previousFlights?.flights?.[0];
@@ -1468,34 +1470,34 @@ const transportationAgent: SpecializedAgentImpl = {
 
         const toAirport = isLondon
             ? [
-                { mode: 'Heathrow Express', duration: '15-20 分钟', cost: '£25', note: '最快' },
-                { mode: '伦敦地铁', duration: '45-60 分钟', cost: '£6', note: '性价比高' },
-                { mode: '打车/网约车', duration: '40-60 分钟', cost: '£45-70', note: '最省心' }
+                { mode: 'Heathrow Express', duration: '15-20 min', cost: '£25', note: 'Fastest option' },
+                { mode: 'London Underground', duration: '45-60 min', cost: '£6', note: 'Best value' },
+                { mode: 'Taxi/Ride-hailing', duration: '40-60 min', cost: '£45-70', note: 'Most convenient' }
             ]
             : [
-                { mode: '机场大巴', duration: '40-70 分钟', cost: '¥20-40', note: '预算友好' },
-                { mode: '地铁/轻轨', duration: '35-60 分钟', cost: '¥5-15', note: '稳定可靠' },
-                { mode: '打车/网约车', duration: '30-50 分钟', cost: '¥60-120', note: '省心直达' }
+                { mode: 'Airport bus', duration: '40-70 min', cost: '¥20-40', note: 'Budget-friendly' },
+                { mode: 'Metro/Light rail', duration: '35-60 min', cost: '¥5-15', note: 'Reliable timing' },
+                { mode: 'Taxi/Ride-hailing', duration: '30-50 min', cost: '¥60-120', note: 'Door-to-door convenience' }
             ];
 
         const fromAirport = isDalian
             ? [
-                { mode: '机场巴士', duration: '30-50 分钟', cost: '¥20', note: '覆盖市区' },
-                { mode: '出租车/网约车', duration: '25-40 分钟', cost: '¥60-90', note: '方便快捷' },
-                { mode: '地铁', duration: '40-55 分钟', cost: '¥5-10', note: '高峰期稳定' }
+                { mode: 'Airport shuttle bus', duration: '30-50 min', cost: '¥20', note: 'City-wide coverage' },
+                { mode: 'Taxi/Ride-hailing', duration: '25-40 min', cost: '¥60-90', note: 'Quick and convenient' },
+                { mode: 'Metro', duration: '40-55 min', cost: '¥5-10', note: 'Stable during peak traffic' }
             ]
             : [
-                { mode: '机场巴士', duration: '30-60 分钟', cost: '¥20-40', note: '覆盖主要区域' },
-                { mode: '出租车/网约车', duration: '25-45 分钟', cost: '¥70-120', note: '直接到达' },
-                { mode: '地铁/轻轨', duration: '35-55 分钟', cost: '¥6-15', note: '时间可控' }
+                { mode: 'Airport bus', duration: '30-60 min', cost: '¥20-40', note: 'Covers key districts' },
+                { mode: 'Taxi/Ride-hailing', duration: '25-45 min', cost: '¥70-120', note: 'Direct transfer' },
+                { mode: 'Metro/Light rail', duration: '35-55 min', cost: '¥6-15', note: 'Predictable travel time' }
             ];
 
         const scoredToAirport = scoreTransportOptions(toAirport, preferences);
         const scoredFromAirport = scoreTransportOptions(fromAirport, preferences);
 
         const tips = [
-            '国际航班建议起飞前 2.5-3 小时到达机场',
-            '高峰期建议预留 20-30 分钟路面缓冲'
+            'For international flights, arrive at the airport 2.5-3 hours before departure.',
+            'Add 20-30 minutes of ground traffic buffer during peak periods.'
         ];
 
         return {
@@ -1505,15 +1507,15 @@ const transportationAgent: SpecializedAgentImpl = {
                 destination,
                 departureTime,
                 arrivalTime,
-                recommendedLeaveTime: leaveTime ? `建议 ${leaveTime} 前出发` : '建议预留 2.5 小时以上到达机场',
+                recommendedLeaveTime: leaveTime ? `Recommended departure before ${leaveTime}` : 'Plan to arrive at the airport at least 2.5 hours early',
                 toAirport: scoredToAirport,
                 fromAirport: scoredFromAirport,
                 tips
             },
             suggestions: [...scoredToAirport, ...scoredFromAirport],
             personalizedNote: leaveTime
-                ? `根据航班时间，建议 ${leaveTime} 前出发前往机场`
-                : '已为你整理接送机与市内交通方案',
+                ? `Based on your flight time, depart for the airport before ${leaveTime}.`
+                : 'Airport transfer and local transport options are prepared.',
             appliedFilters: task.appliedPreferences
         };
     }

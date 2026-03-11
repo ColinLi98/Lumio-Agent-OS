@@ -1,6 +1,6 @@
 /**
  * Sentinel Indicator Component
- * 显示键盘哨兵的实时分析结果
+ * Displays real-time keyboard sentinel analysis
  */
 
 import React, { useEffect, useState } from 'react';
@@ -15,7 +15,7 @@ interface SentinelIndicatorProps {
   onDestinySimulate?: (intentType: string, params: Record<string, any>) => void;
 }
 
-// 判断是否为重大决策意图（仅职业和财务决策，不包括普通购物）
+// Whether this intent is a major decision (career/finance only)
 function isMajorDecision(intentType: IntentType): boolean {
   return [IntentType.CAREER, IntentType.FINANCE].includes(intentType);
 }
@@ -41,7 +41,7 @@ export const SentinelIndicator: React.FC<SentinelIndicatorProps> = ({
 
   if (!visible || !output) return null;
 
-  // 隐私风险显示
+  // Privacy risk view
   if (output.privacy) {
     return (
       <div className={`sentinel-indicator privacy ${animating ? 'animate-in' : ''}`}>
@@ -51,7 +51,7 @@ export const SentinelIndicator: React.FC<SentinelIndicatorProps> = ({
         <div className="sentinel-content">
           <div className="sentinel-title">
             <AlertTriangle size={12} />
-            <span>检测到敏感信息</span>
+            <span>Sensitive information detected</span>
             <span className="risk-badge">{getRiskLabel(output.privacy.risk)}</span>
           </div>
           {output.privacy.maskedPreview && (
@@ -66,14 +66,14 @@ export const SentinelIndicator: React.FC<SentinelIndicatorProps> = ({
                 className="action-btn mask"
                 onClick={() => onMaskApply(output.privacy!.maskedPreview!)}
               >
-                使用脱敏版本
+                Use masked version
               </button>
             )}
             {output.privacy.action === 'block' && (
-              <span className="action-warning">⚠️ 建议不要发送密码</span>
+              <span className="action-warning">⚠️ Avoid sending passwords</span>
             )}
             {output.privacy.action === 'warn' && (
-              <span className="action-hint">提示：包含个人信息</span>
+              <span className="action-hint">Hint: contains personal information</span>
             )}
           </div>
         </div>
@@ -83,7 +83,7 @@ export const SentinelIndicator: React.FC<SentinelIndicatorProps> = ({
     );
   }
 
-  // 意图显示
+  // Intent view
   if (output.intent && output.meta.shouldEscalate) {
     const intentInfo = getIntentInfo(output.intent.type);
 
@@ -95,7 +95,7 @@ export const SentinelIndicator: React.FC<SentinelIndicatorProps> = ({
         <div className="sentinel-content">
           <div className="sentinel-title">
             <Sparkles size={12} />
-            <span>识别到意图</span>
+            <span>Intent detected</span>
             <span className={`intent-badge ${output.intent.urgency}`}>
               {intentInfo.label}
             </span>
@@ -122,7 +122,7 @@ export const SentinelIndicator: React.FC<SentinelIndicatorProps> = ({
                 onClick={() => onIntentAction(output.intent!.type)}
               >
                 <Sparkles size={12} />
-                激活 Lumi 助手
+                Activate Lumi Assistant
               </button>
             )}
             {onDestinySimulate && isMajorDecision(output.intent!.type) && (
@@ -131,7 +131,7 @@ export const SentinelIndicator: React.FC<SentinelIndicatorProps> = ({
                 onClick={() => onDestinySimulate(output.intent!.type, output.intent!.params)}
               >
                 <Compass size={12} />
-                命运模拟
+                Destiny Simulation
               </button>
             )}
           </div>
@@ -145,54 +145,54 @@ export const SentinelIndicator: React.FC<SentinelIndicatorProps> = ({
   return null;
 };
 
-// 获取风险类型标签
+// Get privacy risk label
 function getRiskLabel(risk: PrivacyRiskType): string {
   const labels: Record<PrivacyRiskType, string> = {
-    [PrivacyRiskType.ID_CARD]: '身份证',
-    [PrivacyRiskType.PHONE]: '手机号',
-    [PrivacyRiskType.BANK_CARD]: '银行卡',
-    [PrivacyRiskType.PASSWORD]: '密码',
-    [PrivacyRiskType.ADDRESS]: '地址',
-    [PrivacyRiskType.EMAIL]: '邮箱',
-    [PrivacyRiskType.NAME_CONTEXT]: '姓名',
+    [PrivacyRiskType.ID_CARD]: 'ID card',
+    [PrivacyRiskType.PHONE]: 'Phone number',
+    [PrivacyRiskType.BANK_CARD]: 'Bank card',
+    [PrivacyRiskType.PASSWORD]: 'Password',
+    [PrivacyRiskType.ADDRESS]: 'Address',
+    [PrivacyRiskType.EMAIL]: 'Email',
+    [PrivacyRiskType.NAME_CONTEXT]: 'Name',
   };
   return labels[risk] || risk;
 }
 
-// 获取意图信息
+// Get intent info
 function getIntentInfo(type: IntentType): { icon: React.ReactNode; label: string } {
   const info: Record<IntentType, { icon: React.ReactNode; label: string }> = {
-    [IntentType.PURCHASE]: { icon: <TrendingUp size={16} />, label: '购物' },
-    [IntentType.TRAVEL]: { icon: <MapPin size={16} />, label: '出行' },
-    [IntentType.SCHEDULE]: { icon: <Calendar size={16} />, label: '日程' },
-    [IntentType.CAREER]: { icon: <Briefcase size={16} />, label: '职业' },
-    [IntentType.HEALTH]: { icon: <Heart size={16} />, label: '健康' },
-    [IntentType.FINANCE]: { icon: <DollarSign size={16} />, label: '财务' },
-    [IntentType.QUERY]: { icon: <Search size={16} />, label: '查询' },
-    [IntentType.TRANSLATE]: { icon: <Languages size={16} />, label: '翻译' },
-    [IntentType.CALCULATE]: { icon: <Calculator size={16} />, label: '计算' },
-    [IntentType.NONE]: { icon: <Eye size={16} />, label: '无' },
+    [IntentType.PURCHASE]: { icon: <TrendingUp size={16} />, label: 'Purchase' },
+    [IntentType.TRAVEL]: { icon: <MapPin size={16} />, label: 'Travel' },
+    [IntentType.SCHEDULE]: { icon: <Calendar size={16} />, label: 'Schedule' },
+    [IntentType.CAREER]: { icon: <Briefcase size={16} />, label: 'Career' },
+    [IntentType.HEALTH]: { icon: <Heart size={16} />, label: 'Health' },
+    [IntentType.FINANCE]: { icon: <DollarSign size={16} />, label: 'Finance' },
+    [IntentType.QUERY]: { icon: <Search size={16} />, label: 'Query' },
+    [IntentType.TRANSLATE]: { icon: <Languages size={16} />, label: 'Translate' },
+    [IntentType.CALCULATE]: { icon: <Calculator size={16} />, label: 'Calculate' },
+    [IntentType.NONE]: { icon: <Eye size={16} />, label: 'None' },
   };
   return info[type] || { icon: <Sparkles size={16} />, label: type };
 }
 
-// 获取参数标签
+// Get parameter label
 function getParamLabel(key: string): string {
   const labels: Record<string, string> = {
-    destination: '目的地',
-    date: '日期',
-    time: '时间',
-    product: '类型',
-    amount: '金额',
-    action: '动作',
-    sentiment: '情绪',
-    hasSymptom: '有症状',
-    symptom: '症状',
+    destination: 'Destination',
+    date: 'Date',
+    time: 'Time',
+    product: 'Type',
+    amount: 'Amount',
+    action: 'Action',
+    sentiment: 'Sentiment',
+    hasSymptom: 'Has symptom',
+    symptom: 'Symptom',
   };
   return labels[key] || key;
 }
 
-// 样式
+// Styles
 const sentinelStyles = `
   .sentinel-indicator {
     display: flex;

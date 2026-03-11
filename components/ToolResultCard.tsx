@@ -26,7 +26,7 @@ export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary,
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-red-600">
                         <AlertCircle size={18} />
-                        <span className="font-medium">操作失败</span>
+                        <span className="font-medium">Operation failed</span>
                     </div>
                     {onDismiss && (
                         <button onClick={onDismiss} className="text-gray-400 hover:text-gray-600">
@@ -56,7 +56,7 @@ export const ToolResultCard: React.FC<ToolResultCardProps> = ({ result, summary,
         case 'reminder':
             renderedCard = <ReminderCard data={result.data} onDismiss={onDismiss} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
             break;
-        // 三大核心功能卡片
+        // Three core feature cards
         case 'write_assist':
             renderedCard = <WriteAssistCard data={result.data} onDismiss={onDismiss} onDraftClick={onDraftClick} smartSuggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />;
             break;
@@ -122,7 +122,7 @@ const SmartSuggestionsPanel: React.FC<SmartSuggestionsProps> = ({ suggestions, o
         <div className={`smart-suggestions-panel ${theme}`}>
             {hasQueries && (
                 <div className="suggestion-row">
-                    <span className="row-label">🔍 相关</span>
+                    <span className="row-label">🔍 Related</span>
                     <div className="chips-container">
                         {suggestions.relatedQueries!.map((query, i) => (
                             <button
@@ -138,7 +138,7 @@ const SmartSuggestionsPanel: React.FC<SmartSuggestionsProps> = ({ suggestions, o
             )}
             {hasActions && (
                 <div className="suggestion-row">
-                    <span className="row-label">⚡ 操作</span>
+                    <span className="row-label">⚡ Actions</span>
                     <div className="chips-container">
                         {suggestions.quickActions!.map((action, i) => (
                             <button
@@ -257,7 +257,7 @@ const WeatherCard: React.FC<{ data: any; onDismiss?: () => void; smartSuggestion
         <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
                 <Cloud size={18} />
-                <span className="font-medium text-sm opacity-90">天气</span>
+                <span className="font-medium text-sm opacity-90">Weather</span>
             </div>
             {onDismiss && (
                 <button onClick={onDismiss} className="text-white/70 hover:text-white">
@@ -274,7 +274,7 @@ const WeatherCard: React.FC<{ data: any; onDismiss?: () => void; smartSuggestion
             <div className="text-5xl">{data.icon}</div>
         </div>
         <div className="mt-3 text-sm opacity-75">
-            湿度: {data.humidity}%
+            Humidity: {data.humidity}%
         </div>
         <SmartSuggestionsPanel suggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />
     </div>
@@ -288,7 +288,7 @@ const CalculatorCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data,
             <div className="flex items-center gap-2">
                 <Calculator size={18} />
                 <span className="font-medium text-sm opacity-90">
-                    {data.type === 'currency' ? '汇率转换' : '计算结果'}
+                    {data.type === 'currency' ? 'Exchange Rate' : 'Calculation Result'}
                 </span>
             </div>
             {onDismiss && (
@@ -315,7 +315,7 @@ const TranslationCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data
         <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
                 <Languages size={18} />
-                <span className="font-medium text-sm opacity-90">翻译</span>
+                <span className="font-medium text-sm opacity-90">Translation</span>
             </div>
             {onDismiss && (
                 <button onClick={onDismiss} className="text-white/70 hover:text-white">
@@ -325,7 +325,7 @@ const TranslationCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data
         </div>
         <div className="space-y-3">
             <div className="bg-white/20 rounded-lg p-2">
-                <div className="text-xs opacity-75 mb-1">原文 ({data.fromLang})</div>
+                <div className="text-xs opacity-75 mb-1">Source ({data.fromLang})</div>
                 <div className="text-sm">{data.originalText}</div>
             </div>
             <div className="flex justify-center">
@@ -334,9 +334,9 @@ const TranslationCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data
                 </div>
             </div>
             <div className="bg-white/30 rounded-lg p-2">
-                <div className="text-xs opacity-75 mb-1">译文 ({data.toLang})</div>
+                <div className="text-xs opacity-75 mb-1">Translation ({data.toLang})</div>
                 <div className="text-sm font-medium">
-                    {data.translatedText || '翻译中...'}
+                    {data.translatedText || 'Translating...'}
                 </div>
             </div>
         </div>
@@ -349,7 +349,7 @@ const CalendarCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, o
         <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
                 <Calendar size={18} />
-                <span className="font-medium text-sm opacity-90">日历</span>
+                <span className="font-medium text-sm opacity-90">Calendar</span>
             </div>
             {onDismiss && (
                 <button onClick={onDismiss} className="text-white/70 hover:text-white">
@@ -362,7 +362,7 @@ const CalendarCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, o
             <div className="bg-white/20 rounded-lg p-3">
                 <div className="flex items-center gap-2 text-green-200 mb-2">
                     <Check size={16} />
-                    <span className="text-sm">日程已创建</span>
+                    <span className="text-sm">Event created</span>
                 </div>
                 <div className="font-bold">{data.event.title}</div>
                 <div className="text-sm opacity-80 mt-1">
@@ -391,7 +391,7 @@ const ReminderCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, o
         <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
                 <Bell size={18} />
-                <span className="font-medium text-sm opacity-90">提醒</span>
+                <span className="font-medium text-sm opacity-90">Reminder</span>
             </div>
             {onDismiss && (
                 <button onClick={onDismiss} className="text-white/70 hover:text-white">
@@ -402,7 +402,7 @@ const ReminderCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, o
         <div className="bg-white/20 rounded-lg p-3">
             <div className="flex items-center gap-2 text-green-200 mb-2">
                 <Check size={16} />
-                <span className="text-sm">提醒已创建</span>
+                <span className="text-sm">Reminder created</span>
             </div>
             <div className="text-sm">{data.message}</div>
             {data.reminder && (
@@ -420,7 +420,7 @@ const TextCard: React.FC<{ data: any; summary?: string; onDismiss?: () => void; 
         <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
                 <Search size={18} />
-                <span className="font-medium text-sm opacity-90">结果</span>
+                <span className="font-medium text-sm opacity-90">Result</span>
             </div>
             {onDismiss && (
                 <button onClick={onDismiss} className="text-white/70 hover:text-white">
@@ -435,15 +435,15 @@ const TextCard: React.FC<{ data: any; summary?: string; onDismiss?: () => void; 
     </div>
 );
 
-// Search Result Card - 显示搜索结果详情
+// Search Result Card - Show search result details
 const SearchResultCard: React.FC<{ data: any; onDismiss?: () => void; smartSuggestions?: any; onSuggestionClick?: (s: string) => void }> = ({ data, onDismiss, smartSuggestions, onSuggestionClick }) => (
     <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl p-4 mx-2 my-2 text-white shadow-lg">
         <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
                 <Search size={18} />
-                <span className="font-medium text-sm opacity-90">搜索结果</span>
+                <span className="font-medium text-sm opacity-90">Search Results</span>
                 <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded">
-                    {data.results?.length || data.places?.length || 0} 条
+                    {data.results?.length || data.places?.length || 0} items
                 </span>
             </div>
             {onDismiss && (
@@ -455,7 +455,7 @@ const SearchResultCard: React.FC<{ data: any; onDismiss?: () => void; smartSugge
 
         {/* Query Display */}
         <div className="text-xs opacity-75 mb-3">
-            🔍 搜索: {data.query}
+            🔍 Search: {data.query}
         </div>
 
         {/* Results List */}
@@ -517,17 +517,17 @@ const SearchResultCard: React.FC<{ data: any; onDismiss?: () => void; smartSugge
 
         {/* Footer */}
         <div className="mt-3 pt-2 border-t border-white/20 text-xs opacity-60 text-center">
-            {data.message || `共找到 ${data.results?.length || data.places?.length || 0} 条结果`}
+            {data.message || `Found ${data.results?.length || data.places?.length || 0} results`}
         </div>
         <SmartSuggestionsPanel suggestions={smartSuggestions} onSuggestionClick={onSuggestionClick} />
     </div>
 );
 
 // =====================================
-// 三大核心功能卡片
+// Three core feature cards
 // =====================================
 
-// 帮我写 - Write Assist Card with Style Badges
+// Write Assist Card with Style Badges
 const WriteAssistCard: React.FC<{
     data: any;
     onDismiss?: () => void;
@@ -537,7 +537,7 @@ const WriteAssistCard: React.FC<{
         <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
                 <PenLine size={18} />
-                <span className="font-medium text-sm opacity-90">帮我写</span>
+                <span className="font-medium text-sm opacity-90">Write for Me</span>
                 {/* AI Badge */}
                 {data.isAI && (
                     <span className="px-1.5 py-0.5 bg-white/20 rounded text-xs">🤖 AI</span>
@@ -549,7 +549,7 @@ const WriteAssistCard: React.FC<{
                 </button>
             )}
         </div>
-        <div className="text-xs opacity-75 mb-3">主题: {data.context}</div>
+        <div className="text-xs opacity-75 mb-3">Topic: {data.context}</div>
         <div className="space-y-2">
             {data.drafts?.map((draft: any) => (
                 <button
@@ -568,20 +568,20 @@ const WriteAssistCard: React.FC<{
                     {/* Hover Actions */}
                     <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <span className="text-xs bg-white/20 px-2 py-1 rounded">
-                            点击填入
+                            Tap to insert
                         </span>
                     </div>
                 </button>
             ))}
         </div>
         <div className="text-xs opacity-60 mt-3 text-center">
-            {data.message || '点击选择要使用的内容'}
+            {data.message || 'Tap to choose content to use'}
         </div>
     </div>
 );
 
 
-// 帮我记 - Memory Card with Quick Actions
+// Memory Card with Quick Actions
 const MemoryCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => {
     const typeIcons: Record<string, string> = {
         event: '📅',
@@ -598,12 +598,12 @@ const MemoryCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onD
 
     const handleAddToCalendar = () => {
         // Already saved to calendar by smart_save tool
-        alert('已添加到日历！');
+        alert('Added to calendar.');
     };
 
     const handleCreateTodo = () => {
         // Already saved to reminders by smart_save tool
-        alert('已创建待办！');
+        alert('Todo created.');
     };
 
     return (
@@ -611,7 +611,7 @@ const MemoryCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onD
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <Brain size={18} />
-                    <span className="font-medium text-sm opacity-90">帮我记</span>
+                    <span className="font-medium text-sm opacity-90">Remember for Me</span>
                 </div>
                 {onDismiss && (
                     <button onClick={onDismiss} className="text-white/70 hover:text-white">
@@ -624,7 +624,7 @@ const MemoryCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onD
             <div className="bg-white/20 rounded-lg p-3 mb-3">
                 <div className="flex items-center gap-2 text-green-200 mb-2">
                     <Check size={16} />
-                    <span className="text-sm">{data.typeLabel} 已保存</span>
+                    <span className="text-sm">{data.typeLabel} saved</span>
                     <span className="text-lg ml-auto">{typeIcons[data.memory?.type] || '📝'}</span>
                 </div>
                 <div className="font-medium">{data.memory?.title}</div>
@@ -641,7 +641,7 @@ const MemoryCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onD
                         className="flex-1 flex items-center justify-center gap-1 bg-white/20 hover:bg-white/30 rounded-lg py-2 px-3 text-sm transition-all"
                     >
                         <Calendar size={14} />
-                        <span>日历</span>
+                        <span>Calendar</span>
                     </button>
                 )}
                 {data.memory?.type === 'task' && (
@@ -650,7 +650,7 @@ const MemoryCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onD
                         className="flex-1 flex items-center justify-center gap-1 bg-white/20 hover:bg-white/30 rounded-lg py-2 px-3 text-sm transition-all"
                     >
                         <Bell size={14} />
-                        <span>待办</span>
+                        <span>Todo</span>
                     </button>
                 )}
                 <button
@@ -658,27 +658,27 @@ const MemoryCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onD
                     className="flex-1 flex items-center justify-center gap-1 bg-white/20 hover:bg-white/30 rounded-lg py-2 px-3 text-sm transition-all"
                 >
                     <span>📋</span>
-                    <span>复制</span>
+                    <span>Copy</span>
                 </button>
             </div>
 
             {/* Footer Info */}
             <div className="flex items-center justify-between text-xs opacity-75">
-                <span>来源: {data.memory?.source}</span>
-                <span>共 {data.totalMemories} 条记忆</span>
+                <span>Source: {data.memory?.source}</span>
+                <span>{data.totalMemories} memories</span>
             </div>
         </div>
     );
 };
 
 
-// 帮我找 - Quick Actions Card (比价等)
+// Quick Actions Card (price comparison etc.)
 const QuickActionsCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => (
     <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-4 mx-2 my-2 text-white shadow-lg">
         <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
                 <ShoppingCart size={18} />
-                <span className="font-medium text-sm opacity-90">帮我找 · 比价</span>
+                <span className="font-medium text-sm opacity-90">Find for Me · Price Compare</span>
             </div>
             {onDismiss && (
                 <button onClick={onDismiss} className="text-white/70 hover:text-white">
@@ -686,14 +686,14 @@ const QuickActionsCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ dat
                 </button>
             )}
         </div>
-        <div className="text-xs opacity-75 mb-2">搜索: {data.product}</div>
+        <div className="text-xs opacity-75 mb-2">Search: {data.product}</div>
         {data.lowestPrice && (
             <div className="bg-white/20 rounded-lg p-2 mb-3">
                 <div className="flex items-center justify-between">
-                    <span className="text-sm">最低价</span>
+                    <span className="text-sm">Lowest Price</span>
                     <span className="font-bold text-lg">¥{data.lowestPrice}</span>
                 </div>
-                <div className="text-xs opacity-75">{data.lowestPlatform} · 省 ¥{data.savings}</div>
+                <div className="text-xs opacity-75">{data.lowestPlatform} · Save ¥{data.savings}</div>
             </div>
         )}
         <div className="space-y-2 max-h-32 overflow-y-auto">
@@ -723,7 +723,7 @@ const QuickActionsCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ dat
 );
 
 // =====================================
-// OCR 图像识别结果卡片
+// OCR image recognition result card
 // =====================================
 
 const OCRResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, onDismiss }) => {
@@ -738,13 +738,13 @@ const OCRResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, 
     };
 
     const typeLabels: Record<string, string> = {
-        product: '商品',
-        address: '地址',
-        link: '链接',
-        phone: '电话',
-        price: '价格',
-        text: '文字',
-        qrcode: '二维码'
+        product: 'Product',
+        address: 'Address',
+        link: 'Link',
+        phone: 'Phone',
+        price: 'Price',
+        text: 'Text',
+        qrcode: 'QR Code'
     };
 
     const handleCopy = (content: string) => {
@@ -766,7 +766,7 @@ const OCRResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, 
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <Camera size={18} />
-                    <span className="font-medium text-sm opacity-90">📷 图像识别</span>
+                    <span className="font-medium text-sm opacity-90">📷 Image Recognition</span>
                     {data.processingTime && (
                         <span className="text-xs opacity-60">{data.processingTime}ms</span>
                     )}
@@ -808,7 +808,7 @@ const OCRResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, 
             {/* Quick Actions */}
             {data.quickActions && data.quickActions.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-white/20">
-                    <div className="text-xs opacity-60 mb-2">快捷操作</div>
+                    <div className="text-xs opacity-60 mb-2">Quick Actions</div>
                     <div className="flex flex-wrap gap-2">
                         {data.quickActions.slice(0, 6).map((action: any) => (
                             <button
@@ -828,7 +828,7 @@ const OCRResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, 
             {data.rawText && (
                 <details className="mt-3">
                     <summary className="text-xs opacity-60 cursor-pointer hover:opacity-80">
-                        查看原始文字
+                        View raw text
                     </summary>
                     <div className="mt-2 bg-white/10 rounded-lg p-2 text-xs opacity-80 max-h-24 overflow-y-auto">
                         {data.rawText}
@@ -840,7 +840,7 @@ const OCRResultCard: React.FC<{ data: any; onDismiss?: () => void }> = ({ data, 
 };
 
 // =====================================
-// 餐厅搜索结果卡片 (约会/精选餐厅)
+// Restaurant result card (date/premium picks)
 // =====================================
 
 const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestionClick?: (suggestion: string) => void; onViewInApp?: () => void }> = ({ data, onDismiss, onSuggestionClick, onViewInApp }) => {
@@ -874,17 +874,17 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                         <span className="header-icon">{isDateMode ? '💕' : '🍽️'}</span>
                         <div className="header-text">
                             <span className="header-title">
-                                {isDateMode ? '约会餐厅精选' : '为您推荐'}
+                                {isDateMode ? 'Date Night Picks' : 'Recommended for You'}
                             </span>
                             <span className="header-subtitle">
-                                {data.message || `精选 ${places.length} 家餐厅`}
+                                {data.message || `${places.length} curated restaurants`}
                             </span>
                         </div>
                     </div>
                     <div className="header-right">
                         {onViewInApp && (
                             <button onClick={onViewInApp} className="view-in-app-btn">
-                                📱 在App中查看
+                                📱 View in App
                             </button>
                         )}
                         <span className="place-count">{places.length}</span>
@@ -919,10 +919,10 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                             <div className="card-image-overlay"></div>
                             <div className="card-badges">
                                 {index === 0 && place.matchScore >= 70 && (
-                                    <span className="badge best-match">❤️ 最佳</span>
+                                    <span className="badge best-match">❤️ Best Match</span>
                                 )}
-                                {highlightTags.some((h: string) => h.includes('米其林')) && (
-                                    <span className="badge michelin">🌟 米其林</span>
+                                {highlightTags.some((h: string) => h.includes('Michelin') || h.includes('\u7c73\u5176\u6797')) && (
+                                    <span className="badge michelin">🌟 Michelin</span>
                                 )}
                             </div>
                             {/* Match Score Ring */}
@@ -952,7 +952,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                             <div className="card-meta">
                                 <span className="rating">⭐ {place.rating}</span>
                                 <span className="divider">·</span>
-                                <span className="reviews">{place.reviewCount || '1k+'}评</span>
+                                <span className="reviews">{place.reviewCount || '1k+'} reviews</span>
                                 <span className="divider">·</span>
                                 <span className="price">{place.priceRange || place.priceLevel}</span>
                             </div>
@@ -977,7 +977,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                             {/* Signature Dishes */}
                             {signatureList.length > 0 && (
                                 <div className="signature-dishes">
-                                    <span className="dishes-label">🍴 招牌</span>
+                                    <span className="dishes-label">🍴 Signature</span>
                                     <span className="dishes-list">{signatureList.slice(0, 3).join(' · ')}</span>
                                 </div>
                             )}
@@ -990,7 +990,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                                     setExpandedId(expandedId === index ? null : index);
                                 }}
                             >
-                                {expandedId === index ? '收起' : '查看详情'}
+                                {expandedId === index ? 'Collapse' : 'View Details'}
                                 <ChevronDown size={14} style={{
                                     transform: expandedId === index ? 'rotate(180deg)' : 'rotate(0deg)',
                                     transition: 'transform 0.2s'
@@ -1022,7 +1022,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                                                 <img
                                                     key={photoIdx}
                                                     src={photo}
-                                                    alt={`${place.name} 照片 ${photoIdx + 1}`}
+                                                    alt={`${place.name} photo ${photoIdx + 1}`}
                                                     className="photo-thumb"
                                                 />
                                             ))}
@@ -1030,7 +1030,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                                     )}
                                     {place.menu && place.menu.length > 0 && (
                                         <div className="menu-section">
-                                            <div className="section-title">🍽️ 菜单精选</div>
+                                            <div className="section-title">🍽️ Menu Highlights</div>
                                             <div className="menu-list">
                                                 {place.menu.slice(0, 3).map((item: any, itemIdx: number) => (
                                                     <div key={itemIdx} className="menu-item">
@@ -1043,12 +1043,12 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                                     )}
                                     {place.reviewHighlights && place.reviewHighlights.length > 0 && (
                                         <div className="review-section">
-                                            <div className="section-title">💬 热门评价</div>
+                                            <div className="section-title">💬 Top Reviews</div>
                                             <div className="review-list">
                                                 {place.reviewHighlights.slice(0, 2).map((review: any, reviewIdx: number) => (
                                                     <div key={reviewIdx} className="review-item">
                                                         <div className="review-header">
-                                                            <span className="review-author">{review.author || '用户'}</span>
+                                                            <span className="review-author">{review.author || 'User'}</span>
                                                             {Number.isFinite(review.rating) && (
                                                                 <span className="review-rating">⭐ {review.rating}</span>
                                                             )}
@@ -1081,7 +1081,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <ExternalLink size={14} />
-                                    <span>点评</span>
+                                    <span>Reviews</span>
                                 </a>
                             )}
                             {place.phone && (
@@ -1091,7 +1091,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <Phone size={14} />
-                                    <span>电话</span>
+                                    <span>Call</span>
                                 </a>
                             )}
                             {place.bookingAvailable && (
@@ -1103,7 +1103,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                                     }}
                                 >
                                     <Calendar size={14} />
-                                    <span>预订</span>
+                                    <span>Book</span>
                                 </button>
                             )}
                         </div>
@@ -1131,7 +1131,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                     {/* Related Queries */}
                     {selectedPlace.relatedQueries && selectedPlace.relatedQueries.length > 0 && (
                         <div className="suggestion-section">
-                            <span className="section-label">🔍 相关搜索</span>
+                            <span className="section-label">🔍 Related Searches</span>
                             <div className="suggestion-chips">
                                 {selectedPlace.relatedQueries.map((query: string, i: number) => (
                                     <button
@@ -1149,7 +1149,7 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                     {/* Follow-up Actions */}
                     {selectedPlace.followUpActions && selectedPlace.followUpActions.length > 0 && (
                         <div className="suggestion-section">
-                            <span className="section-label">⚡ 快捷操作</span>
+                            <span className="section-label">⚡ Quick Actions</span>
                             <div className="suggestion-chips">
                                 {selectedPlace.followUpActions.map((action: string, i: number) => (
                                     <button
@@ -1157,11 +1157,12 @@ const RestaurantCard: React.FC<{ data: any; onDismiss?: () => void; onSuggestion
                                         className="suggestion-chip action"
                                         onClick={() => {
                                             // Handle specific actions
-                                            if (action.includes('预订') && selectedPlace.dianpingUrl) {
+                                            const normalizedAction = action.toLowerCase();
+                                            if ((normalizedAction.includes('book') || action.includes('\u9884\u8ba2')) && selectedPlace.dianpingUrl) {
                                                 window.open(selectedPlace.dianpingUrl, '_blank');
-                                            } else if (action.includes('电话') && selectedPlace.phone) {
+                                            } else if ((normalizedAction.includes('call') || action.includes('\u7535\u8bdd')) && selectedPlace.phone) {
                                                 window.location.href = `tel:${selectedPlace.phone}`;
-                                            } else if (action.includes('评价') && selectedPlace.dianpingUrl) {
+                                            } else if ((normalizedAction.includes('review') || action.includes('\u8bc4\u4ef7')) && selectedPlace.dianpingUrl) {
                                                 window.open(selectedPlace.dianpingUrl, '_blank');
                                             } else {
                                                 // Trigger as a new search query

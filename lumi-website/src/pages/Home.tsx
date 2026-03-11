@@ -5,19 +5,17 @@ import {
     Users,
     Shield,
     Zap,
-    Download,
     ArrowRight,
     Globe,
-    MessageSquare,
-    Calendar
+    MessageSquare
 } from 'lucide-react';
 
 const Home = () => {
     const features = [
         {
             icon: <Brain size={28} />,
-            title: 'Digital Avatar',
-            description: 'AI that learns your personality, preferences, and communication style over time.'
+            title: 'Digital Twin',
+            description: 'We bridge the emotion gap between humans and AI with a Digital Twin connected to LLM reasoning.'
         },
         {
             icon: <Users size={28} />,
@@ -37,10 +35,10 @@ const Home = () => {
     ];
 
     const stats = [
-        { value: '100K+', label: 'Active Users' },
-        { value: '50+', label: 'Languages' },
-        { value: '10M+', label: 'AI Interactions' },
-        { value: '99.9%', label: 'Uptime' }
+        { value: '7', label: 'Core App Modules' },
+        { value: 'Single Entry', label: 'Super Agent Routing' },
+        { value: 'Local-First', label: 'Privacy Architecture' },
+        { value: 'LIX + Agent', label: 'Execution Loops' }
     ];
 
     return (
@@ -70,7 +68,7 @@ const Home = () => {
 
                         <p>
                             Lumi becomes your "Second Brain" for high-frequency input tasks.
-                            With <strong>Local-First</strong> privacy and <strong>Digital Avatar</strong> personalization,
+                            With <strong>Local-First</strong> privacy and <strong>Digital Twin</strong> personalization,
                             experience AI that truly understands you — all while your data never leaves your device.
                         </p>
 
@@ -90,50 +88,59 @@ const Home = () => {
                             </Link>
                         </div>
 
-                        <div className="hero-visual" style={{ marginTop: '60px' }}>
-                            <div style={{
-                                width: '100%',
-                                maxWidth: '800px',
-                                margin: '0 auto',
-                                aspectRatio: '16/9',
-                                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1))',
-                                borderRadius: '20px',
-                                border: '1px solid var(--border-color)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                position: 'relative',
-                                overflow: 'hidden'
-                            }}>
-                                <div style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.2) 0%, transparent 70%)',
-                                }} />
-                                <iframe
-                                    src="https://lumi-agent-simulator.vercel.app"
-                                    style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        border: 'none',
-                                        borderRadius: '20px',
-                                    }}
-                                    title="Lumi.AI Demo"
-                                />
-                            </div>
-                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* Features Section */}
+            {/* Demo Section */}
+            <section className="section" style={{ paddingTop: '20px' }}>
+                <div className="container">
+                    <div className="section-header">
+                        <h2>Live <span className="gradient-text">Demo</span></h2>
+                        <p>
+                            Experience Lumi's keyboard-to-agent workflow directly in the browser.
+                        </p>
+                    </div>
+                    <div style={{
+                        width: '100%',
+                        maxWidth: '980px',
+                        margin: '0 auto',
+                        aspectRatio: '16/9',
+                        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1))',
+                        borderRadius: '20px',
+                        border: '1px solid var(--border-color)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.2) 0%, transparent 70%)',
+                        }} />
+                        <iframe
+                            src="https://lumi-agent-simulator.vercel.app"
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                border: 'none',
+                                borderRadius: '20px',
+                            }}
+                            title="Lumi.AI Live Demo"
+                        />
+                    </div>
+                </div>
+            </section>
+
+            {/* Technology Section */}
             <section className="section">
                 <div className="container">
                     <div className="section-header">
-                        <h2>Why Choose <span className="gradient-text">Lumi.AI</span></h2>
+                        <h2>Core <span className="gradient-text">Technology</span></h2>
                         <p>
-                            A new generation of AI assistance that adapts to you,
-                            not the other way around.
+                            Architecture designed for explainable execution and emotional alignment.
                         </p>
                     </div>
 
@@ -178,9 +185,9 @@ const Home = () => {
                             }}>
                                 1
                             </div>
-                            <h3 style={{ marginBottom: '12px' }}>Install & Learn</h3>
+                            <h3 style={{ marginBottom: '12px' }}>Enter Agent Mode</h3>
                             <p style={{ color: 'var(--text-secondary)' }}>
-                                Install the Lumi keyboard. It begins learning your communication style immediately.
+                                Long-press Space in the keyboard to switch from typing to task execution mode.
                             </p>
                         </div>
 
@@ -199,9 +206,9 @@ const Home = () => {
                             }}>
                                 2
                             </div>
-                            <h3 style={{ marginBottom: '12px' }}>Ask Anything</h3>
+                            <h3 style={{ marginBottom: '12px' }}>Route & Execute</h3>
                             <p style={{ color: 'var(--text-secondary)' }}>
-                                Type naturally. Lumi understands context and coordinates the right AI agents.
+                                Super Agent decides single-agent or multi-agent flow and generates a clear task graph.
                             </p>
                         </div>
 
@@ -220,9 +227,9 @@ const Home = () => {
                             }}>
                                 3
                             </div>
-                            <h3 style={{ marginBottom: '12px' }}>Get Results</h3>
+                            <h3 style={{ marginBottom: '12px' }}>Confirm & Evolve</h3>
                             <p style={{ color: 'var(--text-secondary)' }}>
-                                Receive personalized, actionable results tailored to your preferences.
+                                Accepted outcomes update your Digital Twin to improve future decisions.
                             </p>
                         </div>
                     </div>
@@ -249,16 +256,16 @@ const Home = () => {
                     <div className="section-header">
                         <h2>Built-in <span className="gradient-text">Smart Tools</span></h2>
                         <p>
-                            Everything you need, right at your fingertips.
+                            Core modules aligned with our current product architecture.
                         </p>
                     </div>
 
                     <div className="grid grid-4">
                         {[
-                            { icon: <Globe size={24} />, name: 'Translation', desc: '50+ languages' },
-                            { icon: <MessageSquare size={24} />, name: 'Write Assist', desc: 'Smart drafts' },
-                            { icon: <Calendar size={24} />, name: 'Calendar', desc: 'Quick scheduling' },
-                            { icon: <Zap size={24} />, name: 'Quick Actions', desc: 'One-tap tasks' }
+                            { icon: <Zap size={24} />, name: 'Agent Mode', desc: 'Long-press Space to trigger Super Agent' },
+                            { icon: <MessageSquare size={24} />, name: 'LIX Intent Exchange', desc: 'Publish intents and review delivery offers' },
+                            { icon: <Globe size={24} />, name: 'Agent Marketplace', desc: 'Discover agents, execute tasks, track trends' },
+                            { icon: <Brain size={24} />, name: 'Digital Twin', desc: 'Local-first profile updated from confirmed tasks' }
                         ].map((tool, i) => (
                             <div key={i} className="card" style={{ textAlign: 'center', padding: '30px' }}>
                                 <div style={{
@@ -279,20 +286,19 @@ const Home = () => {
             <section className="section">
                 <div className="container">
                     <div className="cta-section">
-                        <h2>Ready to Transform Your Mobile Experience?</h2>
+                        <h2>Ready to Explore Lumi?</h2>
                         <p>
-                            Join thousands of users who are already experiencing
-                            the future of AI-powered assistance.
+                            Start with the live simulator, then talk to us for pilot access.
                         </p>
                         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                            <a href="#" className="btn">
-                                <Download size={18} />
-                                Download for iOS
+                            <a href="https://lumi-agent-simulator.vercel.app" target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                                <Sparkles size={18} />
+                                Open Live Demo
                             </a>
-                            <a href="#" className="btn">
-                                <Download size={18} />
-                                Download for Android
-                            </a>
+                            <Link to="/contact" className="btn btn-secondary">
+                                Request Pilot Access
+                                <ArrowRight size={18} />
+                            </Link>
                         </div>
                     </div>
                 </div>

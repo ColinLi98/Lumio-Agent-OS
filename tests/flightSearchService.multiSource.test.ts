@@ -1,10 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { searchFlights } from '../services/flightSearchService';
 
+function futureDate(daysAhead = 30): string {
+    const now = new Date();
+    now.setDate(now.getDate() + daysAhead);
+    return now.toISOString().slice(0, 10);
+}
+
+const departureDate = futureDate();
+
 const params = {
     origin: '上海虹桥',
     destination: '北京首都',
-    departureDate: '2026-02-07',
+    departureDate,
     travelClass: 'economy' as const,
     departureTimePreference: 'morning' as const,
     timePriorityMode: 'prefer' as const,
@@ -37,25 +45,36 @@ describe('flightSearchService multi-source realtime aggregation', () => {
         vi.stubGlobal('fetch', vi.fn(async (input: any) => {
             const url = String(input);
 
-            if (url.includes('serpapi.com/search.json') || url.includes('/api/serpapi/search.json')) {
+            if (url.includes('/api/serpapi/execute')) {
                 return jsonResponse({
-                    best_flights: [
-                        {
-                            price: 980,
-                            total_duration: 140,
-                            travel_class: 'economy',
-                            booking_token: 'token_1',
-                            flights: [
-                                {
-                                    airline: 'China Eastern',
-                                    flight_number: 'MU5101',
-                                    departure_airport: { id: 'SHA', name: 'Shanghai Hongqiao', time: '08:05' },
-                                    arrival_airport: { id: 'PEK', name: 'Beijing Capital', time: '10:25' },
-                                },
-                            ],
-                        },
-                    ],
-                    other_flights: [],
+                    success: true,
+                    engine: 'google_flights',
+                    raw: {
+                        best_flights: [
+                            {
+                                price: 980,
+                                total_duration: 140,
+                                travel_class: 'economy',
+                                booking_token: 'token_1',
+                                flights: [
+                                    {
+                                        airline: 'China Eastern',
+                                        flight_number: 'MU5101',
+                                        departure_airport: { id: 'SHA', name: 'Shanghai Hongqiao', time: '08:05' },
+                                        arrival_airport: { id: 'PEK', name: 'Beijing Capital', time: '10:25' },
+                                    },
+                                ],
+                            },
+                        ],
+                        other_flights: [],
+                    },
+                    normalized: { kind: 'raw', items: [], links: [] },
+                    evidence: {
+                        provider: 'google_flights',
+                        fetched_at: new Date().toISOString(),
+                        ttl_seconds: 120,
+                        items: [],
+                    },
                 });
             }
 
@@ -71,7 +90,7 @@ describe('flightSearchService multi-source realtime aggregation', () => {
                             {
                                 title: '携程 MU5103 07:30-09:45 ¥880',
                                 snippet: '上海虹桥到北京首都 直飞 经济舱',
-                                url: 'https://flights.ctrip.com/online/list/oneway-sha-bjs?depdate=2026-02-07',
+                                url: `https://flights.ctrip.com/online/list/oneway-sha-bjs?depdate=${departureDate}`,
                                 source_name: 'ctrip.com',
                             },
                         ],
@@ -112,7 +131,7 @@ describe('flightSearchService multi-source realtime aggregation', () => {
                             {
                                 title: 'Trip.com CA1501 06:50-09:10 ¥930',
                                 snippet: '上海虹桥到北京首都 直飞',
-                                url: 'https://www.trip.com/flights/?dcity=SHA&acity=PEK&ddate=2026-02-07',
+                                url: `https://www.trip.com/flights/?dcity=SHA&acity=PEK&ddate=${departureDate}`,
                                 source_name: 'trip.com',
                             },
                         ],

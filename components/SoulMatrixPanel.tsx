@@ -9,7 +9,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     SoulTrait,
     TraitCategory,
-    getCategoryDisplayName,
     getConfidenceLabel,
     getConfidenceColor,
 } from '../services/soulTraitTypes';
@@ -34,6 +33,15 @@ interface TraitCardProps {
     onDelete: () => void;
     onViewEvidence: (evidence_ids: string[]) => void;
 }
+
+const categoryLabelMap: Record<TraitCategory, string> = {
+    preference: 'Preference',
+    behavior: 'Behavior',
+    value: 'Value',
+    constraint: 'Constraint',
+    goal: 'Goal',
+    personality: 'Personality',
+};
 
 // ============================================================================
 // Main Component
@@ -128,7 +136,7 @@ export const SoulMatrixPanel: React.FC<SoulMatrixPanelProps> = ({
             {/* Header */}
             {showHeader && (
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-                    <h2 className="text-lg font-semibold text-white">我的分身认知</h2>
+                    <h2 className="text-lg font-semibold text-white">My Digital Twin Profile</h2>
                     {onClose && (
                         <button onClick={onClose} className="text-gray-400 hover:text-white">
                             ✕
@@ -148,7 +156,7 @@ export const SoulMatrixPanel: React.FC<SoulMatrixPanelProps> = ({
                                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
                             }`}
                     >
-                        {cat === 'all' ? '全部' : getCategoryDisplayName(cat)}
+                        {cat === 'all' ? 'All' : categoryLabelMap[cat]}
                         <span className="ml-1 opacity-60">
                             ({cat === 'all' ? traits.length : categoryCounts[cat] || 0})
                         </span>
@@ -160,13 +168,13 @@ export const SoulMatrixPanel: React.FC<SoulMatrixPanelProps> = ({
             {undoAction && (
                 <div className="mx-4 mt-2 p-3 bg-yellow-900/50 border border-yellow-700 rounded-lg flex items-center justify-between">
                     <span className="text-yellow-200 text-sm">
-                        已更改「{undoAction.trait_key}」
+                        Updated "{undoAction.trait_key}"
                     </span>
                     <button
                         onClick={handleUndo}
                         className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white text-sm rounded"
                     >
-                        撤销
+                        Undo
                     </button>
                 </div>
             )}
@@ -176,8 +184,8 @@ export const SoulMatrixPanel: React.FC<SoulMatrixPanelProps> = ({
                 {filteredTraits.length === 0 ? (
                     <div className="text-center text-gray-500 py-8">
                         <p className="text-4xl mb-2">🧠</p>
-                        <p>暂无分身认知数据</p>
-                        <p className="text-sm mt-1">与 Lumi 互动后会自动学习你的偏好</p>
+                        <p>No digital twin profile data yet</p>
+                        <p className="text-sm mt-1">Lumi learns your preferences automatically after interaction.</p>
                     </div>
                 ) : (
                     filteredTraits.map(trait => (
@@ -240,7 +248,7 @@ const TraitCard: React.FC<TraitCardProps> = ({
             return `${Math.round(value * 100)}%`;
         }
         if (typeof value === 'boolean') {
-            return value ? '是' : '否';
+            return value ? 'Yes' : 'No';
         }
         return String(value);
     };
@@ -259,10 +267,10 @@ const TraitCard: React.FC<TraitCardProps> = ({
                     <div className="flex items-center gap-2">
                         <span className="text-white font-medium">{trait.display_name}</span>
                         {trait.user_confirmed && (
-                            <span className="text-green-400 text-xs">✓ 已确认</span>
+                            <span className="text-green-400 text-xs">✓ Confirmed</span>
                         )}
                         {trait.user_edited && (
-                            <span className="text-blue-400 text-xs">✏️ 已编辑</span>
+                            <span className="text-blue-400 text-xs">✏️ Edited</span>
                         )}
                     </div>
                     {trait.description && (
@@ -305,12 +313,12 @@ const TraitCard: React.FC<TraitCardProps> = ({
                             }}
                             className="text-indigo-400 hover:text-indigo-300"
                         >
-                            📎 {trait.source_evidence.length} 条证据
+                            📎 {trait.source_evidence.length} evidence items
                         </button>
                     )}
                 </div>
                 <span className="text-gray-500 text-xs">
-                    {new Date(trait.last_updated).toLocaleDateString('zh-CN')}
+                    {new Date(trait.last_updated).toLocaleDateString('en-US')}
                 </span>
             </div>
 
@@ -322,20 +330,20 @@ const TraitCard: React.FC<TraitCardProps> = ({
                             onClick={(e) => { e.stopPropagation(); onConfirm(); }}
                             className="flex-1 py-2 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg"
                         >
-                            ✓ 确认准确
+                            ✓ Confirm accurate
                         </button>
                     )}
                     <button
                         onClick={(e) => { e.stopPropagation(); setEditing(true); setEditValue(String(trait.value)); }}
                         className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg"
                     >
-                        ✏️ 编辑
+                        ✏️ Edit
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onReject(); }}
                         className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm rounded-lg"
                     >
-                        ✗ 不准
+                        ✗ Inaccurate
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -376,7 +384,7 @@ const EvidenceModal: React.FC<EvidenceModalProps> = ({ evidence, trait_key, onCl
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-800">
                     <h3 className="text-lg font-semibold text-white">
-                        「{trait_key}」的证据
+                        Evidence for "{trait_key}"
                     </h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-white">
                         ✕
@@ -386,7 +394,7 @@ const EvidenceModal: React.FC<EvidenceModalProps> = ({ evidence, trait_key, onCl
                 {/* Evidence List */}
                 <div className="p-4 space-y-3 overflow-y-auto max-h-[60vh]">
                     {evidence.length === 0 ? (
-                        <p className="text-gray-500 text-center py-4">暂无证据记录</p>
+                        <p className="text-gray-500 text-center py-4">No evidence records yet</p>
                     ) : (
                         evidence.map(e => (
                             <div key={e.evidence_id} className="p-3 bg-gray-800 rounded-lg">
@@ -401,12 +409,12 @@ const EvidenceModal: React.FC<EvidenceModalProps> = ({ evidence, trait_key, onCl
                                         onClick={() => handleDeleteEvidence(e.evidence_id)}
                                         className="text-red-400 hover:text-red-300 text-sm"
                                     >
-                                        删除
+                                        Delete
                                     </button>
                                 </div>
                                 <p className="text-white mt-2 text-sm">{e.snippet_summary}</p>
                                 <p className="text-gray-500 text-xs mt-2">
-                                    {new Date(e.timestamp).toLocaleString('zh-CN')}
+                                    {new Date(e.timestamp).toLocaleString('en-US')}
                                 </p>
                             </div>
                         ))
@@ -419,7 +427,7 @@ const EvidenceModal: React.FC<EvidenceModalProps> = ({ evidence, trait_key, onCl
                         onClick={onClose}
                         className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
                     >
-                        关闭
+                        Close
                     </button>
                 </div>
             </div>

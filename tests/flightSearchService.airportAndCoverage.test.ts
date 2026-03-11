@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateMockFlightsWithRealLinks, searchFlights } from '../services/flightSearchService';
 
+function futureDate(daysAhead = 30): string {
+    const now = new Date();
+    now.setDate(now.getDate() + daysAhead);
+    return now.toISOString().slice(0, 10);
+}
+
+const departureDate = futureDate();
+
 function makeJsonResponse(payload: any, status = 200) {
     return {
         ok: status >= 200 && status < 300,
@@ -11,15 +19,22 @@ function makeJsonResponse(payload: any, status = 200) {
 }
 
 describe('flightSearchService airport mapping and comparison coverage', () => {
+    const originalWindow = (globalThis as any).window;
+
     afterEach(() => {
         vi.unstubAllGlobals();
+        if (typeof originalWindow === 'undefined') {
+            delete (globalThis as any).window;
+        } else {
+            (globalThis as any).window = originalWindow;
+        }
     });
 
     it('uses airport-level mapping for Shanghai Hongqiao -> Beijing Capital', () => {
         const result = generateMockFlightsWithRealLinks({
             origin: '上海虹桥机场',
             destination: '北京首都机场',
-            departureDate: '2026-02-07',
+            departureDate,
             travelClass: 'economy',
             departureTimePreference: 'morning',
             timePriorityMode: 'prefer',
@@ -35,7 +50,7 @@ describe('flightSearchService airport mapping and comparison coverage', () => {
         const result = generateMockFlightsWithRealLinks({
             origin: '上海虹桥',
             destination: '北京首都',
-            departureDate: '2026-02-07',
+            departureDate,
             travelClass: 'economy',
         });
 
@@ -48,8 +63,50 @@ describe('flightSearchService airport mapping and comparison coverage', () => {
     });
 
     it('keeps only requested airports when providers return mixed airport routes', async () => {
+        (globalThis as any).window = { location: { origin: 'http://localhost:5173' } };
         vi.stubGlobal('fetch', vi.fn(async (input: any) => {
             const url = String(input);
+            if (url.includes('/api/serpapi/execute')) {
+                return makeJsonResponse({
+                    success: true,
+                    engine: 'google_flights',
+                    raw: {
+                        best_flights: [
+                            {
+                                price: 680,
+                                total_duration: 150,
+                                flights: [
+                                    {
+                                        airline: 'MockAir',
+                                        flight_number: 'MO100',
+                                        departure_airport: { id: 'PVG', name: 'Shanghai Pudong', time: '07:10' },
+                                        arrival_airport: { id: 'PKX', name: 'Beijing Daxing', time: '09:40' },
+                                    },
+                                ],
+                            },
+                            {
+                                price: 930,
+                                total_duration: 145,
+                                flights: [
+                                    {
+                                        airline: 'MockAir',
+                                        flight_number: 'MO200',
+                                        departure_airport: { id: 'SHA', name: 'Shanghai Hongqiao', time: '08:20' },
+                                        arrival_airport: { id: 'PEK', name: 'Beijing Capital', time: '10:45' },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    normalized: { kind: 'raw', items: [], links: [] },
+                    evidence: {
+                        provider: 'google_flights',
+                        fetched_at: new Date().toISOString(),
+                        ttl_seconds: 120,
+                        items: [],
+                    },
+                });
+            }
             if (url.includes('serpapi.com/search.json') || url.includes('/api/serpapi/search.json')) {
                 return makeJsonResponse({
                     best_flights: [
@@ -89,7 +146,7 @@ describe('flightSearchService airport mapping and comparison coverage', () => {
         const result = await searchFlights({
             origin: '上海虹桥',
             destination: '北京首都',
-            departureDate: '2026-02-07',
+            departureDate,
             travelClass: 'economy',
             departureTimePreference: 'morning',
             timePriorityMode: 'prefer',
@@ -107,8 +164,38 @@ describe('flightSearchService airport mapping and comparison coverage', () => {
     });
 
     it('fails closed when no realtime result matches explicit airport constraints', async () => {
+        (globalThis as any).window = { location: { origin: 'http://localhost:5173' } };
         vi.stubGlobal('fetch', vi.fn(async (input: any) => {
             const url = String(input);
+            if (url.includes('/api/serpapi/execute')) {
+                return makeJsonResponse({
+                    success: true,
+                    engine: 'google_flights',
+                    raw: {
+                        best_flights: [
+                            {
+                                price: 680,
+                                total_duration: 150,
+                                flights: [
+                                    {
+                                        airline: 'MockAir',
+                                        flight_number: 'MO100',
+                                        departure_airport: { id: 'PVG', name: 'Shanghai Pudong', time: '07:10' },
+                                        arrival_airport: { id: 'PKX', name: 'Beijing Daxing', time: '09:40' },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    normalized: { kind: 'raw', items: [], links: [] },
+                    evidence: {
+                        provider: 'google_flights',
+                        fetched_at: new Date().toISOString(),
+                        ttl_seconds: 120,
+                        items: [],
+                    },
+                });
+            }
             if (url.includes('serpapi.com/search.json') || url.includes('/api/serpapi/search.json')) {
                 return makeJsonResponse({
                     best_flights: [
@@ -136,7 +223,7 @@ describe('flightSearchService airport mapping and comparison coverage', () => {
         const result = await searchFlights({
             origin: '上海虹桥',
             destination: '北京首都',
-            departureDate: '2026-02-07',
+            departureDate,
             travelClass: 'economy',
         }, 'serpapi-key', {
             requireLiveData: true,

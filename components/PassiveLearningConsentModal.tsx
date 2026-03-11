@@ -1,7 +1,7 @@
 /**
  * Passive Learning Consent Modal
  * 
- * 首次启动时显示的用户同意对话框
+ * User consent dialog shown on first launch
  */
 
 import React, { useState } from 'react';
@@ -19,15 +19,15 @@ export const PassiveLearningConsentModal: React.FC<ConsentModalProps> = ({
     onConsentGiven
 }) => {
     const [step, setStep] = useState<'intro' | 'apps'>('intro');
-    const [selectedApps, setSelectedApps] = useState<string[]>(['微信', '备忘录']);
+    const [selectedApps, setSelectedApps] = useState<string[]>(['WeChat', 'Notes']);
 
     const availableApps = [
-        { id: '微信', label: '微信', icon: '💬' },
-        { id: '备忘录', label: '备忘录', icon: '📝' },
-        { id: '邮件', label: '邮件', icon: '📧' },
-        { id: '小红书', label: '小红书', icon: '📕' },
-        { id: '抖音', label: '抖音', icon: '🎵' },
-        { id: '淘宝', label: '淘宝', icon: '🛒' }
+        { id: 'WeChat', label: 'WeChat', icon: '💬' },
+        { id: 'Notes', label: 'Notes', icon: '📝' },
+        { id: 'Mail', label: 'Mail', icon: '📧' },
+        { id: 'RED', label: 'RED', icon: '📕' },
+        { id: 'TikTok', label: 'TikTok', icon: '🎵' },
+        { id: 'Taobao', label: 'Taobao', icon: '🛒' }
     ];
 
     const handleToggleApp = (appId: string) => {
@@ -59,37 +59,36 @@ export const PassiveLearningConsentModal: React.FC<ConsentModalProps> = ({
                     <>
                         <div style={styles.header}>
                             <span style={styles.icon}>🧠</span>
-                            <h2 style={styles.title}>让 Lumi 更懂你</h2>
+                            <h2 style={styles.title}>Help Lumi Understand You Better</h2>
                         </div>
 
                         <div style={styles.content}>
                             <p style={styles.description}>
-                                启用<strong>智能学习</strong>后，Lumi 会在你日常打字时静默学习你的习惯和偏好，
-                                让 AI 助手更加个性化。
+                                After enabling <strong>smart learning</strong>, Lumi silently learns your habits and preferences during normal typing to make the assistant more personalized.
                             </p>
 
                             <div style={styles.featureList}>
                                 <div style={styles.feature}>
                                     <span style={styles.checkIcon}>✅</span>
-                                    <span>了解你的回复速度偏好</span>
+                                    <span>Learns your preferred reply speed</span>
                                 </div>
                                 <div style={styles.feature}>
                                     <span style={styles.checkIcon}>✅</span>
-                                    <span>识别你的活跃时段</span>
+                                    <span>Recognizes your active hours</span>
                                 </div>
                                 <div style={styles.feature}>
                                     <span style={styles.checkIcon}>✅</span>
-                                    <span>优化联想词推荐</span>
+                                    <span>Improves suggestion quality</span>
                                 </div>
                             </div>
 
                             <div style={styles.privacyBox}>
                                 <span style={styles.lockIcon}>🔒</span>
                                 <div>
-                                    <strong>隐私承诺</strong>
+                                    <strong>Privacy Commitment</strong>
                                     <p style={styles.privacyText}>
-                                        所有数据仅存储在你的设备本地，不会上传到云端。
-                                        我们只学习打字模式，不收集打字内容。
+                                        All data is stored only on your device and never uploaded to the cloud.
+                                        We learn typing patterns, not message content.
                                     </p>
                                 </div>
                             </div>
@@ -97,10 +96,10 @@ export const PassiveLearningConsentModal: React.FC<ConsentModalProps> = ({
 
                         <div style={styles.actions}>
                             <button style={styles.declineButton} onClick={handleDecline}>
-                                暂不开启
+                                Not now
                             </button>
                             <button style={styles.confirmButton} onClick={() => setStep('apps')}>
-                                选择 App →
+                                Choose apps
                             </button>
                         </div>
                     </>
@@ -108,12 +107,12 @@ export const PassiveLearningConsentModal: React.FC<ConsentModalProps> = ({
                     <>
                         <div style={styles.header}>
                             <span style={styles.icon}>📱</span>
-                            <h2 style={styles.title}>选择学习场景</h2>
+                            <h2 style={styles.title}>Choose Learning Apps</h2>
                         </div>
 
                         <div style={styles.content}>
                             <p style={styles.description}>
-                                选择你希望 Lumi 学习的 App，你可以随时在设置中修改。
+                                Select the apps where Lumi can learn. You can change this anytime in Settings.
                             </p>
 
                             <div style={styles.appGrid}>
@@ -138,7 +137,7 @@ export const PassiveLearningConsentModal: React.FC<ConsentModalProps> = ({
 
                         <div style={styles.actions}>
                             <button style={styles.declineButton} onClick={() => setStep('intro')}>
-                                ← 返回
+                                Back
                             </button>
                             <button
                                 style={{
@@ -148,7 +147,7 @@ export const PassiveLearningConsentModal: React.FC<ConsentModalProps> = ({
                                 onClick={handleConfirm}
                                 disabled={selectedApps.length === 0}
                             >
-                                开启智能学习
+                                Enable smart learning
                             </button>
                         </div>
                     </>

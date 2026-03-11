@@ -34,6 +34,6 @@ describe('SuperAgentResultPanel action links', () => {
 
         expect(html).toContain('携程旅行 - 实时航班');
         expect(html).toContain('https://flights.ctrip.com/online/list/oneway-sha-bjs');
-        expect(html).toContain('需在站内手动选择早班筛选');
+        expect(html).toContain('manually select early-flight filter on site');
     });
 });

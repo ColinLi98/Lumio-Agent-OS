@@ -46,11 +46,11 @@ interface DestinyRecommendationCardProps {
 
 function getRiskLevel(failureProb: number): { label: string; color: string; bgColor: string } {
     if (failureProb < 0.1) {
-        return { label: '低风险', color: '#22c55e', bgColor: 'rgba(34, 197, 94, 0.15)' };
+        return { label: 'Low Risk', color: '#22c55e', bgColor: 'rgba(34, 197, 94, 0.15)' };
     } else if (failureProb < 0.25) {
-        return { label: '中等风险', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)' };
+        return { label: 'Moderate Risk', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)' };
     } else {
-        return { label: '高风险', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)' };
+        return { label: 'High Risk', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)' };
     }
 }
 
@@ -94,11 +94,11 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
             }
 
             if (!result.success) {
-                setError(result.diagnostics.errors[0] ?? '无法生成建议');
+                setError(result.diagnostics.errors[0] ?? 'Unable to generate recommendation');
             }
         } catch (e) {
             console.error('[DestinyCard] Error:', e);
-            setError('计算建议时出错');
+            setError('Error while calculating recommendation');
         } finally {
             setLoading(false);
         }
@@ -114,7 +114,7 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
             <div style={styles.container}>
                 <div style={styles.loadingContainer}>
                     <RefreshCw size={24} className="animate-spin" style={{ color: '#3b82f6' }} />
-                    <span style={styles.loadingText}>分析最优策略...</span>
+                    <span style={styles.loadingText}>Analyzing optimal strategy...</span>
                 </div>
             </div>
         );
@@ -126,9 +126,9 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
             <div style={styles.container}>
                 <div style={styles.errorContainer}>
                     <AlertCircle size={24} style={{ color: '#ef4444' }} />
-                    <div style={styles.errorText}>{error || '无法获取建议'}</div>
+                    <div style={styles.errorText}>{error || 'Unable to fetch recommendation'}</div>
                     <button onClick={loadRecommendation} style={styles.retryButton}>
-                        重试
+                        Retry
                     </button>
                 </div>
             </div>
@@ -151,7 +151,7 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
                 </div>
                 <div style={styles.compactMetric}>
                     <span style={{ color: riskLevel.color }}>{riskLevel.label}</span>
-                    <span>• 失败率 {(failureProb * 100).toFixed(0)}%</span>
+                    <span>• Failure rate {(failureProb * 100).toFixed(0)}%</span>
                 </div>
             </div>
         );
@@ -163,7 +163,7 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
             <div style={styles.header}>
                 <div style={styles.headerLeft}>
                     <span style={styles.icon}>🎯</span>
-                    <span style={styles.title}>命运引擎建议</span>
+                    <span style={styles.title}>Destiny Engine Recommendation</span>
                 </div>
                 <div style={{
                     ...styles.confidenceBadge,
@@ -172,7 +172,7 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
                         : 'rgba(251, 191, 36, 0.2)',
                     color: recommendation.diagnostics.explanation_valid ? '#22c55e' : '#fbbf24',
                 }}>
-                    {recommendation.diagnostics.explanation_valid ? '高置信' : '需验证'}
+                    {recommendation.diagnostics.explanation_valid ? 'High Confidence' : 'Needs Validation'}
                 </div>
             </div>
 
@@ -180,10 +180,10 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
             {!isFresh && (
                 <div style={styles.staleWarning}>
                     <Clock size={14} />
-                    <span>证据数据已过期</span>
+                    <span>Evidence data is outdated</span>
                     {onRefreshEvidence && (
                         <button onClick={onRefreshEvidence} style={styles.refreshLink}>
-                            刷新
+                            Refresh
                         </button>
                     )}
                 </div>
@@ -193,7 +193,7 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
             <div style={styles.mainCard}>
                 <div style={styles.mainTitle}>{bestAction?.summary}</div>
                 <div style={styles.subtitle}>
-                    {explanation_card?.headline ?? '基于当前状态的最优建议'}
+                    {explanation_card?.headline ?? 'Best recommendation based on current state'}
                 </div>
 
                 {/* Metrics Row */}
@@ -205,7 +205,7 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
                         <div style={{ ...styles.metricValue, color: riskLevel.color }}>
                             {(failureProb * 100).toFixed(0)}%
                         </div>
-                        <div style={styles.metricLabel}>失败率</div>
+                        <div style={styles.metricLabel}>Failure Rate</div>
                     </div>
                 </div>
             </div>
@@ -213,7 +213,7 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
             {/* Top Reasons */}
             {explanation_card && explanation_card.top_reasons.length > 0 && (
                 <div style={styles.reasonsSection}>
-                    <div style={styles.sectionTitle}>推荐理由</div>
+                    <div style={styles.sectionTitle}>Recommendation Rationale</div>
                     {explanation_card.top_reasons.slice(0, 4).map((reason, idx) => (
                         <div key={idx} style={styles.reason}>
                             <span style={{
@@ -247,8 +247,8 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
             {evidencePack && evidencePack.items.length > 0 && (
                 <div style={styles.evidenceSection}>
                     <div style={styles.sectionTitle}>
-                        证据来源
-                        {!isFresh && <span style={styles.staleBadge}>已过期</span>}
+                        Evidence Sources
+                        {!isFresh && <span style={styles.staleBadge}>Stale</span>}
                     </div>
                     {evidencePack.items.slice(0, 3).map((item, idx) => (
                         <div key={idx} style={styles.evidenceItem}>
@@ -265,7 +265,7 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
             {/* Alternatives */}
             {explanation_card && explanation_card.alternatives.length > 0 && (
                 <div style={styles.alternativesSection}>
-                    <div style={styles.sectionTitle}>备选方案</div>
+                    <div style={styles.sectionTitle}>Alternatives</div>
                     {explanation_card.alternatives.slice(0, 3).map((alt: AlternativeSummary, idx: number) => (
                         <div
                             key={idx}
@@ -284,7 +284,7 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
                 style={styles.actionButton}
                 onClick={() => onActionSelect?.(bestAction?.action_type ?? 'do')}
             >
-                {bestAction?.requires_confirmation ? '确认并执行' : '采纳建议'}
+                {bestAction?.requires_confirmation ? 'Confirm and Execute' : 'Accept Recommendation'}
             </button>
         </div>
     );
@@ -296,9 +296,9 @@ export const DestinyRecommendationCard: React.FC<DestinyRecommendationCardProps>
 
 const MetricBox: React.FC<{ metric: MetricDistribution }> = ({ metric }) => {
     const nameMap: Record<string, string> = {
-        utility_score: '综合效用',
-        wealth: '财富增益',
-        time: '时间成本',
+        utility_score: 'Overall Utility',
+        wealth: 'Wealth Gain',
+        time: 'Time Cost',
     };
 
     return (

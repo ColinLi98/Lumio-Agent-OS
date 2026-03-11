@@ -21,26 +21,55 @@ const dismissBlockingUI = async (page: Page) => {
 };
 
 const openAppMode = async (page: Page) => {
-  const byTitle = page.getByTitle('App Mode');
-  if (await byTitle.isVisible().catch(() => false)) {
-    await byTitle.click({ force: true });
-    return;
-  }
-  await page.getByRole('button', { name: /^App$/ }).click({ force: true });
+  const url = new URL(page.url());
+  url.searchParams.set('surface', 'app');
+  url.searchParams.set('imeDemo', '1');
+  await page.goto(url.toString());
+  await dismissBlockingUI(page);
 };
 
 test('agent marketplace discovers external feed candidate', async ({ page }) => {
+  await page.route('**/api/agent-market/discover', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        trace_id: 'mkt_mock_trace',
+        candidates: [
+          {
+            agent: {
+              id: 'ext:postman:recruitment',
+              name: 'Postman Echo Recruitment Agent',
+              source: 'external_market',
+              capabilities: ['job_sourcing', 'resume_optimization', 'salary_benchmark'],
+              compliance_tags: ['external_feed', 'reviewed'],
+            },
+            fit_score: 0.92,
+            reliability_score: 0.88,
+            freshness_score: 0.86,
+            latency_score: 0.8,
+            cost_score: 0.74,
+            total_score: 0.86,
+          },
+        ],
+        rejected: [],
+      }),
+    });
+  });
+
   await preparePage(page);
-  await page.goto('/');
+  await page.goto('/?imeDemo=1');
   await dismissBlockingUI(page);
   await openAppMode(page);
 
   await page.getByRole('button', { name: 'Agent', exact: true }).click({ force: true });
-  await expect(page.getByText('Agent Marketplace')).toBeVisible();
+  await expect(page.getByText('Quick Start')).toBeVisible();
 
-  await page.getByRole('button', { name: '招聘示例' }).click();
-  await page.getByRole('button', { name: 'Discover' }).click();
+  const recruitingExample = page.getByRole('button', { name: /Recruiting example|招聘示例/i }).first();
+  await recruitingExample.click({ force: true });
+  await page.getByRole('button', { name: /Discover Agents|Discover/i }).first().click({ force: true });
 
-  await expect(page.getByText('Postman Echo Recruitment Agent')).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText('external_market')).toBeVisible();
+  await expect(page.getByText(/Candidate Agents \(1\)/i)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/trace: mkt_mock/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Run Recommended \(1\)/i })).toBeVisible();
 });

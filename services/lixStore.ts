@@ -5,6 +5,10 @@
 
 import * as React from 'react';
 import {
+    type DispatchDecision,
+    type IntentAuctionPolicy,
+    type LixTakeRateTier,
+    type OverflowDecision,
     type AgentSolutionIntent,
     type AgentSolutionOffer,
     type DeliveredAgentManifest,
@@ -25,6 +29,8 @@ import {
 import { lixMarketService } from './marketService.js';
 import { settlementService, AcceptTokenRecord } from './settlementService.js';
 import { proofOfIntentService, ProofOfIntent } from './proofOfIntentService.js';
+import { ensureMarketplaceCatalogReady } from './agentMarketplaceService.js';
+import type { AgentDomain, CandidateAgent } from './agentMarketplaceTypes.js';
 
 // ============================================================================
 // Store Types
@@ -194,58 +200,424 @@ function inferCollaboratorAgents(caps: string[]): string[] {
     return uniqueStrings(out);
 }
 
-function createMockSolutionOffers(
+const SOLUTION_CAPABILITY_ALIASES: Record<string, string[]> = {
+    talent_search: ['job_sourcing', 'resume_optimization', 'salary_benchmark'],
+    local_service_match: ['local_search', 'live_search'],
+    evidence_check: ['web_search', 'live_search'],
+    task_execution: ['live_search'],
+    negotiation: [],
+    agent_discovery: ['agent_requirement_broadcast', 'expert_matching', 'web_search'],
+};
+
+function normalizeSolutionCapabilityHints(requiredCaps: string[]): string[] {
+    const normalized: string[] = [];
+    requiredCaps.forEach((value) => {
+        const cap = String(value || '').trim().toLowerCase();
+        if (!cap) return;
+        const mapped = SOLUTION_CAPABILITY_ALIASES[cap];
+        if (mapped) {
+            normalized.push(...mapped);
+            return;
+        }
+        normalized.push(cap);
+    });
+    return uniqueStrings(normalized);
+}
+
+function buildCapabilityAttempts(requiredCaps: string[]): string[][] {
+    const normalized = normalizeSolutionCapabilityHints(requiredCaps);
+    const relaxed = normalized.filter((cap) => cap !== 'negotiation');
+    const attempts = [normalized, relaxed, [] as string[]];
+    const seen = new Set<string>();
+    return attempts.reduce<string[][]>((acc, caps) => {
+        const deduped = uniqueStrings(caps);
+        const key = deduped.join('|');
+        if (!seen.has(key)) {
+            seen.add(key);
+            acc.push(deduped);
+        }
+        return acc;
+    }, []);
+}
+
+function normalizeAgentDomain(domain: SolutionIntentDomain): AgentDomain {
+    switch (domain) {
+        case 'local_service':
+            return 'local_service';
+        case 'recruitment':
+        case 'travel':
+        case 'finance':
+        case 'health':
+        case 'legal':
+        case 'education':
+        case 'shopping':
+        case 'productivity':
+            return domain;
+        default:
+            return 'general';
+    }
+}
+
+function estimateDeliveryHours(latencyMs?: number): number {
+    if (!Number.isFinite(latencyMs)) return 24;
+    const normalized = Number(latencyMs);
+    if (normalized <= 0) return 24;
+    return Math.max(1, Math.ceil(normalized / (60 * 60 * 1000)));
+}
+
+function resolveQuoteAmount(candidate: CandidateAgent): number {
+    const pricingModel = candidate.agent.pricing_model;
+    if (pricingModel === 'free') return 0;
+    if (Number.isFinite(candidate.agent.price_per_use_cny)) {
+        return Math.max(0, Math.round(Number(candidate.agent.price_per_use_cny)));
+    }
+    return 0;
+}
+
+const LIX_15_DOMAINS = new Set<SolutionIntentDomain>(['travel', 'recruitment', 'local_service']);
+const LIX_15_AUCTION_POLICY: IntentAuctionPolicy = {
+    policy_version: 'lix_1_5',
+    dispatch_mode: 'capability_auction',
+    fail_closed: true,
+    exploration_quota: 0.2,
+    domains_enforced: ['travel', 'recruitment', 'local_service'],
+};
+
+const LIX_15_TAKE_RATE_POLICY = {
+    first_trade_rate: 0.30,
+    repeat_trade_rate: 0.10,
+};
+
+const LIX_15_BOND_MIN_CNY = 500;
+
+function isLix15Domain(domain: SolutionIntentDomain): boolean {
+    return LIX_15_DOMAINS.has(domain);
+}
+
+function estimateIntentComplexity(query: string, requiredCaps: string[]): number {
+    const lowered = query.toLowerCase();
+    let score = 0.35;
+    score += Math.min(0.35, requiredCaps.length * 0.08);
+    if (/并行|协同|多方案|compare|parallel|multi|拆解|workflow/.test(lowered)) score += 0.18;
+    if (/预算|时限|deadline|constraint|约束/.test(lowered)) score += 0.08;
+    if (query.length > 80) score += 0.08;
+    return Math.min(1, score);
+}
+
+function estimateIntentRisk(query: string, domain: SolutionIntentDomain): number {
+    const lowered = query.toLowerCase();
+    if (/支付|转账|投资|医疗|法律|授权|账户|密码|交易|合同/.test(lowered)) return 0.82;
+    if (domain === 'finance' || domain === 'health' || domain === 'legal') return 0.8;
+    if (domain === 'travel' || domain === 'recruitment') return 0.58;
+    return 0.46;
+}
+
+function resolveDispatchDecision(input: {
+    query: string;
+    domain: SolutionIntentDomain;
+    requiredCapabilities: string[];
+    overflowContext?: OverflowDecision;
+    dispatchPolicyVersion?: string;
+}): DispatchDecision {
+    const complexity = Number(input.overflowContext?.complexity ?? estimateIntentComplexity(input.query, input.requiredCapabilities));
+    const risk = Number(input.overflowContext?.risk ?? estimateIntentRisk(input.query, input.domain));
+    const requiredCaps = Number(input.overflowContext?.required_capabilities ?? input.requiredCapabilities.length);
+    const queueDepth = Number(input.overflowContext?.super_agent_queue_depth ?? 0);
+    const explicitOverflow = String(input.overflowContext?.mode || '').toLowerCase() === 'capability_auction';
+    const domainEnabled = isLix15Domain(input.domain);
+
+    const reasonCodes: string[] = [];
+    if (!domainEnabled) {
+        return {
+            mode: 'lumi_primary',
+            reason_codes: ['domain_not_in_lix15_scope'],
+            overflow_reason: input.overflowContext?.overflow_reason,
+            policy_version: input.dispatchPolicyVersion || LIX_15_AUCTION_POLICY.policy_version,
+        };
+    }
+    if (complexity >= 0.68) reasonCodes.push('complexity>=0.68');
+    if (risk >= 0.72) reasonCodes.push('risk>=0.72');
+    if (requiredCaps >= 3) reasonCodes.push('required_capabilities>=3');
+    if (queueDepth >= 8) reasonCodes.push('super_agent_queue_depth>=8');
+    if (explicitOverflow) reasonCodes.push('explicit_overflow_context');
+
+    return {
+        mode: 'capability_auction',
+        reason_codes: reasonCodes.length > 0 ? reasonCodes : ['direct_lix_dispatch'],
+        overflow_reason: input.overflowContext?.overflow_reason,
+        policy_version: input.dispatchPolicyVersion || LIX_15_AUCTION_POLICY.policy_version,
+    };
+}
+
+const EXECUTION_SCORE_WEIGHTS = {
+    fit: 0.40,
+    reliability: 0.20,
+    freshness: 0.15,
+    latency: 0.15,
+    cost: 0.10,
+} as const;
+
+function clampUnitScore(value: number): number {
+    return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+}
+
+function roundScore(value: number): number {
+    return Math.round(clampUnitScore(value) * 100) / 100;
+}
+
+function computeExecutionScore(candidate: CandidateAgent): number {
+    const fit = clampUnitScore(candidate.fit_score);
+    const reliability = clampUnitScore(candidate.reliability_score);
+    const freshness = clampUnitScore(candidate.freshness_score);
+    const latency = clampUnitScore(candidate.latency_score);
+    const cost = clampUnitScore(candidate.cost_score);
+
+    let weightedScore =
+        EXECUTION_SCORE_WEIGHTS.fit * fit
+        + EXECUTION_SCORE_WEIGHTS.freshness * freshness
+        + EXECUTION_SCORE_WEIGHTS.cost * cost;
+    let weightTotal =
+        EXECUTION_SCORE_WEIGHTS.fit
+        + EXECUTION_SCORE_WEIGHTS.freshness
+        + EXECUTION_SCORE_WEIGHTS.cost;
+
+    if (candidate.reliability_known !== false) {
+        weightedScore += EXECUTION_SCORE_WEIGHTS.reliability * reliability;
+        weightTotal += EXECUTION_SCORE_WEIGHTS.reliability;
+    }
+    if (candidate.latency_known !== false) {
+        weightedScore += EXECUTION_SCORE_WEIGHTS.latency * latency;
+        weightTotal += EXECUTION_SCORE_WEIGHTS.latency;
+    }
+
+    const base = weightTotal > 0 ? weightedScore / weightTotal : 0;
+    return roundScore(base);
+}
+
+function computeCompositeScore(executionScore: number, twinFitScore: number): number {
+    // Keep feasibility/execution as the primary signal; twin fit is an overlay adjustment.
+    return roundScore(executionScore + (Number.isFinite(twinFitScore) ? twinFitScore : 0) * 0.35);
+}
+
+function buildRankingRationale(executionScore: number, twinFitScore: number, hasTwinContext: boolean): string {
+    if (!hasTwinContext) {
+        return `执行分 ${executionScore.toFixed(2)}；未提供 Digital Twin，上下文个性化增益为 0`;
+    }
+    const twinLabel = twinFitScore >= 0 ? `+${twinFitScore.toFixed(2)}` : twinFitScore.toFixed(2);
+    return `执行分 ${executionScore.toFixed(2)}；Twin 贴合 ${twinLabel}（在可执行候选中做个性化排序）`;
+}
+
+function buildRealtimeSummary(
+    candidate: CandidateAgent,
+    quoteAmount: number,
+    executionScore: number,
+    twinFitScore: number,
+    compositeScore: number
+): string {
+    const realtimeLabel = candidate.agent.supports_realtime ? '实时' : '离线';
+    const evidenceLabel = `证据:${candidate.agent.evidence_level}`;
+    const priceLabel = candidate.agent.pricing_model === 'free'
+        ? '免费'
+        : quoteAmount > 0
+            ? `¥${quoteAmount}/次`
+            : '价格待议';
+    const twinLabel = twinFitScore >= 0
+        ? `Twin +${Math.abs(twinFitScore).toFixed(2)}`
+        : `Twin -${Math.abs(twinFitScore).toFixed(2)}`;
+    return `${realtimeLabel} · ${evidenceLabel} · ${priceLabel} · 执行 ${executionScore.toFixed(2)} · ${twinLabel} · 综合 ${compositeScore.toFixed(2)}`;
+}
+
+async function buildRealtimeSolutionOffers(
     intentId: string,
-    caps: string[],
-    deliveryModePreference?: 'agent_collab' | 'human_expert' | 'hybrid'
-): AgentSolutionOffer[] {
-    const now = new Date();
-    const offerCaps = caps.length > 0 ? caps : ['web_search'];
-    const experts = [
-        { id: 'expert_lee', name: '李工（多 Agent 编排）', eta: 8, quote: 899 },
-        { id: 'expert_chen', name: '陈工（实时数据接入）', eta: 12, quote: 1299 },
-        { id: 'agent_swarm_lix', name: 'LIX Agent 协同网络（自动交付）', eta: 1, quote: 399, type: 'agent_collab' as const },
-    ];
+    query: string,
+    domain: SolutionIntentDomain,
+    requiredCaps: string[],
+    deliveryModePreference?: 'agent_collab' | 'human_expert' | 'hybrid',
+    digitalTwinSnapshot?: LixDigitalTwinSnapshot,
+    options?: {
+        takeRateTier?: LixTakeRateTier;
+        explorationQuota?: number;
+        preferPaidExpert?: boolean;
+    }
+): Promise<AgentSolutionOffer[]> {
+    const marketplace = await ensureMarketplaceCatalogReady(true);
+    const capabilityAttempts = buildCapabilityAttempts(requiredCaps);
+    const preferredDomain = normalizeAgentDomain(domain);
+    const digitalTwinContext = digitalTwinSnapshot?.marketplace_context;
+    let discovery = null as ReturnType<typeof marketplace.discoverAgents> | null;
+    let selectedCaps: string[] = requiredCaps;
+    let selectedDomain: AgentDomain = preferredDomain;
 
-    const offers = experts.map((expert, index) => ({
-        offer_id: `sol_offer_${generateId()}`,
-        intent_id: intentId,
-        expert_id: expert.id,
-        expert_name: expert.name,
-        offer_type: (expert.type || 'human_expert') as AgentSolutionOffer['offer_type'],
-        summary: expert.type === 'agent_collab'
-            ? `由 Agent 网络自动协同交付，覆盖能力：${offerCaps.slice(0, 4).join('、')}`
-            : `交付可上架 agent，覆盖能力：${offerCaps.slice(0, 3).join('、')}`,
-        proposed_capabilities: offerCaps,
-        collaborator_agents: expert.type === 'agent_collab'
-            ? inferCollaboratorAgents(offerCaps)
-            : undefined,
-        orchestration_strategy: expert.type === 'agent_collab'
-            ? 'planner -> multi-agent execution -> evidence merge'
-            : undefined,
-        estimated_delivery_hours: expert.eta,
-        quote_amount: expert.quote + (index * 100),
-        currency: 'CNY',
-        status: 'open' as AgentSolutionOffer['status'],
-        created_at: now.toISOString(),
-    }));
+    for (const caps of capabilityAttempts) {
+        const attempt = marketplace.discoverAgents({
+            query,
+            locale: 'zh-CN',
+            domain_hint: preferredDomain,
+            required_capabilities: caps,
+            digital_twin_context: digitalTwinContext,
+            require_realtime: true,
+            max_candidates: 8,
+        });
+        if (attempt.candidates.length > 0) {
+            discovery = attempt;
+            selectedCaps = caps;
+            break;
+        }
+    }
 
+    if (!discovery && preferredDomain !== 'general') {
+        for (const caps of capabilityAttempts) {
+            const attempt = marketplace.discoverAgents({
+                query,
+                locale: 'zh-CN',
+                domain_hint: 'general',
+                required_capabilities: caps,
+                digital_twin_context: digitalTwinContext,
+                require_realtime: true,
+                max_candidates: 8,
+            });
+            if (attempt.candidates.length > 0) {
+                discovery = attempt;
+                selectedCaps = caps;
+                selectedDomain = 'general';
+                break;
+            }
+        }
+    }
+
+    if (!discovery) {
+        discovery = marketplace.discoverAgents({
+            query,
+            locale: 'zh-CN',
+            domain_hint: preferredDomain,
+            required_capabilities: [],
+            digital_twin_context: digitalTwinContext,
+            require_realtime: true,
+            max_candidates: 8,
+        });
+        selectedCaps = [];
+    }
+
+    if (selectedDomain !== preferredDomain || selectedCaps.join('|') !== requiredCaps.join('|')) {
+        logEvent('solution.intent.discovery_relaxed', {
+            intent_id: intentId,
+            domain_from: preferredDomain,
+            domain_to: selectedDomain,
+            required_caps_from: requiredCaps,
+            required_caps_to: selectedCaps,
+            candidates_count: discovery.candidates.length,
+        });
+    }
+
+    const now = new Date().toISOString();
     const preference = normalizeDeliveryModePreference(deliveryModePreference) || 'hybrid';
-    return offers.sort((a, b) => {
+    const takeRateTier: LixTakeRateTier = options?.takeRateTier || 'first_trade';
+    const effectiveTakeRate = takeRateTier === 'first_trade'
+        ? LIX_15_TAKE_RATE_POLICY.first_trade_rate
+        : LIX_15_TAKE_RATE_POLICY.repeat_trade_rate;
+    const explorationQuota = Math.min(0.5, Math.max(0, Number(options?.explorationQuota ?? LIX_15_AUCTION_POLICY.exploration_quota)));
+    const preferPaidExpert = options?.preferPaidExpert === true;
+    const requestedCaps = normalizeSolutionCapabilityHints(requiredCaps);
+    const offers = discovery.candidates.map((candidate) => {
+        const caps = uniqueStrings([
+            ...candidate.agent.capabilities,
+            ...requestedCaps,
+        ]);
+        const quoteAmount = resolveQuoteAmount(candidate);
+        const offerType: AgentSolutionOffer['offer_type'] = candidate.agent.supports_parallel ? 'agent_collab' : 'human_expert';
+        const collaboratorAgents = offerType === 'agent_collab'
+            ? inferCollaboratorAgents(caps)
+            : undefined;
+        const capacityScore = Math.max(0, Math.min(1, candidate.latency_score || 0.65));
+        const capacityAvailable = capacityScore >= 0.3;
+        const riskScore = Math.max(0, Math.min(1, 1 - (candidate.reliability_score || 0.5)));
+        settlementService.ensureBondAccount(candidate.agent.id, LIX_15_BOND_MIN_CNY);
+        const bondStatus = settlementService.getBondStatus(candidate.agent.id);
+        const bondCoverage = bondStatus.available_balance >= LIX_15_BOND_MIN_CNY;
+        const expectedCompletionMinutes = Math.max(
+            5,
+            Math.ceil((candidate.agent.avg_latency_ms || 30 * 60 * 1000) / (60 * 1000))
+        );
+        const executionScore = computeExecutionScore(candidate);
+        const twinFitScore = Number.isFinite(candidate.twin_boost) ? Math.round(Number(candidate.twin_boost) * 100) / 100 : 0;
+        const compositeScore = computeCompositeScore(executionScore, twinFitScore);
+        const rankingRationale = buildRankingRationale(executionScore, twinFitScore, Boolean(digitalTwinContext));
+        return {
+            offer_id: `sol_offer_${candidate.agent.id}_${generateId().slice(0, 6)}`,
+            intent_id: intentId,
+            expert_id: candidate.agent.id,
+            expert_name: candidate.agent.name,
+            offer_type: offerType,
+            summary: buildRealtimeSummary(candidate, quoteAmount, executionScore, twinFitScore, compositeScore),
+            proposed_capabilities: caps,
+            collaborator_agents: collaboratorAgents,
+            orchestration_strategy: offerType === 'agent_collab'
+                ? 'planner -> multi-agent execution -> evidence merge'
+                : undefined,
+            estimated_delivery_hours: estimateDeliveryHours(candidate.agent.avg_latency_ms),
+            expected_completion_minutes: expectedCompletionMinutes,
+            quote_amount: quoteAmount,
+            currency: 'CNY',
+            capacity_available: capacityAvailable,
+            capacity_score: capacityScore,
+            risk_score: riskScore,
+            bond_coverage: bondCoverage,
+            effective_take_rate: effectiveTakeRate,
+            take_rate_tier: takeRateTier,
+            execution_score: executionScore,
+            twin_fit_score: twinFitScore,
+            composite_score: compositeScore,
+            ranking_rationale: rankingRationale,
+            status: 'open' as const,
+            created_at: now,
+        };
+    });
+
+    const feasibleOffers = offers.filter((offer) => offer.bond_coverage && offer.capacity_available);
+    const ranked = feasibleOffers.sort((a, b) => {
         const aPref = preference === 'agent_collab'
             ? (a.offer_type === 'agent_collab' ? 1 : 0)
             : preference === 'human_expert'
-                ? (a.offer_type === 'human_expert' || !a.offer_type ? 1 : 0)
+                ? (a.offer_type === 'human_expert' ? 1 : 0)
                 : 0;
         const bPref = preference === 'agent_collab'
             ? (b.offer_type === 'agent_collab' ? 1 : 0)
             : preference === 'human_expert'
-                ? (b.offer_type === 'human_expert' || !b.offer_type ? 1 : 0)
+                ? (b.offer_type === 'human_expert' ? 1 : 0)
                 : 0;
         if (aPref !== bPref) return bPref - aPref;
+        if ((a.composite_score || 0) !== (b.composite_score || 0)) {
+            return (b.composite_score || 0) - (a.composite_score || 0);
+        }
+        if ((a.execution_score || 0) !== (b.execution_score || 0)) {
+            return (b.execution_score || 0) - (a.execution_score || 0);
+        }
+        if (preferPaidExpert) {
+            if (a.quote_amount === 0 && b.quote_amount > 0) return 1;
+            if (a.quote_amount > 0 && b.quote_amount === 0) return -1;
+        }
         if (a.quote_amount !== b.quote_amount) return a.quote_amount - b.quote_amount;
-        return a.estimated_delivery_hours - b.estimated_delivery_hours;
+        if ((a.risk_score || 0) !== (b.risk_score || 0)) return (a.risk_score || 0) - (b.risk_score || 0);
+        if ((a.capacity_score || 0) !== (b.capacity_score || 0)) return (b.capacity_score || 0) - (a.capacity_score || 0);
+        return (a.expected_completion_minutes || a.estimated_delivery_hours * 60) - (b.expected_completion_minutes || b.estimated_delivery_hours * 60);
     });
+
+    if (ranked.length <= 1 || explorationQuota <= 0) {
+        return ranked;
+    }
+
+    const newOffers = ranked.filter((offer) => {
+        const counterparty = discovery.candidates.find((candidate) => offer.expert_id === candidate.agent.id)?.agent;
+        const usage30d = Number(counterparty?.market_stats?.usage_30d || 0);
+        return usage30d <= 0;
+    });
+    const matureOffers = ranked.filter((offer) => !newOffers.includes(offer));
+    const quota = Math.min(newOffers.length, Math.max(1, Math.round(ranked.length * explorationQuota)));
+    const selected = [
+        ...matureOffers.slice(0, Math.max(0, ranked.length - quota)),
+        ...newOffers.slice(0, quota),
+    ];
+    return selected.slice(0, ranked.length);
 }
 
 // ============================================================================
@@ -269,6 +641,7 @@ class LIXStore {
     };
 
     private listeners: Set<() => void> = new Set();
+    private tradeCounterByPair = new Map<string, number>();
 
     subscribe(listener: () => void): () => void {
         this.listeners.add(listener);
@@ -438,22 +811,59 @@ class LIXStore {
         failure_context?: SolutionFailureContext;
         profile_share_consent?: ProfileShareConsentState;
         digital_twin_snapshot?: LixDigitalTwinSnapshot;
+        runtime_base_url?: string;
+        reasoning_trace_id?: string;
+        overflow_context?: OverflowDecision;
+        dispatch_policy_version?: string;
+        prefer_paid_expert?: boolean;
     }): Promise<StoredSolutionIntent> {
         const query = String(params.query || '').trim();
         if (!query) throw new Error('Missing required field: query');
 
         const intentId = `sol_intent_${generateId()}`;
         const now = new Date().toISOString();
+        const resolvedDomain = inferSolutionDomain(params.domain);
         const customRequirements = sanitizeCustomRequirements(params.custom_requirements);
         const requiredCaps = uniqueStrings([
             ...(Array.isArray(params.required_capabilities) ? params.required_capabilities : []),
             ...((customRequirements?.must_have_capabilities || []) as string[]),
         ]);
+        const dispatchDecision = resolveDispatchDecision({
+            query,
+            domain: resolvedDomain,
+            requiredCapabilities: requiredCaps,
+            overflowContext: params.overflow_context,
+            dispatchPolicyVersion: params.dispatch_policy_version,
+        });
         const requesterType = params.requester_type === 'agent' ? 'agent' : 'user';
         const requesterAgentId = requesterType === 'agent' ? String(params.requester_agent_id || '').trim() : '';
         const requesterAgentName = requesterType === 'agent' ? String(params.requester_agent_name || '').trim() : '';
         const deliveryModePreference = normalizeDeliveryModePreference(params.delivery_mode_preference) || 'hybrid';
-        const offers = createMockSolutionOffers(intentId, requiredCaps, deliveryModePreference);
+        const takeRateTier: LixTakeRateTier = 'first_trade';
+        let offers: AgentSolutionOffer[] = [];
+        if (dispatchDecision.mode === 'capability_auction') {
+            try {
+                offers = await buildRealtimeSolutionOffers(
+                    intentId,
+                    query,
+                    resolvedDomain,
+                    requiredCaps,
+                    deliveryModePreference,
+                    params.digital_twin_snapshot,
+                    {
+                        takeRateTier,
+                        explorationQuota: LIX_15_AUCTION_POLICY.exploration_quota,
+                        preferPaidExpert: params.prefer_paid_expert,
+                    }
+                );
+            } catch (error) {
+                logEvent('solution.intent.discovery_failed', {
+                    intent_id: intentId,
+                    error: error instanceof Error ? error.message : 'unknown_error',
+                });
+                offers = [];
+            }
+        }
 
         const intent: StoredSolutionIntent = {
             intent_id: intentId,
@@ -464,14 +874,23 @@ class LIXStore {
             requester_agent_name: requesterAgentName || undefined,
             title: String(params.title || `为需求创建可执行 Agent：${query.slice(0, 32)}`),
             query,
-            domain: inferSolutionDomain(params.domain),
+            domain: resolvedDomain,
             required_capabilities: requiredCaps,
             delivery_mode_preference: deliveryModePreference,
             custom_requirements: customRequirements,
             failure_context: params.failure_context,
             profile_share_consent: params.profile_share_consent,
             digital_twin_snapshot: params.digital_twin_snapshot,
-            status: offers.length > 0 ? 'offers_received' : 'broadcasting',
+            status: dispatchDecision.mode === 'capability_auction'
+                ? (offers.length > 0 ? 'offers_received' : 'broadcasting')
+                : 'broadcasting',
+            dispatch_mode: dispatchDecision.mode,
+            overflow_reason: dispatchDecision.overflow_reason,
+            take_rate_tier: takeRateTier,
+            bond_required: isLix15Domain(resolvedDomain),
+            insurance_status: isLix15Domain(resolvedDomain) ? 'insured' : 'inactive',
+            eta_minutes: offers[0]?.expected_completion_minutes ?? 0,
+            sla_state: offers.length === 0 ? 'at_risk' : 'on_track',
             created_at: now,
             updated_at: now,
             offers,
@@ -488,6 +907,9 @@ class LIXStore {
             requester_agent_id: intent.requester_agent_id,
             domain: intent.domain,
             caps: intent.required_capabilities,
+            dispatch_mode: intent.dispatch_mode,
+            dispatch_reason_codes: dispatchDecision.reason_codes,
+            reasoning_trace_id: params.reasoning_trace_id,
             delivery_mode_preference: intent.delivery_mode_preference,
             has_custom_requirements: Boolean(intent.custom_requirements),
         });
@@ -529,18 +951,49 @@ class LIXStore {
         const matched = intent.offers.find((offer) => offer.offer_id === offerId);
         if (!matched) throw new Error(`Solution offer ${offerId} not found`);
 
+        const tradeKey = `${intent.requester_id}::${matched.expert_id}`;
+        const orderSequence = (this.tradeCounterByPair.get(tradeKey) || 0) + 1;
+        this.tradeCounterByPair.set(tradeKey, orderSequence);
+        const takeRateTier: LixTakeRateTier = orderSequence <= 1 ? 'first_trade' : 'repeat_trade';
+        const effectiveTakeRate = takeRateTier === 'first_trade'
+            ? LIX_15_TAKE_RATE_POLICY.first_trade_rate
+            : LIX_15_TAKE_RATE_POLICY.repeat_trade_rate;
+
         intent.offers = intent.offers.map((offer) => ({
             ...offer,
+            effective_take_rate: offer.offer_id === offerId ? effectiveTakeRate : offer.effective_take_rate,
+            take_rate_tier: offer.offer_id === offerId ? takeRateTier : offer.take_rate_tier,
             status: offer.offer_id === offerId ? 'accepted' : (offer.status === 'accepted' ? 'open' : 'rejected'),
         }));
         intent.accepted_offer_id = offerId;
+        intent.take_rate_tier = takeRateTier;
         intent.updated_at = new Date().toISOString();
+
+        if (intent.bond_required) {
+            intent.status = 'bond_pending';
+            const locked = settlementService.lockBond({
+                intent_id: intentId,
+                offer_id: offerId,
+                provider_id: matched.expert_id,
+                amount: LIX_15_BOND_MIN_CNY,
+                reason: 'lix_intent_accept',
+            });
+            if (!locked.success || !locked.bond_lock_id) {
+                throw new Error(`bond_gate_failed:${locked.error || 'unknown'}`);
+            }
+            intent.bond_lock_id = locked.bond_lock_id;
+            intent.status = 'bond_locked';
+            intent.insurance_status = 'insured';
+        }
 
         logEvent('solution.offer.accepted', {
             intent_id: intentId,
             offer_id: offerId,
             expert_id: matched.expert_id,
             offer_type: matched.offer_type || 'human_expert',
+            take_rate_tier: takeRateTier,
+            take_rate: effectiveTakeRate,
+            bond_lock_id: intent.bond_lock_id,
         });
 
         if (matched.offer_type === 'agent_collab') {
@@ -588,6 +1041,7 @@ class LIXStore {
             intent.updated_at = now;
             this.state.metrics.total_solution_deliveries += 1;
             this.state.metrics.total_solution_approved += 1;
+            intent.sla_state = 'on_track';
 
             logEvent('solution.agent_collab.auto_delivery', {
                 intent_id: intent.intent_id,
@@ -609,6 +1063,9 @@ class LIXStore {
                 reviewer_id: 'system_auto',
                 auto: true,
             });
+            if (intent.bond_lock_id) {
+                settlementService.releaseBond(intent.bond_lock_id);
+            }
         } else {
             intent.status = 'offer_accepted';
         }
@@ -726,8 +1183,34 @@ class LIXStore {
         intent.review = review;
         intent.status = input.decision === 'approved' ? 'approved' : 'rejected';
         intent.updated_at = review.reviewed_at;
+        intent.sla_state = input.decision === 'approved' ? 'on_track' : 'breach';
         if (input.decision === 'approved') {
             this.state.metrics.total_solution_approved += 1;
+            if (intent.bond_lock_id) {
+                settlementService.releaseBond(intent.bond_lock_id);
+            }
+        } else if (intent.bond_lock_id) {
+            const amount = Math.max(1, Number(intent.offers.find((offer) => offer.offer_id === intent.accepted_offer_id)?.quote_amount || 0));
+            const escrowRefund = settlementService.refundEscrow({
+                intent_id: intent.intent_id,
+                offer_id: intent.accepted_offer_id || review.offer_id,
+                provider_id: review.agent_id,
+                amount_cny: amount,
+                reason: input.reason || 'delivery_rejected',
+            });
+            const slash = settlementService.slashBond({
+                bond_lock_id: intent.bond_lock_id,
+                amount: Math.min(LIX_15_BOND_MIN_CNY, amount),
+                reason: input.reason || 'delivery_rejected',
+            });
+            intent.status = 'compensated';
+            intent.insurance_status = slash.success ? 'compensated' : 'claim_pending';
+            logEvent('solution.compensation.executed', {
+                intent_id: intent.intent_id,
+                escrow_claim_id: escrowRefund.claim_id,
+                bond_slash_success: slash.success,
+                bond_slash_ledger: slash.ledger_id,
+            });
         }
 
         logEvent('solution.delivery.reviewed', {
@@ -781,6 +1264,7 @@ class LIXStore {
     resetForTests(): void {
         this.state.intents.clear();
         this.state.solution_intents.clear();
+        this.tradeCounterByPair.clear();
         this.state.events = [];
         this.state.metrics = {
             total_intents_broadcast: 0,

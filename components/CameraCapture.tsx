@@ -1,6 +1,6 @@
 /**
- * CameraCapture - 相机拍摄组件
- * 使用 WebRTC getUserMedia API 实现实时预览和拍照
+ * CameraCapture - Camera capture component
+ * Uses the WebRTC getUserMedia API for live preview and photo capture
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -35,7 +35,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         onLog?.(message);
     };
 
-    // 检测可用摄像头
+    // Detect available cameras
     useEffect(() => {
         navigator.mediaDevices.enumerateDevices().then(devices => {
             const videoInputs = devices.filter(d => d.kind === 'videoinput');
@@ -44,13 +44,13 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         });
     }, []);
 
-    // 启动相机
+    // Start camera
     const startCamera = useCallback(async () => {
         setState('initializing');
         setError(null);
 
         try {
-            // 先停止之前的流
+            // Stop any previous stream first
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
@@ -80,34 +80,34 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
             if (err instanceof Error) {
                 if (err.name === 'NotAllowedError') {
-                    setError('请授权访问摄像头');
+                    setError('Please allow camera access');
                 } else if (err.name === 'NotFoundError') {
-                    setError('未检测到摄像头');
+                    setError('No camera detected');
                 } else if (err.name === 'NotReadableError') {
-                    setError('摄像头被占用');
+                    setError('Camera is currently in use');
                 } else {
-                    setError(`摄像头错误: ${err.message}`);
+                    setError(`Camera error: ${err.message}`);
                 }
             } else {
-                setError('无法访问摄像头');
+                setError('Unable to access camera');
             }
             log(`Camera error: ${err}`);
         }
     }, [facingMode]);
 
-    // 初始化相机
+    // Initialize camera
     useEffect(() => {
         startCamera();
 
         return () => {
-            // 清理：停止所有媒体轨道
+            // Cleanup: stop all media tracks
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
             }
         };
     }, [startCamera]);
 
-    // 拍照
+    // Capture photo
     const handleCapture = useCallback(() => {
         if (!videoRef.current || !canvasRef.current) return;
 
@@ -120,7 +120,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // 如果是前置摄像头，水平翻转
+        // Mirror image for front camera
         if (facingMode === 'user') {
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
@@ -134,28 +134,28 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         log('Photo captured');
     }, [facingMode]);
 
-    // 切换摄像头
+    // Switch camera
     const handleSwitchCamera = useCallback(() => {
         setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
         log('Switching camera');
     }, []);
 
-    // 重新拍照
+    // Retake photo
     const handleRetake = useCallback(() => {
         setCapturedImage(null);
         setState('ready');
     }, []);
 
-    // 使用拍摄的照片
+    // Use captured photo
     const handleUsePhoto = useCallback(() => {
         if (!capturedImage) return;
 
-        // 移除 data:image/jpeg;base64, 前缀
+        // Remove data:image/jpeg;base64, prefix
         const base64Data = capturedImage.split(',')[1];
         onCapture(base64Data);
     }, [capturedImage, onCapture]);
 
-    // 关闭时清理
+    // Cleanup on close
     const handleClose = useCallback(() => {
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
@@ -169,7 +169,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             <div className="flex items-center justify-between px-4 py-3 bg-black/50 absolute top-0 left-0 right-0 z-10">
                 <div className="flex items-center gap-2 text-white">
                     <Camera size={20} />
-                    <span className="font-semibold">📸 拍照识别</span>
+                    <span className="font-semibold">📸 Photo Capture</span>
                 </div>
                 <button
                     onClick={handleClose}
@@ -208,7 +208,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                     <div className="absolute inset-0 flex items-center justify-center bg-black">
                         <div className="text-center">
                             <Loader2 className="w-10 h-10 text-white animate-spin mx-auto mb-3" />
-                            <p className="text-white/80">正在启动相机...</p>
+                            <p className="text-white/80">Starting camera...</p>
                         </div>
                     </div>
                 )}
@@ -223,7 +223,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                                 onClick={startCamera}
                                 className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white text-sm"
                             >
-                                重试
+                                Retry
                             </button>
                         </div>
                     </div>
@@ -253,7 +253,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                             <div className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
                                 <RefreshCw size={24} />
                             </div>
-                            <span className="text-white/70 text-xs">重拍</span>
+                            <span className="text-white/70 text-xs">Retake</span>
                         </button>
 
                         <button
@@ -263,7 +263,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                             <div className="w-16 h-16 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg">
                                 <ImageIcon size={28} />
                             </div>
-                            <span className="text-white text-xs font-medium">使用此照片</span>
+                            <span className="text-white text-xs font-medium">Use this photo</span>
                         </button>
                     </div>
                 ) : (
@@ -281,7 +281,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                             <div className="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
                                 <RefreshCw size={20} />
                             </div>
-                            <span className="text-white/70 text-xs">切换</span>
+                            <span className="text-white/70 text-xs">Switch</span>
                         </button>
 
                         {/* Capture button */}
@@ -294,7 +294,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                             <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center shadow-lg transition-transform active:scale-95">
                                 <div className="w-16 h-16 rounded-full border-4 border-gray-200" />
                             </div>
-                            <span className="text-white text-xs font-medium">拍照</span>
+                            <span className="text-white text-xs font-medium">Capture</span>
                         </button>
 
                         {/* Close button */}
@@ -305,7 +305,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                             <div className="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
                                 <X size={20} />
                             </div>
-                            <span className="text-white/70 text-xs">取消</span>
+                            <span className="text-white/70 text-xs">Cancel</span>
                         </button>
                     </div>
                 )}

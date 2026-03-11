@@ -119,6 +119,20 @@ export interface AgentExecutionResult {
   evidence?: Array<{ source: string; url: string; fetched_at?: string }>;
   error?: string;
   latency_ms: number;
+  trace_id?: string;
+  owner_agent?: string;
+  gate_decisions?: Array<{
+    gate: string;
+    decision: 'passed' | 'blocked' | 'waiting_user';
+    reason: string;
+    next_action?: string;
+  }>;
+  validation?: {
+    passed: boolean;
+    evidence_valid: boolean;
+    twin_fit: number;
+    note: string;
+  };
 }
 
 export interface DiscoveryResponse {

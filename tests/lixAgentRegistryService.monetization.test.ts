@@ -52,11 +52,12 @@ describe('lixAgentRegistryService monetization', () => {
     });
 
     expect(selfUse?.revenue_delta_cny).toBe(0);
-    expect(marketUse?.revenue_delta_cny).toBe(15);
+    // First external trade applies a 30% platform take rate.
+    expect(marketUse?.revenue_delta_cny).toBe(10.5);
     expect(failedUse?.revenue_delta_cny).toBe(0);
 
     const summary = lixAgentRegistryService.getOwnerRevenueSummary('owner_1');
-    expect(summary.total_revenue_cny).toBe(15);
+    expect(summary.total_revenue_cny).toBe(10.5);
     expect(summary.total_usage_count).toBe(3);
     expect(summary.active_agents).toBe(1);
     expect(summary.agents[0]?.pricing_model).toBe('pay_per_use');

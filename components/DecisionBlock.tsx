@@ -9,11 +9,11 @@ interface DecisionBlockProps {
 export const DecisionBlock: React.FC<DecisionBlockProps> = ({ decision, onSuggestionClick }) => {
   const hasQuickReplies = Boolean(decision.quickReplies && decision.quickReplies.length > 0);
   const bellmanLabels: Record<string, string> = {
-    ASK_CLARIFY: '先补充偏好',
-    EXPAND_SEARCH: '拓展可选项',
-    PROVIDE_ALTERNATIVES: '给出备选',
-    RECOMMEND_BEST: '直接推荐最优',
-    END: '完成决策'
+    ASK_CLARIFY: 'Collect Preferences First',
+    EXPAND_SEARCH: 'Expand Options',
+    PROVIDE_ALTERNATIVES: 'Provide Alternatives',
+    RECOMMEND_BEST: 'Recommend Best Option',
+    END: 'Decision Complete'
   };
   const bellmanPath = decision.bellman?.path
     ? decision.bellman.path.map((action) => bellmanLabels[action] || action).join(' → ')
@@ -22,13 +22,13 @@ export const DecisionBlock: React.FC<DecisionBlockProps> = ({ decision, onSugges
   return (
     <div className="mx-2 my-2 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
       <div className="flex items-center justify-between mb-1">
-        <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">最优解</div>
-        <div className="text-[10px] text-emerald-600">信心 {decision.confidence}%</div>
+        <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Best Option</div>
+        <div className="text-[10px] text-emerald-600">Confidence {decision.confidence}%</div>
       </div>
       <div className="text-sm text-emerald-900 leading-relaxed">{decision.summary}</div>
       {decision.bestOption && (
         <div className="mt-1 text-xs text-emerald-700">
-          推荐：{decision.bestOption.name || decision.bestOption.title || decision.bestOption.airline || decision.bestOption.id}
+          Recommended: {decision.bestOption.name || decision.bestOption.title || decision.bestOption.airline || decision.bestOption.id}
         </div>
       )}
       {decision.reasons && decision.reasons.length > 0 && (
@@ -42,13 +42,13 @@ export const DecisionBlock: React.FC<DecisionBlockProps> = ({ decision, onSugges
       )}
       {decision.assumptions && decision.assumptions.length > 0 && (
         <div className="mt-2 text-[10px] text-emerald-700">
-          假设：{decision.assumptions.slice(0, 3).join(' · ')}
+          Assumptions: {decision.assumptions.slice(0, 3).join(' · ')}
         </div>
       )}
       {decision.followUpQuestions && decision.followUpQuestions.length > 0 && (
         <div className="mt-2 text-[10px] text-emerald-700">
           {hasQuickReplies ? (
-            <span>还需要补充：{decision.followUpQuestions.slice(0, 3).join(' · ')}</span>
+            <span>Need more input: {decision.followUpQuestions.slice(0, 3).join(' · ')}</span>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {decision.followUpQuestions.slice(0, 3).map((question, idx) => (
@@ -86,9 +86,9 @@ export const DecisionBlock: React.FC<DecisionBlockProps> = ({ decision, onSugges
       )}
       {decision.bellman && (
         <div className="mt-2 text-[10px] text-emerald-700">
-          策略：{bellmanPath || '已完成策略计算'}
+          Strategy: {bellmanPath || 'Policy solved'}
           {Number.isFinite(decision.bellman.expectedValue) && (
-            <span className="ml-1">· 价值 {decision.bellman.expectedValue}</span>
+            <span className="ml-1">· Value {decision.bellman.expectedValue}</span>
           )}
         </div>
       )}

@@ -12,10 +12,10 @@ interface LumiKeyboardProps {
   currentMode: InputMode;
 }
 
-// 输入法类型
+// Input method language
 type InputLanguage = 'EN' | 'ZH';
 
-// 拼音候选词栏组件
+// Pinyin candidate bar
 const PinyinCandidateBar: React.FC<{
   pinyin: string;
   candidates: string[];
@@ -144,11 +144,11 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
   const timerRef = useRef<number | null>(null);
   const keyboardRef = useRef<any>(null);
   
-  // 拼音输入状态
+  // Pinyin input state
   const [pinyinBuffer, setPinyinBuffer] = useState('');
   const [candidates, setCandidates] = useState<string[]>([]);
 
-  // iOS 风格布局
+  // iOS-style layout
   const layouts = {
     default: [
       'q w e r t y u i o p',
@@ -178,17 +178,17 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
 
   const display = {
     '{bksp}': '⌫',
-    '{enter}': currentMode === InputMode.AGENT ? '发送' : '换行',
+    '{enter}': currentMode === InputMode.AGENT ? 'Send' : 'New line',
     '{shift}': '⇧',
     '{shiftactive}': '⇧',
-    '{space}': currentMode === InputMode.AGENT ? '长按退出 Agent' : '长按启动 Lumi',
+    '{space}': currentMode === InputMode.AGENT ? 'Hold to exit Agent' : 'Hold to start Lumi',
     '{numbers}': '123',
     '{symbols}': '#+=',
     '{abc}': 'ABC',
-    '{lang}': language === 'EN' ? '🌐' : '中'
+    '{lang}': language === 'EN' ? '🌐' : 'ZH'
   };
 
-  // 更新候选词
+  // Update candidates
   useEffect(() => {
     if (language === 'ZH' && pinyinBuffer) {
       const newCandidates = getPinyinCandidates(pinyinBuffer, 9);
@@ -198,7 +198,7 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
     }
   }, [pinyinBuffer, language]);
 
-  // 选择候选词
+  // Select candidate
   const selectCandidate = useCallback((char: string) => {
     onKeyPress(char);
     setPinyinBuffer('');
@@ -206,10 +206,10 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
   }, [onKeyPress]);
 
   const handleKeyDown = useCallback((button: string) => {
-    // 删除键
+    // Backspace
     if (button === '{bksp}') {
       if (language === 'ZH' && pinyinBuffer) {
-        // 如果有拼音缓冲，先删除拼音
+        // If pinyin buffer exists, delete pinyin first
         setPinyinBuffer(prev => prev.slice(0, -1));
       } else {
         onDelete();
@@ -217,10 +217,10 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
       return;
     }
     
-    // 回车键
+    // Enter key
     if (button === '{enter}') {
       if (language === 'ZH' && pinyinBuffer) {
-        // 如果有拼音缓冲，先清空并输出原始拼音
+        // If pinyin buffer exists, flush pinyin first
         onKeyPress(pinyinBuffer);
         setPinyinBuffer('');
         setCandidates([]);
@@ -247,11 +247,11 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
       return;
     }
     if (button === '{lang}') {
-      // 切换语言时清空拼音缓冲
+      // Clear pinyin buffer when switching language
       setPinyinBuffer('');
       setCandidates([]);
       setLanguage(prev => prev === 'EN' ? 'ZH' : 'EN');
-      // 震动反馈
+      // Haptic feedback
       if (navigator.vibrate) navigator.vibrate(30);
       return;
     }
@@ -259,14 +259,14 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
       return; // Handled by mouse events
     }
 
-    // 中文输入模式
+    // Chinese input mode
     if (language === 'ZH' && /^[a-zA-Z]$/.test(button)) {
-      // 字母键 - 添加到拼音缓冲
+      // Letter key: append to pinyin buffer
       setPinyinBuffer(prev => prev + button.toLowerCase());
       return;
     }
 
-    // 英文模式或非字母键 - 直接输出
+    // English mode or non-letter key: output directly
     onKeyPress(button);
 
     // Auto-return to lowercase
@@ -291,7 +291,7 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
       timerRef.current = null;
     }
     if (!longPressTriggered) {
-      // 如果是中文模式且有候选词，选择第一个
+      // In Chinese mode, pick first candidate when available
       if (language === 'ZH' && candidates.length > 0) {
         selectCandidate(candidates[0]);
       } else {
@@ -339,7 +339,7 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
         </div>
       )}
       
-      {/* 拼音候选词栏 */}
+      {/* Pinyin candidate bar */}
       {language === 'ZH' && (
         <PinyinCandidateBar
           pinyin={pinyinBuffer}
@@ -576,7 +576,7 @@ export const LumiKeyboard: React.FC<LumiKeyboardProps> = ({
           background: rgba(255,255,255,0.25);
         }
         
-        /* Row Adjustments - 关键修复 */
+        /* Row Adjustments - key layout fix */
         .hg-theme-ios .hg-row:nth-child(1) {
           padding: 0 2px;
         }

@@ -1,6 +1,6 @@
 /**
  * Smart Chips Component
- * 意图触发的快捷操作芯片 - 一键激活对应工具
+ * Intent-triggered quick action chips for one-tap tool activation
  */
 
 import React from 'react';
@@ -24,37 +24,37 @@ export interface ChipAction {
 // Map intents to chip actions
 const INTENT_CHIPS: Record<IntentType, ChipAction[]> = {
     [IntentType.SCHEDULE]: [
-        { type: 'smartReminder', label: '添加日程', icon: <Calendar size={14} />, inputPrepend: '提醒我：' },
-        { type: 'smartSave', label: '记住', icon: <Save size={14} />, inputPrepend: '记住这个：' },
+        { type: 'smartReminder', label: 'Add schedule', icon: <Calendar size={14} />, inputPrepend: 'Remind me: ' },
+        { type: 'smartSave', label: 'Remember', icon: <Save size={14} />, inputPrepend: 'Remember this: ' },
     ],
     [IntentType.PURCHASE]: [
-        { type: 'priceCompare', label: '比价搜索', icon: <ShoppingCart size={14} />, inputPrepend: '帮我找最低价：' },
-        { type: 'smartSave', label: '加入心愿单', icon: <Heart size={14} />, inputPrepend: '加入心愿单：' },
+        { type: 'priceCompare', label: 'Price compare', icon: <ShoppingCart size={14} />, inputPrepend: 'Find the lowest price for: ' },
+        { type: 'smartSave', label: 'Add to wishlist', icon: <Heart size={14} />, inputPrepend: 'Add to wishlist: ' },
     ],
     [IntentType.TRAVEL]: [
-        { type: 'flightSearch', label: '查机票', icon: <Plane size={14} />, inputPrepend: '帮我找机票：' },
-        { type: 'smartReminder', label: '行程提醒', icon: <Calendar size={14} />, inputPrepend: '提醒我：' },
+        { type: 'flightSearch', label: 'Find flights', icon: <Plane size={14} />, inputPrepend: 'Find flights for: ' },
+        { type: 'smartReminder', label: 'Trip reminder', icon: <Calendar size={14} />, inputPrepend: 'Remind me: ' },
     ],
     [IntentType.TRANSLATE]: [
-        { type: 'translate', label: '翻译', icon: <Globe size={14} />, inputPrepend: '翻译：' },
+        { type: 'translate', label: 'Translate', icon: <Globe size={14} />, inputPrepend: 'Translate: ' },
     ],
     [IntentType.CALCULATE]: [
-        { type: 'calculate', label: '计算', icon: <Calculator size={14} />, inputPrepend: '计算：' },
+        { type: 'calculate', label: 'Calculate', icon: <Calculator size={14} />, inputPrepend: 'Calculate: ' },
     ],
     [IntentType.QUERY]: [
-        { type: 'query', label: '搜索', icon: <Search size={14} />, inputPrepend: '帮我找：' },
+        { type: 'query', label: 'Search', icon: <Search size={14} />, inputPrepend: 'Find: ' },
     ],
     [IntentType.CAREER]: [
-        { type: 'query', label: '职业咨询', icon: <Briefcase size={14} />, inputPrepend: '帮我分析：' },
-        { type: 'smartSave', label: '记录想法', icon: <Brain size={14} />, inputPrepend: '记住这个想法：' },
+        { type: 'query', label: 'Career advice', icon: <Briefcase size={14} />, inputPrepend: 'Help me analyze: ' },
+        { type: 'smartSave', label: 'Capture idea', icon: <Brain size={14} />, inputPrepend: 'Remember this idea: ' },
     ],
     [IntentType.FINANCE]: [
-        { type: 'calculate', label: '计算', icon: <Calculator size={14} />, inputPrepend: '计算：' },
-        { type: 'smartSave', label: '记录', icon: <Save size={14} />, inputPrepend: '记住：' },
+        { type: 'calculate', label: 'Calculate', icon: <Calculator size={14} />, inputPrepend: 'Calculate: ' },
+        { type: 'smartSave', label: 'Record', icon: <Save size={14} />, inputPrepend: 'Remember: ' },
     ],
     [IntentType.HEALTH]: [
-        { type: 'smartReminder', label: '设置提醒', icon: <Calendar size={14} />, inputPrepend: '提醒我：' },
-        { type: 'query', label: '查询', icon: <Search size={14} />, inputPrepend: '帮我查：' },
+        { type: 'smartReminder', label: 'Set reminder', icon: <Calendar size={14} />, inputPrepend: 'Remind me: ' },
+        { type: 'query', label: 'Lookup', icon: <Search size={14} />, inputPrepend: 'Look up: ' },
     ],
     [IntentType.NONE]: [],
 };
@@ -79,7 +79,7 @@ export const SmartChips: React.FC<SmartChipsProps> = ({
     return (
         <div className="smart-chips-container">
             <div className="smart-chips-bar">
-                <span className="chips-hint">快捷操作</span>
+                <span className="chips-hint">Quick actions</span>
                 <div className="chips-list">
                     {chips.map((chip, index) => (
                         <button

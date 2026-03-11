@@ -17,9 +17,9 @@ interface PrivacyStats {
 }
 
 /**
- * Privacy Panel - 隐私状态面板
- * 展示本地存储状态、网络状态、API 调用统计
- * 让用户清楚了解数据处理情况
+ * Privacy Panel - privacy status panel
+ * Displays local storage status, network status, and API call metrics
+ * Helps users understand how data is processed
  */
 export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, onLog, onOpenDashboard }) => {
     const [stats, setStats] = useState<PrivacyStats>({
@@ -88,14 +88,14 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, on
 
     // Format timestamp
     const formatTime = (timestamp: number | null): string => {
-        if (!timestamp) return '无';
+        if (!timestamp) return 'None';
         const now = Date.now();
         const diff = now - timestamp;
 
-        if (diff < 60000) return '刚刚';
-        if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-        if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-        return new Date(timestamp).toLocaleDateString();
+        if (diff < 60000) return 'Just now';
+        if (diff < 3600000) return `${Math.floor(diff / 60000)} min ago`;
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)} hr ago`;
+        return new Date(timestamp).toLocaleDateString('en-GB');
     };
 
     return (
@@ -103,11 +103,11 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, on
             {/* Header */}
             <div className="flex items-center gap-2 mb-4">
                 <Shield size={18} className="text-emerald-400" />
-                <span className="font-semibold text-white">隐私状态</span>
+                <span className="font-semibold text-white">Privacy Status</span>
                 <div className={`ml-auto px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1 ${isOnline ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600 text-slate-300'
                     }`}>
                     {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-                    {isOnline ? '在线' : '离线'}
+                    {isOnline ? 'Online' : 'Offline'}
                 </div>
             </div>
 
@@ -117,14 +117,14 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, on
                 <div className="bg-slate-800/50 rounded-lg p-3">
                     <div className="flex items-center gap-2 text-slate-400 mb-1">
                         <Database size={14} />
-                        <span className="text-xs">本地存储</span>
+                        <span className="text-xs">Local Storage</span>
                     </div>
                     <div className="text-lg font-semibold text-white">
                         {formatBytes(stats.localDataSize)}
                     </div>
                     <div className="text-xs text-emerald-400 flex items-center gap-1 mt-1">
                         <Lock size={10} />
-                        仅存设备
+                        Device only
                     </div>
                 </div>
 
@@ -132,13 +132,13 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, on
                 <div className="bg-slate-800/50 rounded-lg p-3">
                     <div className="flex items-center gap-2 text-slate-400 mb-1">
                         <Activity size={14} />
-                        <span className="text-xs">AI 调用</span>
+                        <span className="text-xs">AI Calls</span>
                     </div>
                     <div className="text-lg font-semibold text-white">
-                        {stats.aiCallsCount} 次
+                        {stats.aiCallsCount} calls
                     </div>
                     <div className="text-xs text-slate-400 mt-1">
-                        最近: {formatTime(stats.lastAiCall)}
+                        Latest: {formatTime(stats.lastAiCall)}
                     </div>
                 </div>
             </div>
@@ -149,13 +149,13 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, on
                     <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
                         <Lock size={12} className="text-emerald-400" />
                     </div>
-                    <span className="text-slate-300">聊天记录不上传</span>
+                    <span className="text-slate-300">Chat history is not uploaded</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
                         <Eye size={12} className="text-emerald-400" />
                     </div>
-                    <span className="text-slate-300">仅发送意图，不发送原文</span>
+                    <span className="text-slate-300">Only intent is sent, not raw text</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center ${apiKeyConfigured ? 'bg-emerald-500/20' : 'bg-slate-600'
@@ -163,7 +163,7 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, on
                         <Server size={12} className={apiKeyConfigured ? 'text-emerald-400' : 'text-slate-400'} />
                     </div>
                     <span className={apiKeyConfigured ? 'text-slate-300' : 'text-slate-500'}>
-                        {apiKeyConfigured ? 'API 已配置（您的密钥）' : 'API 未配置'}
+                        {apiKeyConfigured ? 'API configured (your key)' : 'API not configured'}
                     </span>
                 </div>
             </div>
@@ -177,13 +177,13 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ apiKeyConfigured, on
                     >
                         <span className="flex items-center gap-2 text-sm text-slate-300">
                             <Settings size={14} />
-                            管理隐私设置
+                            Manage Privacy Settings
                         </span>
                         <ChevronRight size={14} className="text-slate-500" />
                     </button>
                 )}
                 <div className="text-xs text-slate-500 text-center">
-                    🔐 Local-first · 数据主权归您所有
+                    🔐 Local-first · Your data sovereignty stays with you
                 </div>
             </div>
         </div>

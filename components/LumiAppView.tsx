@@ -1,7 +1,7 @@
 /**
- * Lumi App View - 主应用视图
- * 
- * 设计理念：专业、克制、高效
+ * Lumi App View - Main application view
+ *
+ * Design intent: professional, focused, and efficient
  */
 
 import React, { useState, useEffect } from 'react';
@@ -9,11 +9,7 @@ import { SoulMatrix, PolicyConfig, DecisionMeta } from '../types';
 import { ApiKeyState } from '../services/apiKeyManager';
 import { getDashboardStats } from '../services/localStorageService';
 import { buildApiUrl } from '../services/apiBaseUrl';
-import {
-    buildMarketplaceTwinContext,
-    getProfileShareConsent,
-    revokeProfileShareConsent,
-} from '../services/digitalTwinMarketplaceBridge';
+import { revokeProfileShareConsent } from '../services/digitalTwinMarketplaceBridge';
 import { DigitalAvatarPanel } from './DigitalAvatarPanel';
 import { PreferencePanel } from './PreferencePanel';
 import { LifeCoachPanel } from './LifeCoachPanel';
@@ -23,9 +19,31 @@ import { DigitalSoulEditor } from './DigitalSoulEditor';
 import { SoulMatrixPanel } from './SoulMatrixPanel';
 import { MarketHome } from './MarketHome';
 import { AgentMarketplacePanel } from './AgentMarketplacePanel';
+import { LixTwinFusionPanel } from './LixTwinFusionPanel';
 import { IntentDetail } from './IntentDetail';
 import { ObservabilityDashboard } from './ObservabilityDashboard';
+import { EnvironmentTruthBanner } from './EnvironmentTruthBanner';
+import { WorkspaceModeSelector } from './WorkspaceModeSelector';
+import { LocalRoleLabActorSelector } from './LocalRoleLabActorSelector';
+import { LocalRoleLabOverview } from './LocalRoleLabOverview';
+import { RequesterInboxPanel } from './RequesterInboxPanel';
+import { TenantAdminSetupPanel } from './TenantAdminSetupPanel';
+import { PolicyStudioPanel } from './PolicyStudioPanel';
 import { DestinySimulationResult } from '../App';
+import {
+    getProductShellSummary,
+    listRequesterInboxItems,
+    registerPilotActivationPackageHandoff,
+    registerPilotConnectorEligibility,
+    registerPilotEnvironmentBinding,
+    registerPilotActorReadiness,
+    registerPilotEvidenceArtifact,
+    reviewPilotExternalArtifactIntake,
+    submitPilotExternalArtifactIntake,
+    type ProductShellSummary,
+    type RequesterInboxSummary,
+    type WorkspaceMode,
+} from '../services/agentKernelShellApi';
 import {
     Home, User, Settings, Keyboard, ChevronRight, Key,
     Compass, FlaskConical, Navigation, Activity, ArrowRight, Check,
@@ -183,6 +201,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
     forceActiveTab,
 }) => {
     const [activeTab, setActiveTab] = useState<AppTab>('home');
+    const [twinPanelRefreshSeed, setTwinPanelRefreshSeed] = useState(0);
 
     // Force-switch to chat tab when a pending agent query arrives
     useEffect(() => {
@@ -196,17 +215,36 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
     const [serpConfigured, setSerpConfigured] = useState<boolean | null>(null);
     const [serpKeySource, setSerpKeySource] = useState<string>('none');
     const [serpStatusError, setSerpStatusError] = useState<string | null>(null);
+    const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('current');
+    const [localLabActorId, setLocalLabActorId] = useState<string>('local_tenant_admin_01');
+    const [productShellSummary, setProductShellSummary] = useState<ProductShellSummary | null>(null);
+    const [requesterInbox, setRequesterInbox] = useState<RequesterInboxSummary | null>(null);
+    const [productShellError, setProductShellError] = useState<string | null>(null);
 
-    // 仪表盘统计数据
+    const loadEnterpriseShell = React.useCallback(async () => {
+        try {
+            setProductShellError(null);
+            const [shell, inbox] = await Promise.all([
+                getProductShellSummary(workspaceMode, localLabActorId),
+                listRequesterInboxItems(workspaceMode, localLabActorId),
+            ]);
+            setProductShellSummary(shell);
+            setRequesterInbox(inbox);
+        } catch (error) {
+            setProductShellError(error instanceof Error ? error.message : String(error));
+        }
+    }, [workspaceMode, localLabActorId]);
+
+    // Dashboard stats
     const [stats, setStats] = useState(() => getDashboardStats());
 
-    // 定时刷新统计数据（当在首页时）
+    // Refresh stats periodically while on Home tab
     useEffect(() => {
         if (activeTab === 'home') {
             setStats(getDashboardStats());
             const interval = setInterval(() => {
                 setStats(getDashboardStats());
-            }, 10000); // 每10秒刷新
+            }, 10000); // refresh every 10s
             return () => clearInterval(interval);
         }
     }, [activeTab]);
@@ -247,14 +285,69 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
         };
     }, [activeTab]);
 
+    useEffect(() => {
+        loadEnterpriseShell().catch(() => undefined);
+    }, [loadEnterpriseShell]);
+
+    const renderEnterpriseShellHeader = () => (
+        <div className="space-y-3">
+            <EnvironmentTruthBanner summary={productShellSummary?.environment_activation || null} />
+            <WorkspaceModeSelector
+                options={productShellSummary?.environment_activation.workspace_options || [
+                    {
+                        mode: 'current',
+                        label: 'Current workspace',
+                        selected: workspaceMode === 'current',
+                        workspace_binding_kind: 'UNBOUND',
+                        environment_kind: 'SIMULATOR',
+                        description: 'Current workspace',
+                    },
+                    {
+                        mode: 'demo',
+                        label: 'Demo workspace',
+                        selected: workspaceMode === 'demo',
+                        workspace_binding_kind: 'DEMO_WORKSPACE',
+                        environment_kind: 'DEMO',
+                        description: 'Demo workspace',
+                    },
+                    {
+                        mode: 'local_lab',
+                        label: 'Local role lab',
+                        selected: workspaceMode === 'local_lab',
+                        workspace_binding_kind: 'LOCAL_ROLE_LAB_WORKSPACE',
+                        environment_kind: 'SIMULATOR',
+                        description: 'Local role lab',
+                    },
+                ]}
+                value={workspaceMode}
+                onChange={setWorkspaceMode}
+            />
+            {workspaceMode === 'local_lab' && (
+                <>
+                    <LocalRoleLabActorSelector
+                        summary={productShellSummary?.local_role_lab}
+                        value={localLabActorId}
+                        onChange={setLocalLabActorId}
+                    />
+                    <LocalRoleLabOverview summary={productShellSummary?.local_role_lab} />
+                </>
+            )}
+            {productShellError && (
+                <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+                    Enterprise shell API unavailable: {productShellError}
+                </div>
+            )}
+        </div>
+    );
+
     const tabs: { id: AppTab; icon: React.FC<{ size?: number }>; label: string }[] = [
-        { id: 'home', icon: Home, label: '首页' },
-        { id: 'chat', icon: MessageSquare, label: '对话' },
+        { id: 'home', icon: Home, label: 'Home' },
+        { id: 'chat', icon: MessageSquare, label: 'Chat' },
         { id: 'lix_market', icon: Store, label: 'LIX' },
         { id: 'agent_market', icon: Bot, label: 'Agent' },
-        { id: 'avatar', icon: User, label: '画像' },
-        { id: 'destiny', icon: Navigation, label: '导航' },
-        { id: 'settings', icon: Settings, label: '设置' },
+        { id: 'avatar', icon: User, label: 'Avatar' },
+        { id: 'destiny', icon: Navigation, label: 'Navigator' },
+        { id: 'settings', icon: Settings, label: 'Settings' },
     ];
 
     const renderContent = () => {
@@ -262,6 +355,12 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
             case 'home':
                 return (
                     <div className="space-y-4">
+                        {renderEnterpriseShellHeader()}
+                        <RequesterInboxPanel
+                            summary={requesterInbox}
+                            workspaceMode={workspaceMode}
+                            onSubmitNewTask={() => setActiveTab('chat')}
+                        />
                         {/* Header */}
                         <div
                             className="rounded-xl p-5"
@@ -273,7 +372,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                         Lumi
                                     </h1>
                                     <p className="text-xs" style={{ color: colors.text3 }}>
-                                        人生决策优化系统
+                                        Personal Decision Optimisation
                                     </p>
                                 </div>
                                 <button
@@ -282,7 +381,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                     style={{ backgroundColor: colors.primary, color: '#fff' }}
                                 >
                                     <Keyboard size={16} />
-                                    打开键盘
+                                    Open Keyboard
                                 </button>
                             </div>
 
@@ -293,65 +392,65 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                             >
                                 <Check size={14} style={{ color: colors.positive }} />
                                 <span className="text-xs" style={{ color: colors.text2 }}>
-                                    系统就绪 · API {apiKeyState.status === 'valid' ? '已连接' : '未配置'}
+                                    System ready · API {apiKeyState.status === 'valid' ? 'Connected' : 'Not configured'}
                                 </span>
                             </div>
                         </div>
 
-                        {/* Stats - 真实数据 */}
+                        {/* Stats - live data */}
                         <div className="grid grid-cols-2 gap-3">
                             <MetricCard
                                 icon={<Zap size={18} />}
                                 value={stats.todayAssists}
-                                label="今日辅助"
+                                label="Today assists"
                             />
                             <MetricCard
                                 icon={<TrendingUp size={18} />}
                                 value={stats.acceptanceRate}
                                 suffix="%"
-                                label="采纳率"
+                                label="Acceptance rate"
                             />
                             <MetricCard
                                 icon={<Clock size={18} />}
                                 value={stats.timeSavedMinutes}
                                 suffix=" min"
-                                label="累计节省"
+                                label="Time saved"
                             />
                             <MetricCard
                                 icon={<UserCheck size={18} />}
                                 value={stats.profileCompleteness}
                                 suffix="%"
-                                label="画像完整度"
+                                label="Avatar completeness"
                             />
                         </div>
 
                         {/* Quick Actions */}
                         <div className="space-y-2">
                             <h3 className="text-xs font-medium uppercase tracking-wider px-1" style={{ color: colors.text3 }}>
-                                快捷入口
+                                Quick actions
                             </h3>
                             <ActionCard
                                 icon={<Navigation size={18} />}
-                                title="命运导航"
-                                description="查看你的最优人生路径"
+                                title="Destiny Navigator"
+                                description="Explore your optimal path"
                                 onClick={() => setActiveTab('destiny')}
                             />
                             <ActionCard
                                 icon={<User size={18} />}
-                                title="完善数字分身"
-                                description="让 AI 更懂你"
+                                title="Improve digital avatar"
+                                description="Help AI understand you better"
                                 onClick={() => { setActiveTab('avatar'); setAvatarSubTab('editor'); }}
                             />
                             <ActionCard
                                 icon={<Compass size={18} />}
-                                title="人生教练"
-                                description="获取个性化建议"
+                                title="Life Coach"
+                                description="Get personalised guidance"
                                 onClick={() => setActiveTab('coach')}
                             />
                             <ActionCard
                                 icon={<Bot size={18} />}
                                 title="Agent Marketplace"
-                                description="查看候选评分、拒绝原因与 trace_id"
+                                description="Review ranking, rejection reasons, and trace_id"
                                 onClick={() => setActiveTab('agent_market')}
                                 badge="NEW"
                             />
@@ -364,7 +463,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                 style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
                             >
                                 <h3 className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: colors.text3 }}>
-                                    最近活动
+                                    Recent activity
                                 </h3>
                                 <div className="space-y-2">
                                     {logs.slice(0, 3).map((log, i) => (
@@ -395,6 +494,8 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
             case 'avatar':
                 return (
                     <div className="space-y-4">
+                        {renderEnterpriseShellHeader()}
+                        <PolicyStudioPanel summary={productShellSummary?.policy_studio || null} />
                         {/* Sub-nav */}
                         <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: colors.bg2 }}>
                             <button
@@ -405,7 +506,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                     color: avatarSubTab === 'profile' ? '#fff' : colors.text3
                                 }}
                             >
-                                画像概览
+                                Overview
                             </button>
                             <button
                                 onClick={() => setAvatarSubTab('matrix')}
@@ -415,7 +516,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                     color: avatarSubTab === 'matrix' ? '#fff' : colors.text3
                                 }}
                             >
-                                分身认知
+                                Twin cognition
                             </button>
                             <button
                                 onClick={() => setAvatarSubTab('editor')}
@@ -425,7 +526,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                     color: avatarSubTab === 'editor' ? '#fff' : colors.text3
                                 }}
                             >
-                                完善信息
+                                Profile setup
                             </button>
                         </div>
 
@@ -448,12 +549,20 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
 
             case 'lix_market':
                 return (
-                    <MarketHome
-                        onSelectIntent={(intentId) => {
-                            setLixIntentId(intentId);
-                            setActiveTab('lix_intent');
-                        }}
-                    />
+                    <div className="space-y-3">
+                        <LixTwinFusionPanel
+                            soul={soul}
+                            onOpenLixMarket={() => setActiveTab('lix_market')}
+                            onOpenAgentMarket={() => setActiveTab('agent_market')}
+                            refreshSeed={twinPanelRefreshSeed}
+                        />
+                        <MarketHome
+                            onSelectIntent={(intentId) => {
+                                setLixIntentId(intentId);
+                                setActiveTab('lix_intent');
+                            }}
+                        />
+                    </div>
                 );
 
             case 'lix_intent':
@@ -475,37 +584,30 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                 );
 
             case 'agent_market': {
-                const twinContext = buildMarketplaceTwinContext();
-                const profileConsent = getProfileShareConsent();
                 return (
                     <div className="space-y-3">
-                        <div
-                            className="rounded-xl p-3"
-                            style={{ backgroundColor: colors.bg2, border: `1px solid ${colors.border}` }}
-                        >
-                            <div className="flex items-center justify-between gap-2">
-                                <div>
-                                    <div className="text-xs font-medium" style={{ color: colors.text1 }}>
-                                        数字分身联动状态
-                                    </div>
-                                    <div className="text-xs mt-1" style={{ color: colors.text2 }}>
-                                        画像完整度 {twinContext.profile_completeness}% · 隐私模式 {twinContext.privacy_mode ? '开启' : '关闭'} · 授权状态 {profileConsent}
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        revokeProfileShareConsent();
-                                    }}
-                                    className="px-2.5 py-1.5 rounded-lg text-xs"
-                                    style={{
-                                        backgroundColor: colors.bg3,
-                                        color: colors.text2,
-                                        border: `1px solid ${colors.border}`,
-                                    }}
-                                >
-                                    撤销画像授权
-                                </button>
-                            </div>
+                        <LixTwinFusionPanel
+                            soul={soul}
+                            variant="compact"
+                            onOpenLixMarket={() => setActiveTab('lix_market')}
+                            onOpenAgentMarket={() => setActiveTab('agent_market')}
+                            refreshSeed={twinPanelRefreshSeed}
+                        />
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => {
+                                    revokeProfileShareConsent();
+                                    setTwinPanelRefreshSeed((value) => value + 1);
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg text-xs"
+                                style={{
+                                    backgroundColor: colors.bg3,
+                                    color: colors.text2,
+                                    border: `1px solid ${colors.border}`,
+                                }}
+                            >
+                                Revoke avatar consent
+                            </button>
                         </div>
                         <AgentMarketplacePanel
                             onOpenLixMarket={(intentId) => {
@@ -523,6 +625,40 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
             case 'settings':
                 return (
                     <div className="space-y-4">
+                        {renderEnterpriseShellHeader()}
+                        <TenantAdminSetupPanel
+                            summary={productShellSummary?.tenant_admin_setup || null}
+                            productShellSummary={productShellSummary}
+                            workspaceMode={workspaceMode}
+                            onRegisterActivationPackageHandoff={async (input) => {
+                                await registerPilotActivationPackageHandoff(input);
+                                await loadEnterpriseShell();
+                            }}
+                            onRegisterEnvironmentBinding={async (input) => {
+                                await registerPilotEnvironmentBinding(input);
+                                await loadEnterpriseShell();
+                            }}
+                            onRegisterActor={async (input) => {
+                                await registerPilotActorReadiness(input);
+                                await loadEnterpriseShell();
+                            }}
+                            onRegisterConnectorEligibility={async (input) => {
+                                await registerPilotConnectorEligibility(input);
+                                await loadEnterpriseShell();
+                            }}
+                            onSubmitArtifactIntake={async (input) => {
+                                await submitPilotExternalArtifactIntake(input);
+                                await loadEnterpriseShell();
+                            }}
+                            onReviewArtifactIntake={async (input) => {
+                                await reviewPilotExternalArtifactIntake(input);
+                                await loadEnterpriseShell();
+                            }}
+                            onRegisterEvidence={async (input) => {
+                                await registerPilotEvidenceArtifact(input);
+                                await loadEnterpriseShell();
+                            }}
+                        />
                         {/* Observability Dashboard */}
                         <ObservabilityDashboard isDark={isDark} />
 
@@ -534,7 +670,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                             <div className="flex items-center gap-2 mb-4">
                                 <Key size={16} style={{ color: colors.primary }} />
                                 <h3 className="text-sm font-semibold" style={{ color: colors.text1 }}>
-                                    API 配置
+                                    API settings
                                 </h3>
                             </div>
 
@@ -549,7 +685,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                             type="password"
                                             value={apiKeyState.key}
                                             onChange={(e) => onApiKeyChange(e.target.value)}
-                                            placeholder="输入 API Key..."
+                                            placeholder="Enter API key..."
                                             className="flex-1 px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50"
                                             style={{
                                                 backgroundColor: colors.bg3,
@@ -562,12 +698,12 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                             className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
                                             style={{ backgroundColor: colors.primary, color: '#fff' }}
                                         >
-                                            保存
+                                            Save
                                         </button>
                                     </div>
                                     {apiKeyState.status === 'valid' && (
                                         <p className="text-xs mt-1.5" style={{ color: colors.positive }}>
-                                            ✓ API Key 已验证
+                                            ✓ API key validated
                                         </p>
                                     )}
                                     {apiKeyState.status === 'invalid' && (
@@ -580,7 +716,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                 {/* SerpApi */}
                                 <div style={{ paddingTop: 16, borderTop: `1px solid ${colors.border}` }}>
                                     <label className="text-xs font-medium" style={{ color: colors.text3 }}>
-                                        SerpApi 服务端配置状态
+                                        SerpApi server status
                                     </label>
                                     <div
                                         className="mt-1.5 rounded-lg px-3 py-2.5 text-sm"
@@ -590,13 +726,13 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                             border: `1px solid ${colors.border}`
                                         }}
                                     >
-                                        {serpStatusLoading && '检查中...'}
-                                        {!serpStatusLoading && serpConfigured === true && `已配置（${serpKeySource}）`}
-                                        {!serpStatusLoading && serpConfigured === false && '未配置（请在服务端环境变量设置 SERPAPI_API_KEY 或 SERPAPI_KEY）'}
-                                        {!serpStatusLoading && serpConfigured === null && `状态未知${serpStatusError ? `：${serpStatusError}` : ''}`}
+                                        {serpStatusLoading && 'Checking...'}
+                                        {!serpStatusLoading && serpConfigured === true && `Configured (${serpKeySource})`}
+                                        {!serpStatusLoading && serpConfigured === false && 'Not configured (set SERPAPI_API_KEY or SERPAPI_KEY on server env)'}
+                                        {!serpStatusLoading && serpConfigured === null && `Unknown${serpStatusError ? `: ${serpStatusError}` : ''}`}
                                     </div>
                                     <p className="text-xs mt-1.5" style={{ color: colors.text3 }}>
-                                        安全策略：前端不再直接保存或发送 SerpApi Key，统一由服务端代理调用。
+                                        Security policy: frontend no longer stores or sends SerpApi key directly; all calls go through server proxy.
                                     </p>
                                 </div>
 
@@ -609,7 +745,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                         className="w-4 h-4 rounded"
                                     />
                                     <span className="text-sm" style={{ color: colors.text2 }}>
-                                        记住 API Key (本地存储)
+                                        Remember API key (local storage)
                                     </span>
                                 </label>
                             </div>
@@ -625,7 +761,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
         }
     };
 
-    // 获取信号灯颜色
+    // Resolve signal color
     const getSignalColor = (signal: string) => {
         switch (signal) {
             case 'green': return '#10B981';
@@ -646,7 +782,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
 
     return (
         <div className="w-full max-w-lg mx-auto flex flex-col h-full" style={{ backgroundColor: colors.bg1 }}>
-            {/* 命运模拟结果弹出层 */}
+            {/* Destiny simulation modal */}
             {destinyResult && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}>
                     <div
@@ -664,8 +800,8 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                             <div className="flex items-center gap-3">
                                 {getSignalIcon(destinyResult.navigatorOutput.signal)}
                                 <div>
-                                    <div className="font-semibold">命运模拟结果</div>
-                                    <div className="text-xs opacity-80">{destinyResult.intentType === 'career' ? '职业决策' : '财务决策'}</div>
+                                    <div className="font-semibold">Destiny simulation result</div>
+                                    <div className="text-xs opacity-80">{destinyResult.intentType === 'career' ? 'Career decision' : 'Financial decision'}</div>
                                 </div>
                             </div>
                             <button
@@ -676,15 +812,15 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                             </button>
                         </div>
 
-                        {/* 原始问题 */}
+                        {/* Original query */}
                         <div className="px-5 py-3 border-b" style={{ borderColor: colors.border }}>
-                            <div className="text-xs" style={{ color: colors.text3 }}>您的问题</div>
+                            <div className="text-xs" style={{ color: colors.text3 }}>Your question</div>
                             <div className="text-sm font-medium mt-1" style={{ color: colors.text1 }}>
                                 "{destinyResult.query}"
                             </div>
                         </div>
 
-                        {/* Navigator 回复 */}
+                        {/* Navigator response */}
                         <div className="px-5 py-4 max-h-80 overflow-y-auto">
                             <div
                                 className="text-sm leading-relaxed whitespace-pre-wrap"
@@ -694,12 +830,12 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                             </div>
                         </div>
 
-                        {/* 推荐操作 */}
+                        {/* Recommended actions */}
                         <div
                             className="px-5 py-4 border-t"
                             style={{ borderColor: colors.border, backgroundColor: colors.bg3 }}
                         >
-                            <div className="text-xs mb-3" style={{ color: colors.text3 }}>下一步建议</div>
+                            <div className="text-xs mb-3" style={{ color: colors.text3 }}>Recommended next steps</div>
                             <div className="space-y-2">
                                 <button
                                     className="w-full py-2.5 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
@@ -707,7 +843,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                     onClick={onCloseDestinyResult}
                                 >
                                     <CheckCircle2 size={16} />
-                                    我明白了
+                                    Got it
                                 </button>
                                 <button
                                     className="w-full py-2.5 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
@@ -718,7 +854,7 @@ export const LumiAppView: React.FC<LumiAppViewProps> = ({
                                     }}
                                 >
                                     <Compass size={16} />
-                                    咨询人生教练
+                                    Ask Life Coach
                                 </button>
                             </div>
                         </div>

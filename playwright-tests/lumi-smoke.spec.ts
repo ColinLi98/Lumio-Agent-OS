@@ -21,20 +21,25 @@ const dismissBlockingUI = async (page: Page) => {
 };
 
 const openAppMode = async (page: Page) => {
-  const byTitle = page.getByTitle('App Mode');
-  if (await byTitle.isVisible().catch(() => false)) {
-    await byTitle.click({ force: true });
-    return;
-  }
-  await page.getByRole('button', { name: /^App$/ }).click({ force: true });
+  const url = new URL(page.url());
+  url.searchParams.set('surface', 'app');
+  await page.goto(url.toString());
+  await dismissBlockingUI(page);
 };
 
-test('loads keyboard mode by default', async ({ page }) => {
-  await preparePage(page);
-  await page.goto('/');
+const openKeyboardDemoMode = async (page: Page) => {
+  const url = new URL(page.url());
+  url.searchParams.set('surface', 'keyboard');
+  await page.goto(url.toString());
   await dismissBlockingUI(page);
+};
 
-  await expect(page.getByRole('heading', { name: 'Lumi.AI' })).toBeVisible();
+test('loads keyboard demo mode when imeDemo is enabled', async ({ page }) => {
+  await preparePage(page);
+  await page.goto('/?imeDemo=1');
+  await dismissBlockingUI(page);
+  await openKeyboardDemoMode(page);
+
   await expect(
     page.getByText('Long press', { exact: false })
   ).toBeVisible();
@@ -42,7 +47,7 @@ test('loads keyboard mode by default', async ({ page }) => {
 
 test('switches to app mode and shows command center', async ({ page }) => {
   await preparePage(page);
-  await page.goto('/');
+  await page.goto('/?imeDemo=1');
   await dismissBlockingUI(page);
 
   await openAppMode(page);
@@ -53,7 +58,7 @@ test('switches to app mode and shows command center', async ({ page }) => {
 
 test('app mode can return to keyboard mode', async ({ page }) => {
   await preparePage(page);
-  await page.goto('/');
+  await page.goto('/?imeDemo=1');
   await dismissBlockingUI(page);
 
   await openAppMode(page);

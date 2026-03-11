@@ -1,7 +1,7 @@
 /**
- * MemoryGraphPanel - 记忆图谱可视化
+ * MemoryGraphPanel - Memory graph visualization
  *
- * 展示知识节点和关联关系的简化可视化
+ * Simplified visualization of knowledge nodes and their relations
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -35,24 +35,24 @@ export interface MemoryEdge {
 // ============================================================================
 
 const SAMPLE_NODES: MemoryNode[] = [
-    { id: 'tech', label: '技术', type: 'topic', weight: 0.9 },
-    { id: 'coffee', label: '咖啡', type: 'preference', weight: 0.7 },
-    { id: 'morning', label: '早晨', type: 'topic', weight: 0.5 },
-    { id: 'coding', label: '编程', type: 'skill', weight: 0.85 },
-    { id: 'music', label: '音乐', type: 'preference', weight: 0.6 },
-    { id: 'work', label: '工作', type: 'topic', weight: 0.75 },
+    { id: 'tech', label: 'Technology', type: 'topic', weight: 0.9 },
+    { id: 'coffee', label: 'Coffee', type: 'preference', weight: 0.7 },
+    { id: 'morning', label: 'Morning', type: 'topic', weight: 0.5 },
+    { id: 'coding', label: 'Coding', type: 'skill', weight: 0.85 },
+    { id: 'music', label: 'Music', type: 'preference', weight: 0.6 },
+    { id: 'work', label: 'Work', type: 'topic', weight: 0.75 },
     { id: 'ai', label: 'AI', type: 'fact', weight: 0.95 },
-    { id: 'design', label: '设计', type: 'skill', weight: 0.65 },
+    { id: 'design', label: 'Design', type: 'skill', weight: 0.65 },
 ];
 
 const SAMPLE_EDGES: MemoryEdge[] = [
-    { source: 'tech', target: 'coding', relation: '包含', strength: 0.9 },
-    { source: 'tech', target: 'ai', relation: '相关', strength: 0.85 },
-    { source: 'coffee', target: 'morning', relation: '联想', strength: 0.7 },
-    { source: 'work', target: 'coding', relation: '需要', strength: 0.8 },
-    { source: 'music', target: 'work', relation: '伴随', strength: 0.5 },
-    { source: 'design', target: 'tech', relation: '结合', strength: 0.6 },
-    { source: 'ai', target: 'coding', relation: '应用', strength: 0.75 },
+    { source: 'tech', target: 'coding', relation: 'contains', strength: 0.9 },
+    { source: 'tech', target: 'ai', relation: 'related to', strength: 0.85 },
+    { source: 'coffee', target: 'morning', relation: 'associated with', strength: 0.7 },
+    { source: 'work', target: 'coding', relation: 'requires', strength: 0.8 },
+    { source: 'music', target: 'work', relation: 'accompanies', strength: 0.5 },
+    { source: 'design', target: 'tech', relation: 'combines with', strength: 0.6 },
+    { source: 'ai', target: 'coding', relation: 'applied in', strength: 0.75 },
 ];
 
 // ============================================================================
@@ -154,14 +154,14 @@ export const MemoryGraphPanel: React.FC<MemoryGraphPanelProps> = ({ onLog }) => 
     const handleAddNode = () => {
         const newNode: MemoryNode = {
             id: `node_${Date.now()}`,
-            label: '新节点',
+            label: 'New Node',
             type: 'topic',
             weight: 0.5,
             x: 140 + Math.random() * 40 - 20,
             y: 100 + Math.random() * 40 - 20,
         };
         setNodes([...nodes, newNode]);
-        onLog?.('新增记忆节点');
+        onLog?.('Added memory node');
     };
 
     const handleZoomIn = () => setZoom((z) => Math.min(z + 0.2, 2));
@@ -173,8 +173,8 @@ export const MemoryGraphPanel: React.FC<MemoryGraphPanelProps> = ({ onLog }) => 
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Brain size={18} className="text-purple-400" />
-                    <span className="font-semibold text-white">记忆图谱</span>
-                    <span className="text-xs text-slate-500">({nodes.length} 节点)</span>
+                    <span className="font-semibold text-white">Memory Graph</span>
+                    <span className="text-xs text-slate-500">({nodes.length} nodes)</span>
                 </div>
                 <div className="flex gap-1">
                     <button
@@ -273,12 +273,12 @@ export const MemoryGraphPanel: React.FC<MemoryGraphPanelProps> = ({ onLog }) => 
                     </div>
 
                     <div className="text-xs text-slate-400 mb-2">
-                        重要度: {Math.round(selectedNodeData.weight * 100)}%
+                        Importance: {Math.round(selectedNodeData.weight * 100)}%
                     </div>
 
                     {connectedEdges.length > 0 && (
                         <div>
-                            <div className="text-xs text-slate-400 mb-1">关联:</div>
+                            <div className="text-xs text-slate-400 mb-1">Connections:</div>
                             <div className="space-y-1">
                                 {connectedEdges.map((edge, i) => {
                                     const otherId =

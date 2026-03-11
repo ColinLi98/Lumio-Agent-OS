@@ -1,53 +1,53 @@
 /**
- * Personalization Service - 个性化推荐服务
- * 
- * 功能：
- * - 基于用户画像提供个性化推荐
- * - 分析用户偏好并匹配最佳选项
- * - 生成个性化推荐理由
+ * Personalization Service
+ *
+ * Functions:
+ * - Generate personalized recommendations from user profile
+ * - Match options against user preferences
+ * - Produce personalized recommendation rationale
  */
 
 import { getEnhancedDigitalAvatar, getDigitalAvatar, getInteractions } from './localStorageService.js';
 
-// 用户偏好配置文件
+// User preference profile
 export interface UserPreferences {
-    // 餐饮偏好
+    // Dining preferences
     dining: {
-        cuisinePreferences: string[];   // 菜系偏好
+        cuisinePreferences: string[];   // Cuisine preferences
         priceRange: 'budget' | 'mid' | 'high' | 'luxury';
-        dietaryRestrictions: string[];  // 饮食限制
-        atmospherePreference: string[]; // 氛围偏好
+        dietaryRestrictions: string[];  // Dietary restrictions
+        atmospherePreference: string[]; // Atmosphere preferences
         spiceLevel: 'mild' | 'medium' | 'spicy';
     };
-    // 社交偏好
+    // Social preferences
     social: {
-        preferredOccasions: string[];   // 约会、商务、家庭等
+        preferredOccasions: string[];   // Date/business/family etc.
         groupSize: 'solo' | 'couple' | 'small' | 'large';
         noiseTolerance: 'quiet' | 'moderate' | 'lively';
     };
-    // 行为偏好
+    // Behavioral preferences
     behavior: {
         decisionStyle: 'quick' | 'research' | 'recommendation';
-        priceVsQuality: number;         // -100 价格优先 到 100 质量优先
-        adventurousness: number;        // 0-100 尝新意愿
+        priceVsQuality: number;         // -100 price-first to 100 quality-first
+        adventurousness: number;        // 0-100 willingness to try new things
     };
 }
 
-// 个性化推荐结果
+// Personalized recommendation result
 export interface PersonalizedRecommendation {
-    // 原始数据
+    // Raw data
     originalData: any;
-    // 个性化分析
+    // Personalized analysis
     analysis: {
-        matchScore: number;             // 0-100 匹配度
-        matchReasons: string[];         // 匹配原因列表
-        personalNote: string;           // 个性化说明
-        warnings?: string[];            // 可能的顾虑
+        matchScore: number;             // 0-100 match score
+        matchReasons: string[];         // Match reason list
+        personalNote: string;           // Personalized note
+        warnings?: string[];            // Potential concerns
     };
-    // 智能联想
+    // Smart follow-ups
     suggestions: {
-        relatedQueries: string[];       // 相关搜索建议
-        followUpActions: string[];      // 后续操作建议
+        relatedQueries: string[];       // Related search suggestions
+        followUpActions: string[];      // Follow-up action suggestions
     };
 }
 
@@ -60,46 +60,46 @@ export function getUserPreferences(): UserPreferences {
     const basicAvatar = getDigitalAvatar();
     const interactions = getInteractions(100);
 
-    // 从交互历史中推断餐饮偏好
+    // Infer dining preferences from interaction history
     const foodInteractions = interactions.filter(i =>
         i.type === 'tool_used' &&
         (i.data.toolName === 'location' || i.data.query?.includes('餐') || i.data.query?.includes('吃'))
     );
 
-    // 推断价格范围偏好
+    // Infer price-range preference
     const priceVsQuality = avatar.valuesProfile?.priceVsQuality || 0;
     let priceRange: 'budget' | 'mid' | 'high' | 'luxury' = 'mid';
     if (priceVsQuality < -30) priceRange = 'budget';
     else if (priceVsQuality > 50) priceRange = 'luxury';
     else if (priceVsQuality > 20) priceRange = 'high';
 
-    // 从兴趣标签推断菜系偏好
+    // Infer cuisine preferences from interest tags
     const cuisineKeywords = ['火锅', '日料', '西餐', '粤菜', '川菜', '意大利', '法餐', '日本料理'];
     const cuisinePreferences = basicAvatar.interestTags
         .filter(tag => cuisineKeywords.some(c => tag.name.includes(c)))
         .map(tag => tag.name);
 
-    // 从性格画像推断氛围偏好
+    // Infer atmosphere preference from personality profile
     const extraversion = avatar.personality?.extraversion || 50;
     const atmospherePreference = extraversion > 60
-        ? ['热闹', '网红打卡', '朋友聚会']
+        ? ['Lively', 'Trendy', 'Social']
         : extraversion < 40
-            ? ['安静', '私密', '浪漫氛围']
-            : ['轻松', '适中'];
+            ? ['Quiet', 'Private', 'Romantic']
+            : ['Relaxed', 'Balanced'];
 
-    // 社交偏好
+    // Social preferences
     const socialActivity = avatar.socialGraph?.socialActivityLevel || 50;
 
     return {
         dining: {
-            cuisinePreferences: cuisinePreferences.length > 0 ? cuisinePreferences : ['中餐', '西餐'],
+            cuisinePreferences: cuisinePreferences.length > 0 ? cuisinePreferences : ['Chinese', 'Western'],
             priceRange,
             dietaryRestrictions: [],
             atmospherePreference,
             spiceLevel: 'medium',
         },
         social: {
-            preferredOccasions: ['约会', '朋友聚会'],
+            preferredOccasions: ['Date', 'Friends'],
             groupSize: socialActivity > 60 ? 'small' : 'couple',
             noiseTolerance: extraversion > 60 ? 'lively' : 'moderate',
         },
@@ -112,7 +112,7 @@ export function getUserPreferences(): UserPreferences {
 }
 
 /**
- * 为搜索结果添加个性化分析
+ * Add personalization analysis to search results
  */
 export function personalizeResults(
     query: string,
@@ -135,7 +135,7 @@ export function personalizeResults(
 }
 
 /**
- * 分析单个结果与用户偏好的匹配度
+ * Analyze how a single result matches user preferences
  */
 function analyzeMatch(
     item: any,
@@ -143,11 +143,11 @@ function analyzeMatch(
     query: string,
     context?: { purpose?: string; conversation?: any[] }
 ): PersonalizedRecommendation['analysis'] {
-    let matchScore = 50; // 基础分
+    let matchScore = 50; // Base score
     const matchReasons: string[] = [];
     const warnings: string[] = [];
 
-    // 价格匹配
+    // Price matching
     const priceLevel = item.priceLevel || item.priceRange || '';
     const priceCount = (priceLevel.match(/¥/g) || []).length;
 
@@ -160,64 +160,65 @@ function analyzeMatch(
 
     if (priceMatch[prefs.dining.priceRange]) {
         matchScore += 15;
-        matchReasons.push(`💰 价格符合您的预算偏好`);
+        matchReasons.push(`💰 Price aligns with your budget preference`);
     } else if (priceCount > Object.keys(priceMatch).indexOf(prefs.dining.priceRange) + 1) {
         matchScore -= 10;
-        warnings.push(`价格可能超出常规预算`);
+        warnings.push(`Price may exceed your typical budget`);
     }
 
-    // 氛围匹配
+    // Atmosphere matching
     const atmosphere = item.atmosphere || [];
     const atmosphereMatches = atmosphere.filter((a: string) =>
         prefs.dining.atmospherePreference.some(p => a.includes(p) || p.includes(a))
     );
     if (atmosphereMatches.length > 0) {
         matchScore += 10 * atmosphereMatches.length;
-        matchReasons.push(`🎯 氛围符合偏好: ${atmosphereMatches.join(', ')}`);
+        matchReasons.push(`🎯 Atmosphere matches preference: ${atmosphereMatches.join(', ')}`);
     }
 
-    // 约会场景特殊加分
+    // Extra points for date context
     const isDateContext = context?.purpose === 'date' ||
         query.includes('约会') ||
         query.includes('浪漫') ||
-        query.includes('情侣');
+        query.includes('情侣') ||
+        /date|romantic|couple/i.test(query);
     if (isDateContext) {
-        if (atmosphere.some((a: string) => ['约会', '浪漫', '私密', '求婚'].some(k => a.includes(k)))) {
+        if (atmosphere.some((a: string) => ['约会', '浪漫', '私密', '求婚', 'date', 'romantic', 'private', 'proposal'].some(k => a.toLowerCase().includes(k.toLowerCase())))) {
             matchScore += 20;
-            matchReasons.push(`💕 非常适合约会场景`);
+            matchReasons.push(`💕 Excellent fit for a date context`);
         }
     }
 
-    // 评分考量
+    // Rating
     const rating = item.rating || 0;
     if (rating >= 4.7) {
         matchScore += 10;
-        matchReasons.push(`⭐ 高评分 ${rating} 分，口碑优秀`);
+        matchReasons.push(`⭐ High rating ${rating}, strong reputation`);
     } else if (rating >= 4.5) {
         matchScore += 5;
     }
 
-    // 评价数量（人气）
+    // Review count (popularity)
     const reviewCount = item.reviewCount || 0;
     if (reviewCount > 2000) {
         matchScore += 5;
-        matchReasons.push(`🔥 ${reviewCount}+ 条评价，人气餐厅`);
+        matchReasons.push(`🔥 ${reviewCount}+ reviews, high popularity`);
     }
 
-    // 亮点匹配
+    // Highlights matching
     const highlights = item.highlights || [];
-    if (highlights.includes('米其林') || highlights.some((h: string) => h.includes('米其林'))) {
+    if (highlights.includes('米其林') || highlights.some((h: string) => h.includes('米其林') || /michelin/i.test(h))) {
         matchScore += 15;
-        matchReasons.push(`🌟 米其林推荐，品质保证`);
+        matchReasons.push(`🌟 Michelin signal detected, quality confidence`);
     }
 
-    // 冒险度考量
-    if (prefs.behavior.adventurousness > 70 && item.type?.includes('创意')) {
+    // Adventurousness
+    if (prefs.behavior.adventurousness > 70 && (item.type?.includes('创意') || /creative/i.test(item.type || ''))) {
         matchScore += 10;
-        matchReasons.push(`✨ 创意料理符合您的尝新风格`);
+        matchReasons.push(`✨ Creative style fits your exploratory preference`);
     }
 
-    // 生成个性化说明
+    // Generate personalized note
     const personalNote = generatePersonalNote(item, prefs, matchReasons, isDateContext);
 
     return {
@@ -229,7 +230,7 @@ function analyzeMatch(
 }
 
 /**
- * 生成个性化说明
+ * Generate personalized note
  */
 function generatePersonalNote(
     item: any,
@@ -238,34 +239,34 @@ function generatePersonalNote(
     isDateContext: boolean
 ): string {
     if (matchReasons.length === 0) {
-        return '这是一个不错的选择。';
+        return 'This is a solid option.';
     }
 
     if (isDateContext) {
         const atmosphere = item.atmosphere || [];
-        if (atmosphere.includes('求婚胜地')) {
-            return `🎊 如果有特别计划，这里是绝佳的求婚地点！${item.highlights?.[0] ? `亮点: ${item.highlights[0]}` : ''}`;
+        if (atmosphere.includes('求婚胜地') || atmosphere.some((a: string) => /proposal/i.test(a))) {
+            return `🎊 If you have a special plan, this is a strong proposal spot.${item.highlights?.[0] ? ` Highlight: ${item.highlights[0]}` : ''}`;
         }
-        if (atmosphere.includes('私密包间')) {
-            return `💑 提供私密包间，适合两人世界。建议: ${item.waitTime || '提前预订'}`;
+        if (atmosphere.includes('私密包间') || atmosphere.some((a: string) => /private/i.test(a))) {
+            return `💑 Private rooms are available, ideal for a two-person setting. Suggestion: ${item.waitTime || 'book in advance'}`;
         }
-        return `💕 根据您的偏好精选的约会餐厅，${item.priceRange || item.priceLevel}的消费水平，${item.type}风格。`;
+        return `💕 Curated date recommendation based on your preferences, with ${item.priceRange || item.priceLevel} budget level and ${item.type} style.`;
     }
 
-    // 基于价格偏好的说明
+    // Note by budget preference
     if (prefs.dining.priceRange === 'budget') {
-        return `性价比之选！${item.signature ? `招牌菜: ${item.signature.slice(0, 2).join('、')}` : ''}`;
+        return `Best value pick!${item.signature ? ` Signature dishes: ${item.signature.slice(0, 2).join(', ')}` : ''}`;
     }
 
     if (prefs.dining.priceRange === 'luxury') {
-        return `品质之选，${item.highlights?.[0] || '环境优雅'}。${item.waitTime || ''}`;
+        return `Premium quality option, ${item.highlights?.[0] || 'elegant atmosphere'}.${item.waitTime || ''}`;
     }
 
-    return `根据您的口味偏好推荐。${item.signature ? `必点: ${item.signature[0]}` : ''}`;
+    return `Recommended based on your taste preferences.${item.signature ? ` Must-try: ${item.signature[0]}` : ''}`;
 }
 
 /**
- * 生成智能联想建议
+ * Generate smart follow-up suggestions
  */
 function generateSuggestions(
     item: any,
@@ -275,32 +276,32 @@ function generateSuggestions(
     const relatedQueries: string[] = [];
     const followUpActions: string[] = [];
 
-    // 基于当前结果生成相关搜索
+    // Related searches from current result
     if (item.type) {
-        relatedQueries.push(`${query.replace(/餐厅|推荐/g, '')}${item.type}推荐`);
+        relatedQueries.push(`${query.replace(/餐厅|推荐/g, '').trim()} ${item.type} recommendations`);
     }
 
-    // 添加同区域其他类型
+    // Nearby alternatives
     if (query.includes('约会')) {
-        relatedQueries.push(`${query.replace('餐厅', '')}咖啡厅`);
-        relatedQueries.push(`${query.replace('餐厅', '')}酒吧`);
+        relatedQueries.push(`${query.replace('餐厅', '').trim()} cafe`);
+        relatedQueries.push(`${query.replace('餐厅', '').trim()} bar`);
     }
 
-    // 后续操作建议
+    // Follow-up actions
     if (item.bookingAvailable) {
-        followUpActions.push('📅 立即预订');
+        followUpActions.push('📅 Book now');
     }
     if (item.dianpingUrl) {
-        followUpActions.push('📖 查看更多评价');
+        followUpActions.push('📖 View more reviews');
     }
     if (item.phone) {
-        followUpActions.push('📞 电话咨询');
+        followUpActions.push('📞 Call for details');
     }
 
-    // 如果是约会场景，添加相关建议
+    // Date-context extras
     if (query.includes('约会')) {
-        followUpActions.push('💐 附近花店');
-        followUpActions.push('🎬 附近电影院');
+        followUpActions.push('💐 Nearby flower shop');
+        followUpActions.push('🎬 Nearby cinema');
     }
 
     return {
@@ -310,12 +311,12 @@ function generateSuggestions(
 }
 
 /**
- * 格式化个性化结果用于显示
+ * Format personalized result for display
  */
 export function formatPersonalizedResult(rec: PersonalizedRecommendation): any {
     return {
         ...rec.originalData,
-        // 添加个性化信息
+        // Add personalization payload
         personalizedInfo: {
             matchScore: rec.analysis.matchScore,
             matchReasons: rec.analysis.matchReasons,
@@ -328,7 +329,7 @@ export function formatPersonalizedResult(rec: PersonalizedRecommendation): any {
 }
 
 // =====================================
-// Universal Smart Suggestions - 通用智能联想
+// Universal Smart Suggestions
 // =====================================
 
 /**
@@ -363,84 +364,84 @@ export function generateUniversalSuggestions(
             const temp = result?.temperature;
             const condition = result?.condition?.toLowerCase() || '';
 
-            relatedQueries.push('明日天气预报');
-            relatedQueries.push('一周天气趋势');
+            relatedQueries.push('Tomorrow weather forecast');
+            relatedQueries.push('Weekly weather trend');
 
             if (condition.includes('雨') || condition.includes('rain')) {
-                quickActions.push('☔ 查看雨具推荐');
-                relatedQueries.push('室内活动推荐');
+                quickActions.push('☔ View rain gear picks');
+                relatedQueries.push('Indoor activity recommendations');
             } else if (condition.includes('晴') || condition.includes('sunny') || condition.includes('clear')) {
-                quickActions.push('🌳 附近公园');
-                relatedQueries.push('户外活动推荐');
+                quickActions.push('🌳 Nearby parks');
+                relatedQueries.push('Outdoor activity recommendations');
             }
 
             if (temp && temp < 10) {
-                quickActions.push('🧥 穿衣建议');
+                quickActions.push('🧥 Outfit suggestion');
             } else if (temp && temp > 30) {
-                quickActions.push('🧊 避暑攻略');
+                quickActions.push('🧊 Heat avoidance tips');
             }
 
-            quickActions.push('📅 添加天气提醒');
+            quickActions.push('📅 Add weather reminder');
             break;
 
         case 'web_search':
             // Web search follow-up suggestions
-            relatedQueries.push(`${query} 详细介绍`);
-            relatedQueries.push(`${query} 最新消息`);
-            relatedQueries.push(`${query} 教程`);
+            relatedQueries.push(`${query} detailed overview`);
+            relatedQueries.push(`${query} latest updates`);
+            relatedQueries.push(`${query} tutorial`);
 
-            quickActions.push('📖 深入研究');
-            quickActions.push('💾 保存到笔记');
-            quickActions.push('🔗 查看更多来源');
+            quickActions.push('📖 Deep dive');
+            quickActions.push('💾 Save to notes');
+            quickActions.push('🔗 View more sources');
             break;
 
         case 'price_compare':
             // Shopping suggestions
             const product = result?.product || query;
 
-            relatedQueries.push(`${product} 评测`);
-            relatedQueries.push(`${product} 替代品`);
-            relatedQueries.push(`${product} 历史价格`);
+            relatedQueries.push(`${product} reviews`);
+            relatedQueries.push(`${product} alternatives`);
+            relatedQueries.push(`${product} price history`);
 
-            quickActions.push('⭐ 加入心愿单');
-            quickActions.push('📊 价格走势');
-            quickActions.push('💬 查看用户评价');
+            quickActions.push('⭐ Add to wishlist');
+            quickActions.push('📊 Price trend');
+            quickActions.push('💬 View user reviews');
             if (result?.lowestPlatform) {
-                quickActions.push(`🛒 去${result.lowestPlatform}购买`);
+                quickActions.push(`🛒 Buy on ${result.lowestPlatform}`);
             }
             break;
 
         case 'notes':
         case 'smart_save':
             // Notes/memory suggestions
-            relatedQueries.push('查看所有笔记');
-            relatedQueries.push('搜索相关笔记');
+            relatedQueries.push('View all notes');
+            relatedQueries.push('Search related notes');
 
-            quickActions.push('📝 编辑笔记');
-            quickActions.push('🏷️ 添加标签');
-            quickActions.push('📤 分享笔记');
-            quickActions.push('🗂️ 整理分类');
+            quickActions.push('📝 Edit note');
+            quickActions.push('🏷️ Add tags');
+            quickActions.push('📤 Share note');
+            quickActions.push('🗂️ Organize categories');
             break;
 
         case 'calendar':
             // Calendar suggestions
-            relatedQueries.push('查看本周日程');
-            relatedQueries.push('添加提醒');
+            relatedQueries.push('View this week schedule');
+            relatedQueries.push('Add reminder');
 
-            quickActions.push('⏰ 设置提醒');
-            quickActions.push('📋 准备事项清单');
-            quickActions.push('👥 邀请参与者');
-            quickActions.push('🔄 设为重复');
+            quickActions.push('⏰ Set reminder');
+            quickActions.push('📋 Prepare checklist');
+            quickActions.push('👥 Invite participants');
+            quickActions.push('🔄 Set recurring');
             break;
 
         case 'reminder':
             // Reminder follow-ups
-            relatedQueries.push('查看所有提醒');
-            relatedQueries.push('设置周期提醒');
+            relatedQueries.push('View all reminders');
+            relatedQueries.push('Set recurring reminder');
 
-            quickActions.push('✏️ 修改提醒');
-            quickActions.push('🔔 调整时间');
-            quickActions.push('📅 关联日程');
+            quickActions.push('✏️ Edit reminder');
+            quickActions.push('🔔 Adjust time');
+            quickActions.push('📅 Link to calendar');
             break;
 
         case 'location':
@@ -450,80 +451,80 @@ export function generateUniversalSuggestions(
 
             if (isRestaurant) {
                 if (isDateContext) {
-                    relatedQueries.push('附近咖啡厅');
-                    relatedQueries.push('约会电影院');
-                    quickActions.push('💐 附近花店');
-                    quickActions.push('🎬 附近电影院');
+                    relatedQueries.push('Nearby cafes');
+                    relatedQueries.push('Cinema for dates');
+                    quickActions.push('💐 Nearby flower shop');
+                    quickActions.push('🎬 Nearby cinema');
                 } else {
-                    relatedQueries.push('附近停车场');
-                    relatedQueries.push('其他餐厅推荐');
+                    relatedQueries.push('Nearby parking');
+                    relatedQueries.push('Other restaurant recommendations');
                 }
-                quickActions.push('📅 立即预订');
-                quickActions.push('📞 电话咨询');
+                quickActions.push('📅 Book now');
+                quickActions.push('📞 Call for details');
             } else {
-                relatedQueries.push('附近景点');
-                relatedQueries.push('附近餐厅');
-                quickActions.push('🗺️ 导航');
-                quickActions.push('⭐ 收藏地点');
+                relatedQueries.push('Nearby attractions');
+                relatedQueries.push('Nearby restaurants');
+                quickActions.push('🗺️ Start navigation');
+                quickActions.push('⭐ Save location');
             }
             break;
 
         case 'quick_write':
             // Writing assistance suggestions
-            relatedQueries.push('更多风格选项');
-            relatedQueries.push('相关表达方式');
+            relatedQueries.push('More style options');
+            relatedQueries.push('Alternative phrasing');
 
-            quickActions.push('📋 复制文本');
-            quickActions.push('✏️ 微调内容');
-            quickActions.push('🌐 翻译');
-            quickActions.push('📤 直接发送');
+            quickActions.push('📋 Copy text');
+            quickActions.push('✏️ Refine wording');
+            quickActions.push('🌐 Translate');
+            quickActions.push('📤 Send directly');
             break;
 
         case 'search_assist':
             // OCR/Search assist suggestions
             if (result?.type === 'product') {
-                relatedQueries.push('比价');
-                quickActions.push('🔍 多平台比价');
+                relatedQueries.push('Price comparison');
+                quickActions.push('🔍 Multi-platform compare');
             } else if (result?.type === 'address') {
-                quickActions.push('🗺️ 开始导航');
+                quickActions.push('🗺️ Start navigation');
             }
-            quickActions.push('📋 复制内容');
-            quickActions.push('💾 保存');
+            quickActions.push('📋 Copy content');
+            quickActions.push('💾 Save');
             break;
 
         default:
             // Generic suggestions based on query analysis
             if (queryLower.includes('怎么') || queryLower.includes('如何')) {
-                relatedQueries.push(`${query.replace(/怎么|如何/g, '')} 教程`);
-                relatedQueries.push(`${query.replace(/怎么|如何/g, '')} 视频`);
-                quickActions.push('📖 详细步骤');
+                relatedQueries.push(`${query.replace(/怎么|如何/g, '')} tutorial`);
+                relatedQueries.push(`${query.replace(/怎么|如何/g, '')} video`);
+                quickActions.push('📖 Step-by-step guide');
             }
 
             if (queryLower.includes('推荐')) {
-                relatedQueries.push(`${query.replace('推荐', '')} 排行榜`);
-                relatedQueries.push(`${query.replace('推荐', '')} 评测`);
+                relatedQueries.push(`${query.replace('推荐', '')} ranking`);
+                relatedQueries.push(`${query.replace('推荐', '')} review`);
             }
 
             // Time-based suggestions
             const hour = new Date().getHours();
             if (hour >= 11 && hour <= 13) {
-                relatedQueries.push('附近午餐');
+                relatedQueries.push('Nearby lunch');
             } else if (hour >= 17 && hour <= 20) {
-                relatedQueries.push('附近晚餐');
+                relatedQueries.push('Nearby dinner');
             }
 
-            quickActions.push('💾 保存');
-            quickActions.push('🔍 深入搜索');
+            quickActions.push('💾 Save');
+            quickActions.push('🔍 Deep search');
             break;
     }
 
     // Add user preference-based suggestions
     if (prefs.behavior.adventurousness > 70) {
-        relatedQueries.push('新奇体验推荐');
+        relatedQueries.push('Novel experiences');
     }
 
     if (prefs.dining.priceRange === 'budget') {
-        relatedQueries.push('性价比选择');
+        relatedQueries.push('Best value picks');
     }
 
     return {
@@ -548,82 +549,82 @@ export function getSmartSuggestions(partialQuery: string): string[] {
 
     // Morning suggestions (6-10am)
     if (hour >= 6 && hour <= 10) {
-        suggestions.push('今日天气');
-        suggestions.push('今日日程安排');
+        suggestions.push('Today weather');
+        suggestions.push('Today schedule');
     }
 
     // Lunch suggestions (11am-1pm)
     if (hour >= 11 && hour <= 13) {
-        suggestions.push('附近午餐推荐');
+        suggestions.push('Nearby lunch recommendations');
         if (prefs.dining.priceRange === 'budget') {
-            suggestions.push('实惠午餐');
+            suggestions.push('Affordable lunch');
         }
     }
 
     // Dinner suggestions (5-8pm)
     if (hour >= 17 && hour <= 20) {
-        suggestions.push('附近晚餐推荐');
+        suggestions.push('Nearby dinner recommendations');
         if (dayOfWeek === 5 || dayOfWeek === 6) {
-            suggestions.push('周末聚餐推荐');
+            suggestions.push('Weekend group dining');
         }
     }
 
     // Query-specific suggestions
     if (queryLower.includes('餐') || queryLower.includes('吃')) {
         if (prefs.dining.priceRange === 'luxury') {
-            suggestions.push('推荐高档餐厅');
-            suggestions.push('米其林餐厅');
+            suggestions.push('Premium restaurants');
+            suggestions.push('Michelin restaurants');
         }
         if (prefs.dining.cuisinePreferences.length > 0) {
-            suggestions.push(...prefs.dining.cuisinePreferences.map(c => `${c}餐厅推荐`));
+            suggestions.push(...prefs.dining.cuisinePreferences.map(c => `${c} restaurants`));
         }
     }
 
     if (queryLower.includes('约会')) {
-        suggestions.push('浪漫约会餐厅');
-        suggestions.push('私密约会地点');
-        suggestions.push('求婚餐厅推荐');
+        suggestions.push('Romantic date restaurants');
+        suggestions.push('Private date places');
+        suggestions.push('Proposal-friendly restaurants');
     }
 
     if (queryLower.includes('天气')) {
-        suggestions.push('明天天气');
-        suggestions.push('本周天气预报');
-        suggestions.push('穿衣建议');
+        suggestions.push('Tomorrow weather');
+        suggestions.push('This week forecast');
+        suggestions.push('Outfit suggestion');
     }
 
     if (queryLower.includes('买') || queryLower.includes('购')) {
-        suggestions.push('比价');
-        suggestions.push('优惠券');
-        suggestions.push('商品评测');
+        suggestions.push('Price comparison');
+        suggestions.push('Coupons');
+        suggestions.push('Product reviews');
     }
 
     if (queryLower.includes('记') || queryLower.includes('笔记')) {
-        suggestions.push('查看我的笔记');
-        suggestions.push('创建待办事项');
+        suggestions.push('View my notes');
+        suggestions.push('Create to-do item');
     }
 
     if (queryLower.includes('提醒') || queryLower.includes('闹钟')) {
-        suggestions.push('设置提醒');
-        suggestions.push('查看待办');
+        suggestions.push('Set reminder');
+        suggestions.push('View to-dos');
     }
 
     if (queryLower.includes('日程') || queryLower.includes('安排')) {
-        suggestions.push('今日日程');
-        suggestions.push('添加日程');
+        suggestions.push('Today schedule');
+        suggestions.push('Add schedule item');
     }
 
     if (queryLower.includes('写') || queryLower.includes('回复')) {
-        suggestions.push('帮我回复消息');
-        suggestions.push('正式回复');
-        suggestions.push('轻松回复');
+        suggestions.push('Help me reply');
+        suggestions.push('Formal reply');
+        suggestions.push('Casual reply');
     }
 
     // If no specific match, provide general popular suggestions
     if (suggestions.length === 0) {
-        suggestions.push('附近美食');
-        suggestions.push('今日天气');
-        suggestions.push('帮我记');
-        suggestions.push('帮我写');
+        suggestions.push('Nearby food');
+        suggestions.push('Today weather');
+        suggestions.push('Help me remember');
+        suggestions.push('Help me write');
     }
 
     return [...new Set(suggestions)].slice(0, 6);
@@ -636,4 +637,3 @@ export default {
     formatPersonalizedResult,
     generateUniversalSuggestions,
 };
-

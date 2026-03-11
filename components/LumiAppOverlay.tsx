@@ -6,9 +6,9 @@ interface LumiAppOverlayProps {
     visible: boolean;
     data: any;
     onClose: () => void;
-    superAgentResult?: SuperAgentResult | null;  // 新增：Super Agent 结果
-    onFollowUp?: (question: string) => void;     // 新增：继续提问回调
-    onOpenInMarket?: (intentId: string) => void; // 新增：跳转到Market
+    superAgentResult?: SuperAgentResult | null;  // Added: Super Agent result
+    onFollowUp?: (question: string) => void;     // Added: follow-up callback
+    onOpenInMarket?: (intentId: string) => void; // Added: deep-link to Market
 }
 
 export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
@@ -19,7 +19,7 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
     onFollowUp,
     onOpenInMarket
 }) => {
-    // 如果有 Super Agent 结果，优先显示
+    // Prioritize Super Agent result when available
     if (visible && superAgentResult) {
         return (
             <div className="absolute inset-0 z-50 bg-gray-900 flex flex-col animate-in slide-in-from-bottom duration-300">
@@ -32,7 +32,7 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
                         <ArrowLeft size={20} className="text-white" />
                     </button>
                     <div className="flex-1">
-                        <h1 className="text-white font-bold text-lg">Lumi.AI 分析结果</h1>
+                        <h1 className="text-white font-bold text-lg">Lumi.AI Analysis</h1>
                         <p className="text-white/70 text-xs">Super Agent</p>
                     </div>
                     <img src="/lumi-logo.jpg" alt="Lumi" className="w-8 h-8 rounded-lg" />
@@ -54,7 +54,7 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
     if (!visible || !data) return null;
 
     const places = data.places || [];
-    const query = data.query || '搜索结果';
+    const query = data.query || 'Search results';
     const isPersonalized = data.isPersonalized;
 
     return (
@@ -79,7 +79,7 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
                 <div className="bg-gradient-to-r from-pink-500/20 to-purple-500/20 px-4 py-2 border-b border-white/10">
                     <div className="flex items-center gap-2 text-pink-300 text-xs">
                         <Heart size={12} className="fill-current" />
-                        <span>根据你的偏好个性化推荐</span>
+                        <span>Personalized recommendations based on your preferences</span>
                     </div>
                 </div>
             )}
@@ -95,12 +95,12 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
                         <div className="relative h-32 bg-gradient-to-br from-purple-600 to-indigo-700 p-4">
                             {place.matchScore && (
                                 <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md rounded-full px-3 py-1">
-                                    <span className="text-white text-sm font-bold">{place.matchScore}% 匹配</span>
+                                    <span className="text-white text-sm font-bold">{place.matchScore}% match</span>
                                 </div>
                             )}
                             {index === 0 && (
                                 <div className="absolute top-3 left-3 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full px-3 py-1">
-                                    <span className="text-white text-xs font-bold">🏆 最佳推荐</span>
+                                    <span className="text-white text-xs font-bold">🏆 Top pick</span>
                                 </div>
                             )}
                             <div className="absolute bottom-4 left-4 right-4">
@@ -117,7 +117,7 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
                                     <Star size={16} className="text-yellow-400 fill-current" />
                                     <span className="text-white font-bold">{place.rating}</span>
                                 </div>
-                                <span className="text-gray-400 text-sm">{place.reviewCount || '1000+'}条评价</span>
+                                <span className="text-gray-400 text-sm">{place.reviewCount || '1000+'} reviews</span>
                             </div>
 
                             {/* Address */}
@@ -150,7 +150,7 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
                             {/* Signature Dishes */}
                             {place.signature && place.signature.length > 0 && (
                                 <div>
-                                    <span className="text-gray-500 text-xs">招牌推荐</span>
+                                    <span className="text-gray-500 text-xs">Signature picks</span>
                                     <div className="flex flex-wrap gap-1 mt-1">
                                         {place.signature.map((dish: string, i: number) => (
                                             <span key={i} className="text-orange-400 text-sm">
@@ -169,7 +169,7 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
                                         className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl font-medium transition-colors"
                                     >
                                         <Phone size={16} />
-                                        <span>电话</span>
+                                        <span>Call</span>
                                     </a>
                                 )}
                                 {place.dianpingUrl && (
@@ -180,13 +180,13 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
                                         className="flex-1 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-white py-2.5 rounded-xl font-medium transition-colors"
                                     >
                                         <ExternalLink size={16} />
-                                        <span>点评</span>
+                                        <span>Reviews</span>
                                     </a>
                                 )}
                                 {place.bookingAvailable && (
                                     <button className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white py-2.5 rounded-xl font-medium transition-colors">
                                         <span>📅</span>
-                                        <span>预订</span>
+                                        <span>Book</span>
                                     </button>
                                 )}
                             </div>
@@ -200,19 +200,19 @@ export const LumiAppOverlay: React.FC<LumiAppOverlayProps> = ({
                 <div className="flex justify-around">
                     <button className="flex flex-col items-center gap-1 text-purple-400">
                         <Home size={20} />
-                        <span className="text-xs">首页</span>
+                        <span className="text-xs">Home</span>
                     </button>
                     <button className="flex flex-col items-center gap-1 text-gray-500">
                         <Search size={20} />
-                        <span className="text-xs">发现</span>
+                        <span className="text-xs">Discover</span>
                     </button>
                     <button className="flex flex-col items-center gap-1 text-gray-500">
                         <Heart size={20} />
-                        <span className="text-xs">收藏</span>
+                        <span className="text-xs">Saved</span>
                     </button>
                     <button className="flex flex-col items-center gap-1 text-gray-500">
                         <User size={20} />
-                        <span className="text-xs">我的</span>
+                        <span className="text-xs">Me</span>
                     </button>
                 </div>
             </div>

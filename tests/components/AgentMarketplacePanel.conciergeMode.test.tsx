@@ -19,9 +19,9 @@ describe('AgentMarketplacePanel concierge mode', () => {
       deadline: '72小时',
       industry: '本地生活',
     });
-    expect(query).toContain('业务目标：提升门店转化');
-    expect(query).toContain('预算：¥2000/月');
-    expect(query).toContain('时限：72小时');
-    expect(query).toContain('行业：本地生活');
+    expect(query).toContain('Business goal: 提升门店转化');
+    expect(query).toContain('Budget: ¥2000/月');
+    expect(query).toContain('Deadline: 72小时');
+    expect(query).toContain('Industry: 本地生活');
   });
 });

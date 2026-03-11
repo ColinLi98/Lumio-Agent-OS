@@ -47,9 +47,9 @@ const OfferComparisonCard: React.FC<OfferComparisonCardProps> = ({ data, onSelec
 
     // Provider ID to display name mapping
     const PROVIDER_NAMES: Record<string, string> = {
-        jd: '京东',
-        pdd: '拼多多',
-        taobao: '淘宝/天猫'
+        jd: 'JD.com',
+        pdd: 'Pinduoduo',
+        taobao: 'Taobao/Tmall'
     };
 
     if (!offers.length) {
@@ -57,9 +57,9 @@ const OfferComparisonCard: React.FC<OfferComparisonCardProps> = ({ data, onSelec
             <div className="lix-card lix-card-empty">
                 <div className="lix-header">
                     <ShoppingCart size={20} />
-                    <span>LIX 意图交易</span>
+                    <span>LIX Intent Market</span>
                 </div>
-                <p className="lix-empty-message">{message || '暂无匹配的报价'}</p>
+                <p className="lix-empty-message">{message || 'No matching offers yet'}</p>
             </div>
         );
     }
@@ -228,22 +228,22 @@ const OfferComparisonCard: React.FC<OfferComparisonCardProps> = ({ data, onSelec
 
             <div className="lix-header">
                 <Zap size={18} />
-                <span>LIX 意图交易</span>
+                <span>LIX Intent Market</span>
             </div>
 
             <div className="lix-stats">
                 <div className="lix-stat">
                     <TrendingUp size={14} />
-                    <span>收到 {totalOffers || offers.length} 个报价</span>
+                    <span>Received {totalOffers || offers.length} offers</span>
                 </div>
                 {broadcastReach && (
                     <div className="lix-stat">
-                        <span>覆盖 {broadcastReach}+ 服务方</span>
+                        <span>Reached {broadcastReach}+ providers</span>
                     </div>
                 )}
                 {providerSource && providerSource !== 'mock' && (
                     <span className="lix-source-badge">
-                        {providerSource === 'real' ? '⏡ 实时数据' : '混合数据'}
+                        {providerSource === 'real' ? '⏡ Live data' : 'Mixed data'}
                     </span>
                 )}
             </div>
@@ -290,18 +290,18 @@ const OfferComparisonCard: React.FC<OfferComparisonCardProps> = ({ data, onSelec
                             {offer.deliveryEta && (
                                 <div className="lix-offer-meta-item">
                                     <Clock size={12} />
-                                    <span>{new Date(offer.deliveryEta).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })} 送达</span>
+                                    <span>{new Date(offer.deliveryEta).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })} delivery</span>
                                 </div>
                             )}
                             <div className="lix-offer-meta-item">
-                                <span>匹配度 {offer.score}%</span>
+                                <span>Match score {offer.score}%</span>
                             </div>
                         </div>
 
                         <div className="lix-offer-explanation">
                             <span>{offer.explanation}</span>
                             <div className="lix-offer-cta">
-                                <span>查看详情</span>
+                                <span>View details</span>
                                 <ChevronRight size={14} />
                             </div>
                         </div>
@@ -317,7 +317,7 @@ const OfferComparisonCard: React.FC<OfferComparisonCardProps> = ({ data, onSelec
                         className="lix-market-cta-button"
                     >
                         <ExternalLink size={14} />
-                        <span>在市场中查看全部报价</span>
+                        <span>View all offers in Market</span>
                         <ChevronRight size={14} />
                     </button>
                 </div>

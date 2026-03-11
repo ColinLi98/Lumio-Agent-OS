@@ -226,6 +226,38 @@ describe('Agent Marketplace Selection', () => {
             expect(selection!.fallback_agent_ids).toContain('a3');
         });
 
+        it('should relax capability filter and keep same-domain fallback selection', () => {
+            marketplace.registerAgents([
+                createAgent({
+                    id: 'recruit_a1',
+                    domains: ['recruitment'],
+                    capabilities: ['job_sourcing'],
+                    success_rate: 0.95,
+                    avg_latency_ms: 900,
+                }),
+                createAgent({
+                    id: 'recruit_a2',
+                    domains: ['recruitment'],
+                    capabilities: ['salary_benchmark'],
+                    success_rate: 0.90,
+                    avg_latency_ms: 1100,
+                }),
+            ]);
+
+            const task = {
+                id: 'task_resume',
+                objective: '优化简历',
+                required_capabilities: ['resume_optimization'],
+                dependencies: [],
+                parallelizable: true,
+            };
+
+            const selection = marketplace.selectForTask(task, 'recruitment');
+            expect(selection).not.toBeNull();
+            expect(selection!.primary_agent_id).toBe('recruit_a1');
+            expect(selection!.fallback_agent_ids).toContain('recruit_a2');
+        });
+
         it('should return null when no agents match', () => {
             // Empty marketplace
             const emptyMkt = new AgentMarketplaceService();

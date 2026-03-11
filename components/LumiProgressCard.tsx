@@ -1,6 +1,6 @@
 /**
  * Lumi Progress Card
- * 展示 Lumi 学习进度的轻量级卡片
+ * Lightweight card showing Lumi learning progress
  */
 
 import React, { useState, useEffect } from 'react';
@@ -29,7 +29,7 @@ export const LumiProgressCard: React.FC<LumiProgressCardProps> = ({
         return null;
     }
 
-    // 计算整体进度百分比 (满分=100条记忆+有高效时段+10次快捷操作)
+    // Calculate overall progress score (max: 100 memory entries + peak hours + 10 quick actions)
     const progressScore = Math.min(100,
         (metrics.memoryCount / 100) * 40 +
         (metrics.peakHours.length > 0 ? 30 : 0) +
@@ -43,7 +43,7 @@ export const LumiProgressCard: React.FC<LumiProgressCardProps> = ({
                     <Brain size={16} />
                 </div>
                 <div className="progress-text">
-                    学习进度 {Math.round(progressScore)}%
+                    Learning Progress {Math.round(progressScore)}%
                 </div>
                 <ChevronRight size={14} />
                 <style>{compactStyles}</style>
@@ -55,18 +55,18 @@ export const LumiProgressCard: React.FC<LumiProgressCardProps> = ({
         <div className="lumi-progress-card">
             <div className="progress-header">
                 <Brain size={20} />
-                <span>Lumi 学习进度</span>
+                <span>Lumi Learning Progress</span>
                 <div className="progress-badge">{Math.round(progressScore)}%</div>
             </div>
 
             <div className="progress-items">
-                {/* 记忆容量 */}
+                {/* Memory capacity */}
                 <div className="progress-item">
                     <div className="item-icon memory">
                         <Brain size={14} />
                     </div>
                     <div className="item-content">
-                        <div className="item-label">记忆容量</div>
+                        <div className="item-label">Memory Capacity</div>
                         <div className="item-bar-container">
                             <div
                                 className="item-bar memory-bar"
@@ -74,20 +74,20 @@ export const LumiProgressCard: React.FC<LumiProgressCardProps> = ({
                             />
                         </div>
                     </div>
-                    <div className="item-value">{metrics.memoryCount} 条</div>
+                    <div className="item-value">{metrics.memoryCount} entries</div>
                 </div>
 
-                {/* 高效时段 */}
+                {/* Peak hours */}
                 <div className="progress-item">
                     <div className="item-icon time">
                         <Clock size={14} />
                     </div>
                     <div className="item-content">
-                        <div className="item-label">高效时段</div>
+                        <div className="item-label">Peak Hours</div>
                         <div className="item-detail">
                             {metrics.peakHours.length > 0
                                 ? metrics.peakHours.map(h => `${h}:00`).join(', ')
-                                : '学习中...'}
+                                : 'Learning...'}
                         </div>
                     </div>
                     <div className="item-status">
@@ -95,18 +95,18 @@ export const LumiProgressCard: React.FC<LumiProgressCardProps> = ({
                     </div>
                 </div>
 
-                {/* 快捷操作 */}
+                {/* Quick actions */}
                 <div className="progress-item">
                     <div className="item-icon action">
                         <Zap size={14} />
                     </div>
                     <div className="item-content">
-                        <div className="item-label">快捷操作</div>
+                        <div className="item-label">Quick Actions</div>
                         <div className="item-detail">
-                            本周节省 {metrics.chipClicksThisWeek} 次
+                            Saved {metrics.chipClicksThisWeek} taps this week
                         </div>
                     </div>
-                    <div className="item-value">{metrics.chipClicksTotal} 次</div>
+                    <div className="item-value">{metrics.chipClicksTotal} taps</div>
                 </div>
             </div>
 
@@ -114,13 +114,13 @@ export const LumiProgressCard: React.FC<LumiProgressCardProps> = ({
             {metrics.memoryGrowth > 0 && (
                 <div className="progress-growth">
                     <TrendingUp size={12} />
-                    <span>本周新增 {metrics.memoryGrowth} 条记忆</span>
+                    <span>Added {metrics.memoryGrowth} memory entries this week</span>
                 </div>
             )}
 
             {onViewDetails && (
                 <button className="view-details-btn" onClick={onViewDetails}>
-                    查看详情 <ChevronRight size={14} />
+                    View Details <ChevronRight size={14} />
                 </button>
             )}
 

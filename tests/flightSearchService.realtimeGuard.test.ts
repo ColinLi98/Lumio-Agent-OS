@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { searchFlights } from '../services/flightSearchService';
 
 const baseParams = {
@@ -9,12 +9,46 @@ const baseParams = {
 };
 
 describe('flightSearchService realtime guard', () => {
+    const envKeys = [
+        'SERPAPI_KEY',
+        'VITE_SERPAPI_KEY',
+        'AMADEUS_CLIENT_ID',
+        'AMADEUS_CLIENT_SECRET',
+        'VITE_AMADEUS_CLIENT_ID',
+        'VITE_AMADEUS_CLIENT_SECRET',
+        'LIVE_SEARCH_ENDPOINT',
+        'LUMI_LIVE_SEARCH_ENDPOINT',
+        'LUMI_API_BASE_URL',
+        'VITE_API_BASE_URL',
+    ] as const;
+    let envSnapshot: Record<string, string | undefined> = {};
+
+    beforeEach(() => {
+        envSnapshot = Object.fromEntries(
+            envKeys.map((key) => [key, process.env[key]])
+        );
+        for (const key of envKeys) {
+            delete process.env[key];
+        }
+    });
+
     afterEach(() => {
+        for (const key of envKeys) {
+            const value = envSnapshot[key];
+            if (typeof value === 'undefined') {
+                delete process.env[key];
+            } else {
+                process.env[key] = value;
+            }
+        }
         vi.unstubAllGlobals();
     });
 
     it('fails closed when realtime provider key is missing', async () => {
-        const result = await searchFlights(baseParams, undefined);
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network disabled in test')));
+        const result = await searchFlights(baseParams, undefined, {
+            amadeus: { enabled: false },
+        });
 
         expect(result.success).toBe(false);
         expect(result.flights).toHaveLength(0);
@@ -32,6 +66,7 @@ describe('flightSearchService realtime guard', () => {
         const result = await searchFlights(baseParams, 'test-serpapi-key', {
             requireLiveData: true,
             allowEstimatedFallback: false,
+            amadeus: { enabled: false },
         });
 
         expect(result.success).toBe(false);
@@ -41,9 +76,11 @@ describe('flightSearchService realtime guard', () => {
     });
 
     it('allows estimated fallback only when explicitly enabled', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network disabled in test')));
         const result = await searchFlights(baseParams, undefined, {
             requireLiveData: false,
             allowEstimatedFallback: true,
+            amadeus: { enabled: false },
         });
 
         expect(result.success).toBe(true);

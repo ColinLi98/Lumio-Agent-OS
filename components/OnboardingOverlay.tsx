@@ -9,8 +9,8 @@ interface OnboardingOverlayProps {
 const ONBOARDING_KEY = 'lumi_onboarding_completed';
 
 /**
- * Onboarding Overlay - 新手引导组件
- * 3 步引导：长按空格 → 选择功能 → 查看结果
+ * Onboarding overlay
+ * 3-step guide: long-press space -> choose feature -> see results
  */
 export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({ onComplete, onSkip }) => {
     const [step, setStep] = useState(0);
@@ -18,21 +18,21 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({ onComplete
     const steps = [
         {
             icon: <Hand size={48} className="text-indigo-400" />,
-            title: '长按空格键',
-            description: '在任意输入框中长按空格键，唤醒 Lumi Agent',
-            highlight: '激活智能助手'
+            title: 'Open an Entry Surface',
+            description: 'Start from the Lumi App or long-press space in an input field to wake the IME agent entry',
+            highlight: 'Cross-app intent intake'
         },
         {
             icon: <Zap size={48} className="text-amber-400" />,
-            title: '选择功能',
-            description: '选择「帮我写」「帮我找」或「帮我记」',
-            highlight: '三大核心功能'
+            title: 'Clarify the Task',
+            description: 'Add constraints, context, and missing details so Lumi can decompose the task correctly',
+            highlight: 'Intent before execution'
         },
         {
             icon: <CheckCircle size={48} className="text-emerald-400" />,
-            title: '获取结果',
-            description: '点击选择推荐的回复或操作，一键完成',
-            highlight: '智能辅助'
+            title: 'Review the Execution',
+            description: 'Inspect the plan, evidence, and suggested next action before you commit',
+            highlight: 'Explainable delivery'
         }
     ];
 
@@ -66,7 +66,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({ onComplete
                 {/* Header */}
                 <div className="flex items-center gap-2 mb-6">
                     <Sparkles size={20} className="text-indigo-400" />
-                    <span className="text-indigo-300 text-sm font-medium">欢迎使用 Lumi</span>
+                    <span className="text-indigo-300 text-sm font-medium">Welcome to Lumi Agent OS</span>
                 </div>
 
                 {/* Step Content */}
@@ -105,7 +105,7 @@ export const OnboardingOverlay: React.FC<OnboardingOverlayProps> = ({ onComplete
                     onClick={handleNext}
                     className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium rounded-xl flex items-center justify-center gap-2 hover:from-indigo-600 hover:to-purple-700 transition-all transform hover:scale-[1.02]"
                 >
-                    <span>{step === steps.length - 1 ? '开始使用' : '下一步'}</span>
+                    <span>{step === steps.length - 1 ? 'Start Now' : 'Next'}</span>
                     <ChevronRight size={18} />
                 </button>
 

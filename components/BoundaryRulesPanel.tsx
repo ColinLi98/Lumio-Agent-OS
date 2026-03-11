@@ -1,7 +1,7 @@
 /**
- * BoundaryRulesPanel - 边界规则可视化面板
+ * BoundaryRulesPanel - boundary rules visualization panel
  *
- * 显示所有代理交互规则和用户自定义覆盖设置
+ * Displays all agent interaction rules and user override settings
  */
 
 import React, { useState, useEffect } from 'react';
@@ -102,7 +102,7 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule, onOverride }) => {
                 <div className="px-3 pb-3 space-y-3 border-t border-slate-700/50 pt-3">
                     {/* Keywords */}
                     <div>
-                        <div className="text-xs text-slate-400 mb-1">触发关键词</div>
+                        <div className="text-xs text-slate-400 mb-1">Trigger Keywords</div>
                         <div className="flex flex-wrap gap-1">
                             {rule.keywords.map((kw, i) => (
                                 <span
@@ -118,7 +118,7 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule, onOverride }) => {
                     {/* Permissions */}
                     {rule.boundary.permissions.length > 0 && (
                         <div>
-                            <div className="text-xs text-slate-400 mb-1">所需权限</div>
+                            <div className="text-xs text-slate-400 mb-1">Required Permissions</div>
                             <div className="flex flex-wrap gap-1">
                                 {rule.boundary.permissions.map((perm, i) => (
                                     <span
@@ -134,7 +134,7 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule, onOverride }) => {
 
                     {/* Fallback Strategy */}
                     <div className="flex items-center gap-2 text-xs">
-                        <span className="text-slate-400">回退策略:</span>
+                        <span className="text-slate-400">Fallback Strategy:</span>
                         <span className="text-slate-300">{rule.boundary.fallbackStrategy}</span>
                     </div>
 
@@ -149,7 +149,7 @@ const RuleCard: React.FC<RuleCardProps> = ({ rule, onOverride }) => {
                                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
                             >
                                 <Settings size={12} />
-                                自定义级别
+                                Custom Level
                             </button>
 
                             {showLevelPicker && (
@@ -211,7 +211,7 @@ export const BoundaryRulesPanel: React.FC<BoundaryRulesPanelProps> = ({ onLog })
     const handleOverride = (ruleId: string, level: InteractionLevel) => {
         agentBoundary.setUserOverride(ruleId, level);
         loadData();
-        onLog?.(`规则 ${ruleId} 级别已更新为 ${getInteractionLevelLabel(level)}`);
+        onLog?.(`Rule ${ruleId} level updated to ${getInteractionLevelLabel(level)}`);
     };
 
     const filteredRules = filterLevel === 'all'
@@ -219,7 +219,7 @@ export const BoundaryRulesPanel: React.FC<BoundaryRulesPanelProps> = ({ onLog })
         : rules.filter(r => r.boundary.level === filterLevel);
 
     const levelFilters = [
-        { key: 'all' as const, label: '全部', count: rules.length },
+        { key: 'all' as const, label: 'All', count: rules.length },
         { key: InteractionLevel.L1_AUTO, label: 'L1', count: stats[InteractionLevel.L1_AUTO] },
         { key: InteractionLevel.L2_SEMI_AUTO, label: 'L2', count: stats[InteractionLevel.L2_SEMI_AUTO] },
         { key: InteractionLevel.L3_CONFIRM, label: 'L3', count: stats[InteractionLevel.L3_CONFIRM] },
@@ -232,8 +232,8 @@ export const BoundaryRulesPanel: React.FC<BoundaryRulesPanelProps> = ({ onLog })
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Shield size={18} className="text-blue-400" />
-                    <span className="font-semibold text-white">边界规则</span>
-                    <span className="text-xs text-slate-500">({rules.length} 条)</span>
+                    <span className="font-semibold text-white">Boundary Rules</span>
+                    <span className="text-xs text-slate-500">({rules.length} items)</span>
                 </div>
                 <button
                     onClick={loadData}
@@ -246,10 +246,10 @@ export const BoundaryRulesPanel: React.FC<BoundaryRulesPanelProps> = ({ onLog })
             {/* Level Legend */}
             <div className="grid grid-cols-4 gap-2">
                 {[
-                    { level: InteractionLevel.L1_AUTO, desc: '自动执行' },
-                    { level: InteractionLevel.L2_SEMI_AUTO, desc: '半自动' },
-                    { level: InteractionLevel.L3_CONFIRM, desc: '需确认' },
-                    { level: InteractionLevel.L4_FORBIDDEN, desc: '禁止' },
+                    { level: InteractionLevel.L1_AUTO, desc: 'Auto' },
+                    { level: InteractionLevel.L2_SEMI_AUTO, desc: 'Semi-Auto' },
+                    { level: InteractionLevel.L3_CONFIRM, desc: 'Confirm Required' },
+                    { level: InteractionLevel.L4_FORBIDDEN, desc: 'Blocked' },
                 ].map(({ level, desc }) => (
                     <div
                         key={level}

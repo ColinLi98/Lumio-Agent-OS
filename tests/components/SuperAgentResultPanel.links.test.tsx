@@ -46,8 +46,8 @@ describe('LiveSearchResultCard links', () => {
 
     expect(html).toContain('href="https://flights.ctrip.com/online/list/oneway-sha-pek');
     expect(html).toContain('href="https://www.google.com/travel/flights"');
-    expect(html).toContain('比价候选');
-    expect(html).toContain('快速直达');
+    expect(html).toContain('Price comparison options');
+    expect(html).toContain('07:30 → 09:45 · 直飞');
   });
 
   it('filters serpapi debug links from rendered anchors', () => {

@@ -1,9 +1,9 @@
 /**
  * Accept Fee Service v1.0
  * L.I.X. Beta Settlement Layer
- * 
+ *
  * Handles accept fee recording and invoice aggregation.
- * Fee model: 1% of transaction amount (instead of flat fee).
+ * Fee model (LIX 1.5): first_trade 30%, repeat_trade 10%.
  */
 
 import { generateId } from './lixTypes.js';
@@ -14,6 +14,7 @@ import { generateId } from './lixTypes.js';
 
 export type FeeStatus = 'pending' | 'invoiced' | 'paid' | 'disputed' | 'refunded';
 export type ProviderId = 'jd' | 'pdd' | 'taobao' | string;
+export type TakeRateTier = 'first_trade' | 'repeat_trade';
 
 export interface AcceptFeeRecord {
     fee_id: string;
@@ -22,8 +23,10 @@ export interface AcceptFeeRecord {
     offer_id: string;
     provider_id: ProviderId;
     transaction_amount: number;     // Original transaction amount (CNY)
-    fee_amount: number;             // 1% of transaction amount
-    fee_rate: number;               // 0.01 (1%)
+    fee_amount: number;
+    fee_rate: number;
+    take_rate_tier: TakeRateTier;
+    order_sequence: number;
     fee_status: FeeStatus;
     created_at: number;
     updated_at: number;
@@ -59,18 +62,23 @@ export interface ProviderBalance {
 const feeRecords: Map<string, AcceptFeeRecord> = new Map();
 const invoices: Map<string, InvoiceRecord> = new Map();
 
-// Fee rate: 1% of transaction
-const FEE_RATE = 0.01;
+// Tiered take rate
+const FIRST_TRADE_RATE = 0.30;
+const REPEAT_TRADE_RATE = 0.10;
 const MIN_FEE = 0.01;  // Minimum ¥0.01
-const MAX_FEE = 500;   // Cap at ¥500 per transaction
+const MAX_FEE = 5000;  // Cap at ¥5000 per transaction
 
 // ============================================================================
 // Core Functions
 // ============================================================================
 
+function resolveTierRate(tier: TakeRateTier): number {
+    return tier === 'repeat_trade' ? REPEAT_TRADE_RATE : FIRST_TRADE_RATE;
+}
+
 /**
  * Record an accept fee when user accepts an offer.
- * Fee = 1% of transaction amount (capped at ¥500).
+ * Fee = take_rate * transaction amount.
  */
 export function recordAcceptFee(
     accept_token: string,
@@ -78,12 +86,20 @@ export function recordAcceptFee(
     offer_id: string,
     provider_id: ProviderId,
     transaction_amount: number,
-    trace_id?: string
+    trace_id?: string,
+    options?: {
+        take_rate_tier?: TakeRateTier;
+        order_sequence?: number;
+    }
 ): AcceptFeeRecord {
     const fee_id = `fee_${generateId()}`;
+    const orderSequence = Math.max(1, Number(options?.order_sequence || 1));
+    const tier: TakeRateTier = options?.take_rate_tier
+        || (orderSequence <= 1 ? 'first_trade' : 'repeat_trade');
+    const feeRate = resolveTierRate(tier);
 
-    // Calculate 1% fee with min/max bounds
-    let fee_amount = transaction_amount * FEE_RATE;
+    // Calculate tiered fee with min/max bounds
+    let fee_amount = transaction_amount * feeRate;
     fee_amount = Math.max(MIN_FEE, Math.min(MAX_FEE, fee_amount));
     fee_amount = Math.round(fee_amount * 100) / 100;  // Round to 2 decimals
 
@@ -95,7 +111,9 @@ export function recordAcceptFee(
         provider_id,
         transaction_amount,
         fee_amount,
-        fee_rate: FEE_RATE,
+        fee_rate: feeRate,
+        take_rate_tier: tier,
+        order_sequence: orderSequence,
         fee_status: 'pending',
         created_at: Date.now(),
         updated_at: Date.now(),
@@ -103,7 +121,7 @@ export function recordAcceptFee(
     };
 
     feeRecords.set(fee_id, record);
-    console.log(`[AcceptFee] Recorded fee ${fee_id}: ¥${fee_amount} (1% of ¥${transaction_amount})`);
+    console.log(`[AcceptFee] Recorded fee ${fee_id}: ¥${fee_amount} (${Math.round(feeRate * 100)}% of ¥${transaction_amount})`);
 
     return record;
 }

@@ -1,6 +1,6 @@
 /**
- * ImageCropper - 图片裁剪组件
- * 支持自由裁剪和预设比例，使用 Canvas API 实现
+ * ImageCropper - Image cropping component
+ * Supports free crop and preset ratios using Canvas API.
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -40,7 +40,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     const [imageLoaded, setImageLoaded] = useState(false);
     const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
 
-    // 加载图片
+    // Load image.
     useEffect(() => {
         const img = new Image();
         img.onload = () => {
@@ -48,7 +48,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             setImageDimensions({ width: img.width, height: img.height });
             setImageLoaded(true);
 
-            // 初始化裁剪区域为图片中央
+            // Initialize crop area in the center.
             const containerWidth = containerRef.current?.clientWidth || 300;
             const containerHeight = containerRef.current?.clientHeight || 300;
 
@@ -66,7 +66,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         img.src = imageUrl;
     }, [imageUrl]);
 
-    // 绘制预览
+    // Draw preview.
     useEffect(() => {
         if (!canvasRef.current || !imageRef.current || !imageLoaded) return;
 
@@ -80,10 +80,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         canvas.width = containerWidth;
         canvas.height = containerHeight;
 
-        // 清除画布
+        // Clear canvas.
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 计算显示尺寸
+        // Calculate display dimensions.
         const img = imageRef.current;
         const imgAspect = img.width / img.height;
         const canvasAspect = canvas.width / canvas.height;
@@ -101,42 +101,42 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         drawX = (canvas.width - drawWidth) / 2;
         drawY = (canvas.height - drawHeight) / 2;
 
-        // 保存状态
+        // Save state.
         ctx.save();
 
-        // 应用旋转
+        // Apply rotation.
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((rotation * Math.PI) / 180);
         ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
-        // 绘制图片
+        // Draw image.
         ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
         ctx.restore();
 
-        // 绘制遮罩
+        // Draw mask.
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 清除裁剪区域（显示原图）
+        // Clear crop area to reveal original image.
         ctx.save();
         ctx.beginPath();
         ctx.rect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
         ctx.clip();
 
-        // 重新绘制裁剪区域的图片
+        // Redraw image inside crop area.
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((rotation * Math.PI) / 180);
         ctx.translate(-canvas.width / 2, -canvas.height / 2);
         ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
         ctx.restore();
 
-        // 绘制裁剪框边框
+        // Draw crop border.
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 2;
         ctx.strokeRect(cropArea.x, cropArea.y, cropArea.width, cropArea.height);
 
-        // 绘制网格线（三分法）
+        // Draw rule-of-thirds grid.
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 1;
 
@@ -154,7 +154,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         ctx.lineTo(cropArea.x + cropArea.width, cropArea.y + thirdH * 2);
         ctx.stroke();
 
-        // 绘制角落控制点
+        // Draw corner handles.
         const cornerSize = 12;
         ctx.fillStyle = '#fff';
         const corners = [
@@ -170,7 +170,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
 
     }, [imageLoaded, cropArea, rotation, scale]);
 
-    // 鼠标事件处理
+    // Mouse event handling.
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return;
@@ -178,7 +178,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // 检查是否在角落（调整大小）
+        // Check whether the pointer is on a resize corner.
         const cornerSize = 20;
         const corners = [
             { x: cropArea.x + cropArea.width, y: cropArea.y + cropArea.height }
@@ -192,7 +192,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             }
         }
 
-        // 检查是否在裁剪区域内（移动）
+        // Check whether the pointer is inside crop area (move).
         if (x >= cropArea.x && x <= cropArea.x + cropArea.width &&
             y >= cropArea.y && y <= cropArea.y + cropArea.height) {
             setIsDragging(true);
@@ -219,7 +219,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             const newWidth = Math.max(50, x - cropArea.x);
             let newHeight = Math.max(50, y - cropArea.y);
 
-            // 应用宽高比约束
+            // Apply aspect ratio constraint.
             if (aspectRatio !== 'free') {
                 const ratio = aspectRatio === '1:1' ? 1 : aspectRatio === '4:3' ? 4 / 3 : 16 / 9;
                 newHeight = newWidth / ratio;
@@ -238,14 +238,14 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         setIsResizing(false);
     }, []);
 
-    // 应用裁剪
+    // Apply crop.
     const handleCrop = useCallback(() => {
         if (!imageRef.current || !canvasRef.current) return;
 
         const img = imageRef.current;
         const canvas = canvasRef.current;
 
-        // 计算实际裁剪区域（相对于原图）
+        // Calculate real crop area relative to original image.
         const imgAspect = img.width / img.height;
         const canvasAspect = canvas.width / canvas.height;
 
@@ -262,7 +262,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         drawX = (canvas.width - drawWidth) / 2;
         drawY = (canvas.height - drawHeight) / 2;
 
-        // 转换裁剪区域到原图坐标
+        // Convert crop area to original image coordinates.
         const scaleX = img.width / drawWidth;
         const scaleY = img.height / drawHeight;
 
@@ -271,7 +271,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         const srcWidth = cropArea.width * scaleX;
         const srcHeight = cropArea.height * scaleY;
 
-        // 创建裁剪后的画布
+        // Create cropped canvas.
         const cropCanvas = document.createElement('canvas');
         cropCanvas.width = srcWidth;
         cropCanvas.height = srcHeight;
@@ -279,7 +279,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         const cropCtx = cropCanvas.getContext('2d');
         if (!cropCtx) return;
 
-        // 应用旋转
+        // Apply rotation.
         if (rotation !== 0) {
             cropCtx.translate(srcWidth / 2, srcHeight / 2);
             cropCtx.rotate((rotation * Math.PI) / 180);
@@ -292,7 +292,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             0, 0, srcWidth, srcHeight
         );
 
-        // 导出为 Base64
+        // Export as Base64.
         const base64 = cropCanvas.toDataURL('image/jpeg', 0.9);
         const base64Data = base64.split(',')[1];
 
@@ -318,7 +318,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                 <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
                     <div className="flex items-center gap-2 text-white">
                         <Crop size={20} />
-                        <span className="font-semibold">裁剪图片</span>
+                        <span className="font-semibold">Crop Image</span>
                     </div>
                     <button
                         onClick={onCancel}
@@ -336,7 +336,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                 >
                     {!imageLoaded && (
                         <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                            加载中...
+                            Loading...
                         </div>
                     )}
                     <canvas
@@ -353,10 +353,10 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                 <div className="p-4 bg-gray-800 space-y-4">
                     {/* Aspect Ratio */}
                     <div className="flex items-center gap-2">
-                        <span className="text-gray-400 text-sm">比例:</span>
+                        <span className="text-gray-400 text-sm">Ratio:</span>
                         <div className="flex gap-2">
                             {([
-                                { value: 'free', icon: <Maximize size={14} />, label: '自由' },
+                                { value: 'free', icon: <Maximize size={14} />, label: 'Free' },
                                 { value: '1:1', icon: <Square size={14} />, label: '1:1' },
                                 { value: '4:3', icon: <RectangleHorizontal size={14} />, label: '4:3' },
                                 { value: '16:9', icon: <RectangleHorizontal size={14} />, label: '16:9' }
@@ -385,14 +385,14 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                             <button
                                 onClick={() => setRotation(r => (r + 90) % 360)}
                                 className="p-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600"
-                                title="旋转 90°"
+                                title="Rotate 90°"
                             >
                                 <RotateCw size={18} />
                             </button>
                             <button
                                 onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
                                 className="p-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600"
-                                title="缩小"
+                                title="Zoom out"
                             >
                                 <ZoomOut size={18} />
                             </button>
@@ -400,7 +400,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                             <button
                                 onClick={() => setScale(s => Math.min(2, s + 0.1))}
                                 className="p-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600"
-                                title="放大"
+                                title="Zoom in"
                             >
                                 <ZoomIn size={18} />
                             </button>
@@ -413,14 +413,14 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                             onClick={onCancel}
                             className="flex-1 py-3 rounded-xl bg-gray-700 text-gray-300 font-medium hover:bg-gray-600 transition-colors"
                         >
-                            取消
+                            Cancel
                         </button>
                         <button
                             onClick={handleCrop}
                             className="flex-1 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                         >
                             <Check size={18} />
-                            <span>确认裁剪</span>
+                            <span>Confirm Crop</span>
                         </button>
                     </div>
                 </div>

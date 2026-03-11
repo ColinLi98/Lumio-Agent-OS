@@ -1,7 +1,7 @@
 /**
- * DataRequestPanel - 数据请求可视化面板
+ * DataRequestPanel - Data request visualization panel
  *
- * 显示待处理数据请求、活跃合约和历史记录
+ * Displays pending requests, active contracts, and request history.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -28,18 +28,18 @@ import {
 
 const getScopeLabel = (scope: DataScope): string => {
     const labels: Record<DataScope, string> = {
-        profile_basic: '基础资料',
-        profile_full: '完整资料',
-        preferences: '偏好设置',
-        behavior_summary: '行为摘要',
-        behavior_full: '完整行为',
-        interests: '兴趣标签',
-        personality: '性格画像',
-        social_graph: '社交关系',
-        location_current: '当前位置',
-        location_history: '位置历史',
-        calendar: '日程安排',
-        contacts: '联系人',
+        profile_basic: 'Basic Profile',
+        profile_full: 'Full Profile',
+        preferences: 'Preferences',
+        behavior_summary: 'Behavior Summary',
+        behavior_full: 'Full Behavior',
+        interests: 'Interest Tags',
+        personality: 'Personality Profile',
+        social_graph: 'Social Graph',
+        location_current: 'Current Location',
+        location_history: 'Location History',
+        calendar: 'Calendar',
+        contacts: 'Contacts',
     };
     return labels[scope] || scope;
 };
@@ -83,10 +83,10 @@ interface RiskBadgeProps {
 
 const RiskBadge: React.FC<RiskBadgeProps> = ({ level, score }) => {
     const config = {
-        low: { bg: 'bg-green-500/20', text: 'text-green-400', label: '低风险' },
-        medium: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: '中风险' },
-        high: { bg: 'bg-orange-500/20', text: 'text-orange-400', label: '高风险' },
-        critical: { bg: 'bg-red-500/20', text: 'text-red-400', label: '极高风险' },
+        low: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Low Risk' },
+        medium: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Medium Risk' },
+        high: { bg: 'bg-orange-500/20', text: 'text-orange-400', label: 'High Risk' },
+        critical: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Critical Risk' },
     };
     const c = config[level];
 
@@ -112,7 +112,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onApprove, onReject 
     const [expanded, setExpanded] = useState(false);
     const risk = evaluateDataRequest(request);
 
-    const timeStr = new Date(request.timestamp).toLocaleString('zh-CN', {
+    const timeStr = new Date(request.timestamp).toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
@@ -148,7 +148,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onApprove, onReject 
                 <div className="px-3 pb-3 space-y-3 border-t border-slate-700/50 pt-3">
                     {/* Requested Scopes */}
                     <div>
-                        <div className="text-xs text-slate-400 mb-1.5">请求的数据范围</div>
+                        <div className="text-xs text-slate-400 mb-1.5">Requested data scopes</div>
                         <div className="flex flex-wrap gap-1">
                             {request.scopes.map((scope) => (
                                 <ScopeBadge key={scope} scope={scope} small />
@@ -158,7 +158,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onApprove, onReject 
 
                     {/* Purposes */}
                     <div>
-                        <div className="text-xs text-slate-400 mb-1.5">数据用途</div>
+                        <div className="text-xs text-slate-400 mb-1.5">Data usage purposes</div>
                         <div className="text-xs text-slate-300">
                             {request.purposes.join(', ')}
                         </div>
@@ -167,7 +167,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onApprove, onReject 
                     {/* Suggested Conditions */}
                     {risk.suggestedConditions.length > 0 && (
                         <div>
-                            <div className="text-xs text-slate-400 mb-1.5">建议条件</div>
+                            <div className="text-xs text-slate-400 mb-1.5">Suggested conditions</div>
                             <div className="space-y-1">
                                 {risk.suggestedConditions.map((cond, i) => (
                                     <div key={i} className="text-xs text-yellow-400 flex items-center gap-1">
@@ -181,7 +181,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onApprove, onReject 
 
                     {/* Expiration */}
                     <div className="text-xs text-slate-400">
-                        有效期: {request.expirationDays} 天
+                        Valid for: {request.expirationDays} days
                     </div>
 
                     {/* Actions */}
@@ -194,7 +194,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onApprove, onReject 
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg text-xs transition-colors"
                         >
                             <Check size={12} />
-                            批准
+                            Approve
                         </button>
                         <button
                             onClick={(e) => {
@@ -204,7 +204,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onApprove, onReject 
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-xs transition-colors"
                         >
                             <X size={12} />
-                            拒绝
+                            Reject
                         </button>
                     </div>
                 </div>
@@ -236,7 +236,7 @@ const ContractCard: React.FC<ContractCardProps> = ({ contract, onRevoke }) => {
                 <button
                     onClick={() => onRevoke(contract.id)}
                     className="p-1 text-slate-400 hover:text-red-400 transition-colors"
-                    title="撤销合约"
+                    title="Revoke contract"
                 >
                     <Trash2 size={12} />
                 </button>
@@ -252,9 +252,9 @@ const ContractCard: React.FC<ContractCardProps> = ({ contract, onRevoke }) => {
             </div>
 
             <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">访问 {contract.accessCount} 次</span>
+                <span className="text-slate-400">{contract.accessCount} accesses</span>
                 <span className={isExpiring ? 'text-yellow-400' : 'text-slate-500'}>
-                    {expiresIn} 天后过期
+                    Expires in {expiresIn} days
                 </span>
             </div>
         </div>
@@ -286,35 +286,35 @@ export const DataRequestPanel: React.FC<DataRequestPanelProps> = ({ onLog }) => 
     const handleApprove = (id: string, scopes: DataScope[], conditions: DataCondition[]) => {
         respondToDataRequest(id, true, scopes, conditions);
         loadData();
-        onLog?.('数据请求已批准');
+        onLog?.('Data request approved.');
     };
 
     const handleReject = (id: string) => {
         respondToDataRequest(id, false);
         loadData();
-        onLog?.('数据请求已拒绝');
+        onLog?.('Data request rejected.');
     };
 
     const handleRevoke = (id: string) => {
-        if (confirm('确定要撤销此合约吗？相关方将无法再访问您的数据。')) {
+        if (confirm('Revoke this contract? The requester will lose access to your data.')) {
             revokeDataContract(id);
             loadData();
-            onLog?.('合约已撤销');
+            onLog?.('Contract revoked.');
         }
     };
 
     const handleSimulateRequest = () => {
         dataNegotiation.createRequest(
             'test_app_123',
-            '测试应用',
+            'Test App',
             'app',
             ['profile_basic', 'interests', 'behavior_summary'],
             ['personalization', 'recommendation'],
             30,
-            '用于提供个性化推荐服务'
+            'Used to provide personalized recommendation services'
         );
         loadData();
-        onLog?.('已创建模拟数据请求');
+        onLog?.('Simulated data request created.');
     };
 
     return (
@@ -323,7 +323,7 @@ export const DataRequestPanel: React.FC<DataRequestPanelProps> = ({ onLog }) => 
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <FileText size={18} className="text-purple-400" />
-                    <span className="font-semibold text-white">数据授权</span>
+                    <span className="font-semibold text-white">Data Authorization</span>
                 </div>
                 <div className="flex gap-1">
                     <button
@@ -344,7 +344,7 @@ export const DataRequestPanel: React.FC<DataRequestPanelProps> = ({ onLog }) => 
                             : 'text-slate-400 hover:text-white'
                         }`}
                 >
-                    待处理 ({pendingRequests.length})
+                    Pending ({pendingRequests.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('contracts')}
@@ -353,7 +353,7 @@ export const DataRequestPanel: React.FC<DataRequestPanelProps> = ({ onLog }) => 
                             : 'text-slate-400 hover:text-white'
                         }`}
                 >
-                    活跃合约 ({activeContracts.length})
+                    Active Contracts ({activeContracts.length})
                 </button>
             </div>
 
@@ -363,12 +363,12 @@ export const DataRequestPanel: React.FC<DataRequestPanelProps> = ({ onLog }) => 
                     {pendingRequests.length === 0 ? (
                         <div className="text-center py-6 text-slate-500">
                             <FileText size={32} className="mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">暂无待处理请求</p>
+                            <p className="text-sm">No pending requests</p>
                             <button
                                 onClick={handleSimulateRequest}
                                 className="mt-3 text-xs text-purple-400 hover:text-purple-300"
                             >
-                                模拟数据请求
+                                Create simulated request
                             </button>
                         </div>
                     ) : (
@@ -389,7 +389,7 @@ export const DataRequestPanel: React.FC<DataRequestPanelProps> = ({ onLog }) => 
                     {activeContracts.length === 0 ? (
                         <div className="text-center py-6 text-slate-500">
                             <Shield size={32} className="mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">暂无活跃合约</p>
+                            <p className="text-sm">No active contracts</p>
                         </div>
                     ) : (
                         activeContracts.map((contract) => (

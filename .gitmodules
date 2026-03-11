@@ -1,0 +1,4 @@
+[submodule "third_party/openclaw"]
+	path = third_party/openclaw
+	url = https://github.com/openclaw/openclaw.git
+	branch = main

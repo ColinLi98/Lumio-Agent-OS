@@ -6,20 +6,20 @@ interface VoiceButtonProps {
     disabled?: boolean;
 }
 
-// 模拟语音识别结果
+// Simulated speech recognition results
 const SIMULATED_VOICE_RESULTS = [
-    '帮我写一封感谢信',
-    '查一下明天的天气',
-    '帮我记住这个会议时间',
-    '帮我找最近的咖啡店',
-    '翻译这段话成英文',
-    '帮我拒绝今晚的聚会',
-    '设置一个明天上午9点的提醒'
+    'Help me write a thank-you letter',
+    'Check tomorrow\'s weather',
+    'Help me remember this meeting time',
+    'Help me find the nearest coffee shop',
+    'Translate this text into English',
+    'Help me decline tonight\'s gathering',
+    'Set a reminder for 9:00 AM tomorrow'
 ];
 
 /**
- * 语音输入按钮组件
- * 模拟语音录制和识别动画
+ * Voice input button component
+ * Simulates recording and recognition animation
  */
 export const VoiceButton: React.FC<VoiceButtonProps> = ({ onVoiceResult, disabled }) => {
     const [isRecording, setIsRecording] = useState(false);
@@ -28,7 +28,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({ onVoiceResult, disable
     const timerRef = useRef<number | null>(null);
     const waveRef = useRef<number | null>(null);
 
-    // 模拟波形动画
+    // Simulated waveform animation
     useEffect(() => {
         if (isRecording) {
             waveRef.current = window.setInterval(() => {
@@ -58,12 +58,12 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({ onVoiceResult, disable
 
         setIsRecording(true);
 
-        // 模拟录音 2 秒后结束
+        // Simulate recording ending after 2 seconds
         timerRef.current = window.setTimeout(() => {
             setIsRecording(false);
             setIsProcessing(true);
 
-            // 模拟处理 1 秒后返回结果
+            // Simulate processing and return result after 1 second
             setTimeout(() => {
                 setIsProcessing(false);
                 const result = SIMULATED_VOICE_RESULTS[Math.floor(Math.random() * SIMULATED_VOICE_RESULTS.length)];
@@ -82,7 +82,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({ onVoiceResult, disable
             setIsRecording(false);
             setIsProcessing(true);
 
-            // 快速处理
+            // Quick processing
             setTimeout(() => {
                 setIsProcessing(false);
                 const result = SIMULATED_VOICE_RESULTS[Math.floor(Math.random() * SIMULATED_VOICE_RESULTS.length)];
@@ -101,7 +101,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({ onVoiceResult, disable
                 onTouchEnd={handleRelease}
                 disabled={disabled || isProcessing}
                 className={`voice-button ${isRecording ? 'recording' : ''} ${isProcessing ? 'processing' : ''}`}
-                title="按住说话"
+                title="Press and hold to talk"
             >
                 {isProcessing ? (
                     <Loader2 size={18} className="animate-spin" />
@@ -123,7 +123,7 @@ export const VoiceButton: React.FC<VoiceButtonProps> = ({ onVoiceResult, disable
             {isRecording && (
                 <div className="recording-indicator">
                     <span className="recording-dot"></span>
-                    录音中...
+                    Recording...
                 </div>
             )}
 

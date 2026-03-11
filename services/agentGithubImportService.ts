@@ -10,6 +10,7 @@ import type {
 } from './agentMarketplaceTypes.js';
 import { githubAppService } from './githubAppService.js';
 import { lixAgentRegistryService } from './lixAgentRegistryService.js';
+import { marketAnalyticsStore } from './marketAnalyticsStore.js';
 import type { DeliveredAgentManifest, ReviewDecision } from './lixTypes.js';
 
 export interface GithubAgentManifestInput {
@@ -288,6 +289,32 @@ export async function importAgentFromGithub(params: ImportFromGithubParams): Pro
   };
 
   const descriptor = lixAgentRegistryService.registerApprovedAgent(manifest, review);
+  await marketAnalyticsStore.upsertAgentProfile({
+    agent_id: manifest.agent_id,
+    agent_name: manifest.name,
+    owner_id: manifest.owner_id,
+    domains: manifest.domains,
+    market_visibility: manifest.market_visibility === 'private' ? 'private' : 'public',
+    pricing_model: manifest.pricing_model === 'free' ? 'free' : 'pay_per_use',
+    price_per_use_cny: Number.isFinite(manifest.price_per_use_cny)
+      ? Math.max(0, Number(manifest.price_per_use_cny))
+      : 0,
+    source: 'external_market',
+    source_meta: {
+      imported_via: 'github_import',
+      approved_at: submittedAt,
+      submitted_by: manifest.submitted_by,
+      github_repo: manifest.github_repo,
+      github_manifest_path: manifest.manifest_path,
+      manifest_snapshot: manifest,
+      review_snapshot: {
+        decision: review.decision,
+        reviewer_id: review.reviewer_id,
+        reviewed_at: review.reviewed_at,
+        reason: review.reason,
+      },
+    },
+  });
   resetAgentMarketplace();
 
   return {

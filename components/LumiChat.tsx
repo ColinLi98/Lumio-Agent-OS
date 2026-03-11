@@ -12,7 +12,7 @@ import { SoulMatrix } from '../types';
 import { getSuperAgent } from '../services/superAgentService';
 import { ConversationMessage } from '../services/geminiService';
 import {
-    Send, User, Loader2, Trash2, MessageSquare, ExternalLink, Zap
+    Send, User, Loader2, Trash2, MessageSquare, ExternalLink, Zap, Copy, RotateCcw
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -271,6 +271,7 @@ export const LumiChat: React.FC<LumiChatProps> = ({
     const [isProcessing, setIsProcessing] = useState(false);
     const [conversationContext, setConversationContext] = useState<ConversationMessage[]>([]);
     const [inputFocused, setInputFocused] = useState(false);
+    const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -285,6 +286,19 @@ export const LumiChat: React.FC<LumiChatProps> = ({
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    // Focus chat input quickly with "/" shortcut
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== '/' || inputFocused) return;
+            const target = event.target as HTMLElement | null;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+            event.preventDefault();
+            inputRef.current?.focus();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [inputFocused]);
 
     // ─── Handle incoming query from keyboard Agent Mode ──────────────
     useEffect(() => {
@@ -327,7 +341,7 @@ export const LumiChat: React.FC<LumiChatProps> = ({
             { role: 'user' as const, content: text },
         ];
 
-        onLog?.(`[Lumi Chat] 接收问题: "${text}"`);
+        onLog?.(`[Lumi Chat] Received: "${text}"`);
 
         try {
             const superAgent = getSuperAgent();
@@ -341,7 +355,7 @@ export const LumiChat: React.FC<LumiChatProps> = ({
                 conversationHistory: updatedContext,
             });
 
-            onLog?.(`[Lumi Chat] 完成: ${solution.skillsUsed.length} Skills, ${(solution.confidence * 100).toFixed(0)}% confidence, ${solution.executionTimeMs}ms`);
+            onLog?.(`[Lumi Chat] Completed: ${solution.skillsUsed.length} skills, ${(solution.confidence * 100).toFixed(0)}% confidence, ${solution.executionTimeMs}ms`);
 
             const newContext: ConversationMessage[] = [
                 ...updatedContext,
@@ -351,7 +365,7 @@ export const LumiChat: React.FC<LumiChatProps> = ({
 
             const agentMsg: ChatMessage = {
                 id: Date.now() + 2,
-                text: solution.answer || '已为你处理完成。',
+                text: solution.answer || 'Done. I have prepared the result for you.',
                 from: 'agent',
                 timestamp: Date.now(),
                 skillsUsed: solution.skillsUsed,
@@ -362,10 +376,10 @@ export const LumiChat: React.FC<LumiChatProps> = ({
             setMessages(prev => prev.filter(m => !m.isLoading).concat(agentMsg));
 
         } catch (err) {
-            onLog?.(`[Lumi Chat] 错误: ${err}`);
+            onLog?.(`[Lumi Chat] Error: ${err}`);
             const errorMsg: ChatMessage = {
                 id: Date.now() + 2,
-                text: `抱歉，处理时出现错误: ${err instanceof Error ? err.message : String(err)}`,
+                text: `Sorry, something went wrong while processing your request: ${err instanceof Error ? err.message : String(err)}`,
                 from: 'agent',
                 timestamp: Date.now(),
             };
@@ -386,6 +400,16 @@ export const LumiChat: React.FC<LumiChatProps> = ({
         setMessages([]);
         setConversationContext([]);
         localStorage.removeItem(CHAT_STORAGE_KEY);
+    };
+
+    const handleCopyMessage = async (text: string, messageId: number) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedMessageId(messageId);
+            setTimeout(() => setCopiedMessageId((prev) => (prev === messageId ? null : prev)), 1600);
+        } catch {
+            // ignore clipboard failures in restricted environments
+        }
     };
 
     // ─── Render ──────────────────────────────────────────────────────
@@ -463,28 +487,28 @@ export const LumiChat: React.FC<LumiChatProps> = ({
                         }}>
                             Lumi Agent
                         </div>
-                        <div style={{
-                            color: isProcessing ? colors.primary : colors.text3,
-                            fontSize: '0.72rem', marginTop: '1px',
-                            display: 'flex', alignItems: 'center', gap: '4px',
-                        }}>
-                            {isProcessing ? (
-                                <>
-                                    <span style={{
-                                        display: 'inline-flex', gap: '2px',
+                                    <div style={{
+                                        color: isProcessing ? colors.primary : colors.text3,
+                                        fontSize: '0.72rem', marginTop: '1px',
+                                        display: 'flex', alignItems: 'center', gap: '4px',
+                                    }}>
+                                        {isProcessing ? (
+                                            <>
+                                                <span style={{
+                                                    display: 'inline-flex', gap: '2px',
                                     }}>
                                         {[0, 1, 2].map(i => (
                                             <span key={i} style={{
                                                 width: '3px', height: '3px', borderRadius: '50%',
                                                 background: colors.primary,
-                                                animation: `lumiPulse 1.2s ease-in-out ${i * 0.2}s infinite`,
-                                            }} />
-                                        ))}
-                                    </span>
-                                    正在思考
+                                                        animation: `lumiPulse 1.2s ease-in-out ${i * 0.2}s infinite`,
+                                                    }} />
+                                                ))}
+                                            </span>
+                                    Thinking
                                 </>
                             ) : (
-                                '在线 · Super Agent'
+                                'Online · Super Agent'
                             )}
                         </div>
                     </div>
@@ -499,7 +523,7 @@ export const LumiChat: React.FC<LumiChatProps> = ({
                             transition: 'all 0.2s',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}
-                        title="清除聊天记录"
+                        title="Clear chat history"
                     >
                         <Trash2 size={16} />
                     </button>
@@ -551,16 +575,16 @@ export const LumiChat: React.FC<LumiChatProps> = ({
                                 color: colors.text3, fontSize: '0.82rem',
                                 lineHeight: 1.6, maxWidth: '280px',
                             }}>
-                                在任意 App 中长按<span style={{
+                                Long-press<span style={{
                                     display: 'inline-block',
                                     padding: '1px 6px', margin: '0 3px',
                                     borderRadius: '4px', fontSize: '0.72rem',
                                     background: colors.bg3, color: colors.text2,
                                     border: `1px solid ${colors.border}`,
                                     fontWeight: 500,
-                                }}>空格</span>激活 Agent 模式
+                                }}>Space</span>in any app to activate Agent Mode.
                                 <br />
-                                问题将自动在此回答
+                                Your request is answered here automatically.
                             </div>
                         </div>
                         {/* Quick suggestion chips */}
@@ -568,7 +592,7 @@ export const LumiChat: React.FC<LumiChatProps> = ({
                             display: 'flex', flexWrap: 'wrap', gap: '8px',
                             justifyContent: 'center', marginTop: '8px',
                         }}>
-                            {['帮我搜索机票', '推荐一家餐厅', '分析我的习惯'].map(suggestion => (
+                            {['Find flights for tomorrow', 'Recommend a nearby restaurant', 'Analyse my usage habits'].map(suggestion => (
                                 <button
                                     key={suggestion}
                                     onClick={() => handleSend(suggestion)}
@@ -665,7 +689,7 @@ export const LumiChat: React.FC<LumiChatProps> = ({
                                     }}>
                                         <Loader2 size={16} />
                                     </div>
-                                    <span style={{ fontSize: '0.82rem' }}>正在思考...</span>
+                                    <span style={{ fontSize: '0.82rem' }}>Working...</span>
                                 </div>
                             ) : (
                                 <>
@@ -715,6 +739,61 @@ export const LumiChat: React.FC<LumiChatProps> = ({
                                                     {(msg.executionTimeMs / 1000).toFixed(1)}s
                                                 </span>
                                             )}
+                                        </div>
+                                    )}
+                                    {msg.from === 'agent' && !msg.isLoading && (
+                                        <div style={{
+                                            marginTop: '10px',
+                                            display: 'flex',
+                                            gap: '8px',
+                                            flexWrap: 'wrap',
+                                        }}>
+                                            <button
+                                                onClick={() => handleCopyMessage(msg.text, msg.id)}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    fontSize: '0.68rem',
+                                                    padding: '4px 9px',
+                                                    borderRadius: '999px',
+                                                    border: `1px solid ${colors.border}`,
+                                                    background: colors.bg3,
+                                                    color: copiedMessageId === msg.id ? colors.success : colors.text2,
+                                                    cursor: 'pointer',
+                                                }}
+                                                title="Copy answer"
+                                            >
+                                                <Copy size={12} />
+                                                {copiedMessageId === msg.id ? 'Copied' : 'Copy'}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    for (let i = msgIdx - 1; i >= 0; i--) {
+                                                        if (messages[i]?.from === 'user') {
+                                                            void handleSend(messages[i].text);
+                                                            break;
+                                                        }
+                                                    }
+                                                }}
+                                                disabled={isProcessing}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    fontSize: '0.68rem',
+                                                    padding: '4px 9px',
+                                                    borderRadius: '999px',
+                                                    border: `1px solid ${colors.border}`,
+                                                    background: colors.bg3,
+                                                    color: isProcessing ? colors.text4 : colors.text2,
+                                                    cursor: isProcessing ? 'default' : 'pointer',
+                                                }}
+                                                title="Retry with last prompt"
+                                            >
+                                                <RotateCcw size={12} />
+                                                Retry
+                                            </button>
                                         </div>
                                     )}
                                 </>
@@ -768,7 +847,7 @@ export const LumiChat: React.FC<LumiChatProps> = ({
                         onKeyDown={handleKeyDown}
                         onFocus={() => setInputFocused(true)}
                         onBlur={() => setInputFocused(false)}
-                        placeholder="输入问题..."
+                        placeholder="Ask Lumi Agent..."
                         disabled={isProcessing}
                         style={{
                             flex: 1,

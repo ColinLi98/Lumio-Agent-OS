@@ -1,12 +1,14 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { resetAgentMarketplace } from '../../../services/agentMarketplaceService.js';
 import { lixAgentRegistryService } from '../../../services/lixAgentRegistryService.js';
 import { lixStore } from '../../../services/lixStore.js';
+import { ensureLixWriteAuthorized } from '../_auth.js';
 
 function buildHeaders(methods: string) {
     return {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': `${methods}, OPTIONS`,
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Lix-Token',
         'Content-Type': 'application/json',
     };
 }
@@ -26,6 +28,56 @@ function extractAction(request: Request): string {
     return decodeURIComponent(pathname.slice(idx + marker.length)).toLowerCase();
 }
 
+function toHeaderValue(value: string | string[] | undefined): string | undefined {
+    if (Array.isArray(value)) return value.join(', ');
+    return typeof value === 'string' ? value : undefined;
+}
+
+function buildNodeOrigin(req: VercelRequest): string {
+    const forwardedProto = toHeaderValue(req.headers['x-forwarded-proto'])?.split(',')[0]?.trim();
+    const forwardedHost = toHeaderValue(req.headers['x-forwarded-host'])?.split(',')[0]?.trim();
+    const host = forwardedHost || toHeaderValue(req.headers.host) || 'localhost';
+    const proto = forwardedProto || (host.startsWith('localhost') ? 'http' : 'https');
+    return `${proto}://${host}`;
+}
+
+function toFetchRequest(req: VercelRequest): Request {
+    const headers = new Headers();
+    Object.entries(req.headers).forEach(([key, value]) => {
+        const normalized = toHeaderValue(value as string | string[] | undefined);
+        if (normalized) headers.set(key, normalized);
+    });
+
+    const method = String(req.method || 'GET').toUpperCase();
+    let bodyText: string | undefined;
+    if (method !== 'GET' && method !== 'HEAD') {
+        if (typeof req.body === 'string') {
+            bodyText = req.body;
+        } else if (req.body != null) {
+            bodyText = JSON.stringify(req.body);
+            if (!headers.has('content-type')) {
+                headers.set('content-type', 'application/json');
+            }
+        }
+    }
+
+    const rawUrl = String(req.url || '/api/lix/solution');
+    const absoluteUrl = rawUrl.startsWith('http') ? rawUrl : `${buildNodeOrigin(req)}${rawUrl}`;
+    return new Request(absoluteUrl, {
+        method,
+        headers,
+        body: bodyText,
+    });
+}
+
+async function sendNodeResponse(res: VercelResponse, response: Response): Promise<void> {
+    response.headers.forEach((value, key) => {
+        res.setHeader(key, value);
+    });
+    const text = await response.text();
+    res.status(response.status).send(text);
+}
+
 function mapIntentDomain(domain?: string): string {
     const normalized = String(domain || '').trim().toLowerCase();
     if (!normalized || normalized === 'general') return 'knowledge';
@@ -39,6 +91,10 @@ async function handleBroadcast(request: Request): Promise<Response> {
     const methods = 'POST';
     if (request.method !== 'POST') {
         return jsonResponse({ error: 'Method not allowed' }, 405, methods);
+    }
+    const authFailure = ensureLixWriteAuthorized(request);
+    if (authFailure) {
+        return jsonResponse(authFailure.payload, authFailure.status, methods);
     }
 
     try {
@@ -67,6 +123,14 @@ async function handleBroadcast(request: Request): Promise<Response> {
             }, 400, methods);
         }
 
+        const overflowContext = body?.overflow_context && typeof body.overflow_context === 'object'
+            ? body.overflow_context
+            : undefined;
+        const dispatchPolicyVersion = typeof body?.dispatch_policy_version === 'string'
+            ? body.dispatch_policy_version
+            : undefined;
+        const preferPaidExpert = body?.prefer_paid_expert === true;
+
         const intent = await lixStore.broadcastSolutionIntent({
             requester_id: typeof body?.requester_id === 'string' ? body.requester_id : 'demo_user',
             requester_type: body?.requester_type === 'agent' ? 'agent' : 'user',
@@ -81,7 +145,15 @@ async function handleBroadcast(request: Request): Promise<Response> {
             failure_context: body?.failure_context,
             profile_share_consent: isConsentGranted ? consent : undefined,
             digital_twin_snapshot: hasSnapshot ? body.digital_twin_snapshot : undefined,
+            reasoning_trace_id: typeof body?.reasoning_trace_id === 'string' ? body.reasoning_trace_id : undefined,
+            overflow_context: overflowContext,
+            dispatch_policy_version: dispatchPolicyVersion,
+            prefer_paid_expert: preferPaidExpert,
         });
+
+        const takeRatePreview = intent.take_rate_tier === 'repeat_trade'
+            ? { tier: 'repeat_trade', rate: 0.10 }
+            : { tier: 'first_trade', rate: 0.30 };
 
         return jsonResponse({
             success: true,
@@ -90,6 +162,60 @@ async function handleBroadcast(request: Request): Promise<Response> {
             offers_count: intent.offers.length,
             status: intent.status,
             profile_snapshot_attached: Boolean(intent.digital_twin_snapshot),
+            dispatch_decision: {
+                mode: intent.dispatch_mode || 'lumi_primary',
+                reason_codes: intent.dispatch_mode === 'capability_auction' ? ['capability_auction'] : ['lumi_handle_first'],
+                overflow_reason: intent.overflow_reason,
+                policy_version: dispatchPolicyVersion || 'lix_1_5',
+            },
+            auction_policy_applied: {
+                policy_version: dispatchPolicyVersion || 'lix_1_5',
+                dispatch_mode: 'capability_auction',
+                fail_closed: true,
+                exploration_quota: 0.2,
+                domains_enforced: ['travel', 'recruitment', 'local_service'],
+            },
+            take_rate_preview: takeRatePreview,
+            bond_gate_result: {
+                required: intent.bond_required === true,
+                min_bond_cny: 500,
+                status: intent.bond_lock_id ? 'locked' : (intent.bond_required ? 'pending' : 'not_required'),
+                bond_lock_id: intent.bond_lock_id,
+            },
+            retry_trace: intent.trace_id,
+        }, 200, methods);
+    } catch (error) {
+        return jsonResponse({
+            success: false,
+            error: error instanceof Error ? error.message : 'internal_error',
+        }, 500, methods);
+    }
+}
+
+async function handleDispatchDecision(request: Request): Promise<Response> {
+    const methods = 'GET';
+    if (request.method !== 'GET') {
+        return jsonResponse({ error: 'Method not allowed' }, 405, methods);
+    }
+    try {
+        const url = new URL(request.url);
+        const intentId = String(url.searchParams.get('intent_id') || '').trim();
+        if (!intentId) {
+            return jsonResponse({ error: 'Missing required query param: intent_id' }, 400, methods);
+        }
+        const intent = lixStore.getSolutionIntent(intentId);
+        if (!intent) {
+            return jsonResponse({ error: 'Solution intent not found', intent_id: intentId }, 404, methods);
+        }
+        return jsonResponse({
+            success: true,
+            intent_id: intent.intent_id,
+            dispatch_decision: {
+                mode: intent.dispatch_mode || 'lumi_primary',
+                reason_codes: intent.dispatch_mode === 'capability_auction' ? ['capability_auction'] : ['lumi_handle_first'],
+                overflow_reason: intent.overflow_reason,
+                policy_version: 'lix_1_5',
+            },
         }, 200, methods);
     } catch (error) {
         return jsonResponse({
@@ -137,6 +263,10 @@ async function handleOfferAccept(request: Request): Promise<Response> {
     if (request.method !== 'POST') {
         return jsonResponse({ error: 'Method not allowed' }, 405, methods);
     }
+    const authFailure = ensureLixWriteAuthorized(request);
+    if (authFailure) {
+        return jsonResponse(authFailure.payload, authFailure.status, methods);
+    }
 
     try {
         const body = await request.json();
@@ -174,6 +304,10 @@ async function handleDelivery(request: Request): Promise<Response> {
     const methods = 'POST';
     if (request.method !== 'POST') {
         return jsonResponse({ error: 'Method not allowed' }, 405, methods);
+    }
+    const authFailure = ensureLixWriteAuthorized(request);
+    if (authFailure) {
+        return jsonResponse(authFailure.payload, authFailure.status, methods);
     }
 
     try {
@@ -239,6 +373,10 @@ async function handleReview(request: Request): Promise<Response> {
     const methods = 'POST';
     if (request.method !== 'POST') {
         return jsonResponse({ error: 'Method not allowed' }, 405, methods);
+    }
+    const authFailure = ensureLixWriteAuthorized(request);
+    if (authFailure) {
+        return jsonResponse(authFailure.payload, authFailure.status, methods);
     }
 
     try {
@@ -315,6 +453,10 @@ async function handleExecutor(request: Request): Promise<Response> {
     if (request.method !== 'POST') {
         return jsonResponse({ error: 'Method not allowed' }, 405, methods);
     }
+    const authFailure = ensureLixWriteAuthorized(request);
+    if (authFailure) {
+        return jsonResponse(authFailure.payload, authFailure.status, methods);
+    }
 
     try {
         const body = await request.json();
@@ -369,9 +511,9 @@ async function handleExecutor(request: Request): Promise<Response> {
     }
 }
 
-export default async function handler(request: Request) {
+async function handleFetchRequest(request: Request): Promise<Response> {
     const action = extractAction(request);
-    const getMethods = action === 'offers' || action === 'my-agents' ? 'GET' : 'POST';
+    const getMethods = action === 'offers' || action === 'my-agents' || action === 'dispatch/decision' ? 'GET' : 'POST';
 
     if (request.method === 'OPTIONS') {
         return new Response(null, { status: 200, headers: buildHeaders(getMethods) });
@@ -383,6 +525,7 @@ export default async function handler(request: Request) {
 
     if (action === 'broadcast') return handleBroadcast(request);
     if (action === 'offers') return handleOffers(request);
+    if (action === 'dispatch/decision') return handleDispatchDecision(request);
     if (action === 'offer/accept') return handleOfferAccept(request);
     if (action === 'delivery') return handleDelivery(request);
     if (action === 'review') return handleReview(request);
@@ -390,4 +533,17 @@ export default async function handler(request: Request) {
     if (action === 'executor') return handleExecutor(request);
 
     return jsonResponse({ error: `Unknown action: ${action}` }, 404, 'GET, POST');
+}
+
+export default async function handler(
+    request: Request | VercelRequest,
+    response?: VercelResponse
+): Promise<Response | void> {
+    if (response) {
+        const fetchRequest = toFetchRequest(request as VercelRequest);
+        const fetchResponse = await handleFetchRequest(fetchRequest);
+        await sendNodeResponse(response, fetchResponse);
+        return;
+    }
+    return handleFetchRequest(request as Request);
 }

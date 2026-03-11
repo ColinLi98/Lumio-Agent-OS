@@ -1,8 +1,8 @@
 /**
- * Digital Soul Editor - 数字分身配置
+ * Digital Soul Editor - Digital Twin Configuration
  * 
- * 设计理念：专业、简洁、高效
- * 视觉风格：现代企业级 SaaS 产品
+ * Design intent: professional, concise, and efficient
+ * Visual style: modern enterprise SaaS
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -54,15 +54,15 @@ interface SectionConfig {
 }
 
 const SECTIONS: SectionConfig[] = [
-    { key: 'basic', icon: <User size={16} />, title: '基本信息', weight: 15 },
-    { key: 'education', icon: <GraduationCap size={16} />, title: '教育背景', weight: 10 },
-    { key: 'career', icon: <Briefcase size={16} />, title: '职业状态', weight: 15 },
-    { key: 'finance', icon: <DollarSign size={16} />, title: '财务状况', weight: 10 },
-    { key: 'health', icon: <Activity size={16} />, title: '健康状态', weight: 10 },
-    { key: 'relationships', icon: <Heart size={16} />, title: '关系状态', weight: 10 },
-    { key: 'skills', icon: <Target size={16} />, title: '能力资产', weight: 10 },
-    { key: 'goals', icon: <Target size={16} />, title: '人生目标', weight: 10 },
-    { key: 'preferences', icon: <Settings size={16} />, title: '算法偏好', weight: 10 }
+    { key: 'basic', icon: <User size={16} />, title: 'Basic Info', weight: 15 },
+    { key: 'education', icon: <GraduationCap size={16} />, title: 'Education', weight: 10 },
+    { key: 'career', icon: <Briefcase size={16} />, title: 'Career', weight: 15 },
+    { key: 'finance', icon: <DollarSign size={16} />, title: 'Finance', weight: 10 },
+    { key: 'health', icon: <Activity size={16} />, title: 'Health', weight: 10 },
+    { key: 'relationships', icon: <Heart size={16} />, title: 'Relationships', weight: 10 },
+    { key: 'skills', icon: <Target size={16} />, title: 'Skills', weight: 10 },
+    { key: 'goals', icon: <Target size={16} />, title: 'Life Goals', weight: 10 },
+    { key: 'preferences', icon: <Settings size={16} />, title: 'Preference Model', weight: 10 }
 ];
 
 // ============================================================================
@@ -194,7 +194,7 @@ const TagInput: React.FC<{
     onChange: (tags: string[]) => void;
     placeholder?: string;
     maxTags?: number;
-}> = ({ tags, onChange, placeholder = '添加...', maxTags = 5 }) => {
+}> = ({ tags, onChange, placeholder = 'Add...', maxTags = 5 }) => {
     const [input, setInput] = useState('');
 
     const addTag = () => {
@@ -243,7 +243,7 @@ const TagInput: React.FC<{
                         className="px-3 py-2 rounded-lg text-sm"
                         style={{ backgroundColor: colors.primaryMuted, color: colors.primary }}
                     >
-                        添加
+                        Add
                     </button>
                 </div>
             )}
@@ -271,17 +271,17 @@ const Checkbox: React.FC<{
 );
 
 // ============================================================================
-// Data Import - 文本数据分析
+// Data Import - text analysis
 // ============================================================================
 
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
-// 设置 PDF.js worker
+// Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 /**
- * 从 PDF 文件提取文本
+ * Extract text from a PDF file
  */
 async function extractTextFromPDF(file: File): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
@@ -301,7 +301,7 @@ async function extractTextFromPDF(file: File): Promise<string> {
 }
 
 /**
- * 从 Word 文件提取文本
+ * Extract text from a Word file
  */
 async function extractTextFromWord(file: File): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
@@ -310,7 +310,7 @@ async function extractTextFromWord(file: File): Promise<string> {
 }
 
 /**
- * 根据文件类型提取文本
+ * Extract text based on file type
  */
 async function extractTextFromFile(file: File): Promise<string> {
     const fileName = file.name.toLowerCase();
@@ -327,18 +327,18 @@ async function extractTextFromFile(file: File): Promise<string> {
         return extractTextFromWord(file);
     }
     
-    // Word (.doc) - 老格式不太好处理，尝试当作文本读
+    // Word (.doc) legacy format fallback as plain text
     if (fileType === 'application/msword' || fileName.endsWith('.doc')) {
-        // mammoth 也可以尝试处理 .doc，但不保证成功
+        // Try mammoth for .doc, then fallback if needed
         try {
             return await extractTextFromWord(file);
         } catch {
-            // 如果失败，尝试直接读取文本
+            // If it fails, read as plain text
             return file.text();
         }
     }
     
-    // 纯文本文件 (.txt, .md, .json, .csv)
+    // Plain text formats (.txt, .md, .json, .csv)
     return file.text();
 }
 
@@ -355,7 +355,7 @@ interface AnalyzedProfile {
 }
 
 /**
- * 本地文本分析 - 从用户文字中提取特征
+ * Local text analysis - extract profile hints from user text.
  */
 function analyzeTextForProfile(text: string): AnalyzedProfile {
     const profile: AnalyzedProfile = {
@@ -371,22 +371,18 @@ function analyzeTextForProfile(text: string): AnalyzedProfile {
         return profile;
     }
 
-    // 分析句子风格
-    const sentences = text.split(/[。！？.!?]+/).filter(s => s.trim().length > 0);
+    const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
     const avgSentenceLength = sentences.reduce((sum, s) => sum + s.length, 0) / Math.max(sentences.length, 1);
-    
-    // emoji 密度
+
     const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu;
     const emojiMatches = text.match(emojiRegex) || [];
     const emojiDensity = emojiMatches.length / (text.length / 100);
 
-    // 正式 vs 随意词汇
-    const formalWords = ['您', '贵', '敬请', 'Dear', 'Regards', '感谢', '请问'];
-    const casualWords = ['哈哈', '嘻嘻', '呀', '啦', '嘛', 'lol', 'haha', '666'];
+    const formalWords = ['dear', 'regards', 'sincerely', 'thank you', 'please'];
+    const casualWords = ['lol', 'haha', 'omg', 'btw', 'yep', 'kinda'];
     const formalCount = formalWords.reduce((c, w) => c + (text.match(new RegExp(w, 'gi')) || []).length, 0);
     const casualCount = casualWords.reduce((c, w) => c + (text.match(new RegExp(w, 'gi')) || []).length, 0);
 
-    // 确定沟通风格
     if (avgSentenceLength < 15 && emojiDensity < 0.5) {
         profile.communicationStyle = 'Concise';
     } else if (formalCount > casualCount * 1.5) {
@@ -395,16 +391,15 @@ function analyzeTextForProfile(text: string): AnalyzedProfile {
         profile.communicationStyle = 'Casual';
     }
 
-    // 提取兴趣话题
     const interestPatterns: Record<string, RegExp> = {
-        '科技': /AI|人工智能|编程|代码|技术|软件|互联网|tech/i,
-        '投资': /股票|基金|投资|理财|收益|money|invest/i,
-        '健康': /健身|运动|跑步|瑜伽|健康|睡眠|exercise|health/i,
-        '旅行': /旅行|旅游|出差|机票|酒店|度假|travel/i,
-        '阅读': /读书|书籍|小说|阅读|看书|book/i,
-        '美食': /美食|餐厅|做饭|烹饪|吃|food|cook/i,
-        '音乐': /音乐|歌曲|演唱会|乐器|music/i,
-        '影视': /电影|电视|剧|Netflix|追剧|movie/i
+        Technology: /ai|coding|programming|software|tech/i,
+        Investment: /stock|fund|invest|finance|wealth/i,
+        Health: /fitness|exercise|running|yoga|sleep|health/i,
+        Travel: /travel|trip|flight|hotel|vacation/i,
+        Reading: /read|book|novel|article/i,
+        Food: /food|restaurant|cooking|cuisine/i,
+        Music: /music|song|concert|instrument/i,
+        Movies: /movie|film|tv|series|netflix/i
     };
 
     Object.entries(interestPatterns).forEach(([topic, pattern]) => {
@@ -413,13 +408,12 @@ function analyzeTextForProfile(text: string): AnalyzedProfile {
         }
     });
 
-    // 提取担忧/压力
     const concernPatterns: Record<string, RegExp> = {
-        '工作压力': /加班|忙|累|deadline|压力大|工作.*累/i,
-        '职业发展': /晋升|跳槽|面试|找工作|职业.*迷茫/i,
-        '财务压力': /没钱|欠款|房贷|开销|花费.*大/i,
-        '健康问题': /失眠|焦虑|生病|不舒服|医院/i,
-        '人际关系': /吵架|矛盾|关系.*差|孤独/i
+        'Work stress': /overtime|busy|exhausted|deadline|work stress|burnout/i,
+        'Career growth': /promotion|job change|interview|career path|career stuck/i,
+        'Financial pressure': /debt|mortgage|expenses|money pressure|cash flow/i,
+        'Health issues': /insomnia|anxiety|sick|hospital|pain/i,
+        Relationships: /argument|conflict|lonely|relationship issue/i
     };
 
     Object.entries(concernPatterns).forEach(([concern, pattern]) => {
@@ -428,12 +422,11 @@ function analyzeTextForProfile(text: string): AnalyzedProfile {
         }
     });
 
-    // 提取目标
     const goalPatterns: Record<string, RegExp> = {
-        '提升技能': /学习|提升|成长|进步|learn/i,
-        '增加收入': /赚钱|加薪|副业|创业|收入/i,
-        '保持健康': /减肥|锻炼|健康.*生活|早睡/i,
-        '改善关系': /社交|交朋友|约会|恋爱|family/i
+        'Skill growth': /learn|improve|grow|upskill/i,
+        'Increase income': /raise|salary|income|side hustle|business/i,
+        'Stay healthy': /weight loss|workout|healthy lifestyle|sleep early/i,
+        'Improve relationships': /social|friends|dating|family/i
     };
 
     Object.entries(goalPatterns).forEach(([goal, pattern]) => {
@@ -442,31 +435,28 @@ function analyzeTextForProfile(text: string): AnalyzedProfile {
         }
     });
 
-    // 压力指数评估
-    const stressKeywords = ['压力', '焦虑', '担心', '烦', '累', '难', 'stress', 'anxious', 'tired', '失眠'];
+    const stressKeywords = ['stress', 'anxious', 'worried', 'burnout', 'tired', 'overwhelmed', 'insomnia'];
     const stressCount = stressKeywords.reduce((c, w) => c + (text.match(new RegExp(w, 'gi')) || []).length, 0);
     profile.stressLevel = Math.min(80, 30 + stressCount * 5);
 
-    // 尝试提取年龄信息
-    const ageMatch = text.match(/我?(\d{2})岁|(\d{2})年的|born.*(\d{4})|(\d{4})年出生/);
-    if (ageMatch) {
-        if (ageMatch[1]) profile.age = parseInt(ageMatch[1]);
-        else if (ageMatch[2]) profile.age = parseInt(ageMatch[2]);
-        else if (ageMatch[3]) profile.age = new Date().getFullYear() - parseInt(ageMatch[3]);
-        else if (ageMatch[4]) profile.age = new Date().getFullYear() - parseInt(ageMatch[4]);
+    const directAgeMatch = text.match(/\b(?:i am|i'm|age)\s*(\d{2})\b/i);
+    const birthYearMatch = text.match(/\b(?:born in|born)\s*(\d{4})\b/i);
+    if (directAgeMatch?.[1]) {
+        profile.age = parseInt(directAgeMatch[1], 10);
+    } else if (birthYearMatch?.[1]) {
+        profile.age = new Date().getFullYear() - parseInt(birthYearMatch[1], 10);
     }
 
-    // 尝试提取职业/行业
     const occupationPatterns = [
-        { pattern: /程序员|开发|工程师|coder|developer/i, value: '软件开发' },
-        { pattern: /产品经理|PM|产品/i, value: '产品经理' },
-        { pattern: /设计师|UI|UX|designer/i, value: '设计' },
-        { pattern: /运营|marketing|市场/i, value: '市场运营' },
-        { pattern: /金融|银行|投行|finance/i, value: '金融' },
-        { pattern: /老师|教师|教育|teacher/i, value: '教育' },
-        { pattern: /医生|护士|医院|医疗/i, value: '医疗' },
-        { pattern: /律师|法务|法律/i, value: '法律' },
-        { pattern: /学生|大学|研究生|读书/i, value: '学生' }
+        { pattern: /developer|engineer|programmer|coder/i, value: 'Software Engineering' },
+        { pattern: /product manager|pm/i, value: 'Product Management' },
+        { pattern: /designer|ui|ux/i, value: 'Design' },
+        { pattern: /operations|marketing|growth/i, value: 'Marketing & Operations' },
+        { pattern: /finance|banking|investment/i, value: 'Finance' },
+        { pattern: /teacher|education|professor/i, value: 'Education' },
+        { pattern: /doctor|nurse|medical|healthcare/i, value: 'Healthcare' },
+        { pattern: /lawyer|legal|attorney/i, value: 'Legal' },
+        { pattern: /student|college|university|graduate/i, value: 'Student' }
     ];
 
     for (const { pattern, value } of occupationPatterns) {
@@ -476,7 +466,6 @@ function analyzeTextForProfile(text: string): AnalyzedProfile {
         }
     }
 
-    // 计算置信度
     const lengthScore = Math.min(text.length / 3000, 1) * 40;
     const featureScore = Math.min((profile.interests.length + profile.concerns.length + profile.goals.length) / 6, 1) * 40;
     const detailScore = (profile.age ? 10 : 0) + (profile.occupation ? 10 : 0);
@@ -497,7 +486,7 @@ const DataImportPanel: React.FC<{
 
     const handleAnalyze = async (text: string) => {
         setIsAnalyzing(true);
-        await new Promise(r => setTimeout(r, 800)); // 模拟分析时间
+        await new Promise(r => setTimeout(r, 800)); // Simulate analysis time
         const result = analyzeTextForProfile(text);
         setAnalyzed(result);
         setIsAnalyzing(false);
@@ -512,7 +501,7 @@ const DataImportPanel: React.FC<{
         try {
             const text = await extractTextFromFile(file);
             if (!text || text.trim().length < 50) {
-                setParseError('文件内容太少，请提供更多数据');
+                setParseError('File content is too short. Please provide more data.');
                 setIsAnalyzing(false);
                 return;
             }
@@ -520,7 +509,7 @@ const DataImportPanel: React.FC<{
             setAnalyzed(result);
         } catch (e) {
             console.error('File parse error', e);
-            setParseError('文件解析失败，请尝试其他格式');
+            setParseError('Failed to parse file. Please try another format.');
         } finally {
             setIsAnalyzing(false);
         }
@@ -560,10 +549,10 @@ const DataImportPanel: React.FC<{
                 </div>
                 <div className="text-left flex-1">
                     <div className="text-sm font-medium" style={{ color: colors.text1 }}>
-                        从文字中学习
+                        Learn from text
                     </div>
                     <div className="text-xs" style={{ color: colors.text3 }}>
-                        导入聊天记录、笔记或日记，本地分析
+                        Import chat logs, notes, or journals for local analysis
                     </div>
                 </div>
                 <ChevronRight size={16} style={{ color: colors.text3 }} />
@@ -579,7 +568,7 @@ const DataImportPanel: React.FC<{
             <div className="p-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${colors.border}` }}>
                 <div className="flex items-center gap-3">
                     <Upload size={18} className="text-emerald-400" />
-                    <span className="text-sm font-medium" style={{ color: colors.text1 }}>导入数据</span>
+                    <span className="text-sm font-medium" style={{ color: colors.text1 }}>Import Data</span>
                 </div>
                 <button onClick={() => { setIsExpanded(false); setAnalyzed(null); setPasteText(''); setParseError(null); }}>
                     <ChevronDown size={16} style={{ color: colors.text3 }} />
@@ -601,39 +590,39 @@ const DataImportPanel: React.FC<{
                 {isAnalyzing ? (
                     <div className="flex flex-col items-center py-8">
                         <Loader2 size={32} className="text-emerald-400 animate-spin mb-3" />
-                        <p className="text-sm" style={{ color: colors.text2 }}>正在本地分析...</p>
+                        <p className="text-sm" style={{ color: colors.text2 }}>Analyzing locally...</p>
                     </div>
                 ) : analyzed ? (
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 mb-3">
                             <Check size={16} className="text-emerald-400" />
                             <span className="text-sm font-medium" style={{ color: colors.text1 }}>
-                                分析完成 (置信度 {analyzed.confidence}%)
+                                Analysis complete (confidence {analyzed.confidence}%)
                             </span>
                         </div>
 
                         <div className="space-y-3 text-sm">
                             {analyzed.age && (
                                 <div className="flex justify-between py-2" style={{ borderBottom: `1px solid ${colors.border}` }}>
-                                    <span style={{ color: colors.text3 }}>推测年龄</span>
-                                    <span style={{ color: colors.text1 }}>{analyzed.age} 岁</span>
+                                    <span style={{ color: colors.text3 }}>Estimated age</span>
+                                    <span style={{ color: colors.text1 }}>{analyzed.age} yrs</span>
                                 </div>
                             )}
                             {analyzed.occupation && (
                                 <div className="flex justify-between py-2" style={{ borderBottom: `1px solid ${colors.border}` }}>
-                                    <span style={{ color: colors.text3 }}>职业方向</span>
+                                    <span style={{ color: colors.text3 }}>Career direction</span>
                                     <span style={{ color: colors.text1 }}>{analyzed.occupation}</span>
                                 </div>
                             )}
                             <div className="flex justify-between py-2" style={{ borderBottom: `1px solid ${colors.border}` }}>
-                                <span style={{ color: colors.text3 }}>沟通风格</span>
+                                <span style={{ color: colors.text3 }}>Communication style</span>
                                 <span style={{ color: colors.text1 }}>
-                                    {{ Professional: '专业正式', Friendly: '友好亲切', Casual: '随性轻松', Concise: '简洁直接' }[analyzed.communicationStyle]}
+                                    {{ Professional: 'Formal and professional', Friendly: 'Warm and friendly', Casual: 'Casual and relaxed', Concise: 'Concise and direct' }[analyzed.communicationStyle]}
                                 </span>
                             </div>
                             {analyzed.interests.length > 0 && (
                                 <div className="py-2" style={{ borderBottom: `1px solid ${colors.border}` }}>
-                                    <div style={{ color: colors.text3 }} className="mb-2">兴趣领域</div>
+                                    <div style={{ color: colors.text3 }} className="mb-2">Interest areas</div>
                                     <div className="flex flex-wrap gap-1">
                                         {analyzed.interests.map(i => (
                                             <span key={i} className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: colors.bg3, color: colors.text2 }}>{i}</span>
@@ -643,7 +632,7 @@ const DataImportPanel: React.FC<{
                             )}
                             {analyzed.concerns.length > 0 && (
                                 <div className="py-2" style={{ borderBottom: `1px solid ${colors.border}` }}>
-                                    <div style={{ color: colors.text3 }} className="mb-2">关注问题</div>
+                                    <div style={{ color: colors.text3 }} className="mb-2">Key concerns</div>
                                     <div className="flex flex-wrap gap-1">
                                         {analyzed.concerns.map(c => (
                                             <span key={c} className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: colors.warningMuted, color: colors.warning }}>{c}</span>
@@ -653,7 +642,7 @@ const DataImportPanel: React.FC<{
                             )}
                             {analyzed.goals.length > 0 && (
                                 <div className="py-2">
-                                    <div style={{ color: colors.text3 }} className="mb-2">潜在目标</div>
+                                    <div style={{ color: colors.text3 }} className="mb-2">Potential goals</div>
                                     <div className="flex flex-wrap gap-1">
                                         {analyzed.goals.map(g => (
                                             <span key={g} className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: colors.positiveMuted, color: colors.positive }}>{g}</span>
@@ -669,14 +658,14 @@ const DataImportPanel: React.FC<{
                                 className="flex-1 py-2.5 rounded-lg text-sm"
                                 style={{ backgroundColor: colors.bg3, color: colors.text2 }}
                             >
-                                重新分析
+                                Analyze again
                             </button>
                             <button
                                 onClick={handleApply}
                                 className="flex-1 py-2.5 rounded-lg text-sm font-medium"
                                 style={{ backgroundColor: colors.primary, color: '#fff' }}
                             >
-                                应用到分身
+                                Apply to avatar
                             </button>
                         </div>
                     </div>
@@ -695,8 +684,8 @@ const DataImportPanel: React.FC<{
                             }}
                         >
                             <FileText size={32} className="mx-auto mb-3" style={{ color: colors.text3 }} />
-                            <p className="text-sm" style={{ color: colors.text2 }}>拖拽文件到这里</p>
-                            <p className="text-xs mt-1" style={{ color: colors.text3 }}>支持 PDF, Word, TXT, Markdown</p>
+                            <p className="text-sm" style={{ color: colors.text2 }}>Drag files here</p>
+                            <p className="text-xs mt-1" style={{ color: colors.text3 }}>Supports PDF, Word, TXT, and Markdown</p>
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -708,7 +697,7 @@ const DataImportPanel: React.FC<{
 
                         <div className="flex items-center gap-3">
                             <div className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
-                            <span className="text-xs" style={{ color: colors.text3 }}>或者</span>
+                            <span className="text-xs" style={{ color: colors.text3 }}>Or</span>
                             <div className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
                         </div>
 
@@ -717,7 +706,7 @@ const DataImportPanel: React.FC<{
                             <textarea
                                 value={pasteText}
                                 onChange={(e) => setPasteText(e.target.value)}
-                                placeholder="直接粘贴聊天记录、笔记或任何文字内容..."
+                                placeholder="Paste chat logs, notes, or any text content..."
                                 rows={4}
                                 className="w-full px-3 py-2.5 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                                 style={{ 
@@ -732,14 +721,14 @@ const DataImportPanel: React.FC<{
                                     className="w-full py-2.5 rounded-lg text-sm font-medium"
                                     style={{ backgroundColor: colors.primary, color: '#fff' }}
                                 >
-                                    开始分析
+                                    Start analysis
                                 </button>
                             )}
                         </div>
 
                         <div className="flex items-center gap-2 text-xs" style={{ color: colors.text3 }}>
                             <Shield size={12} />
-                            <span>所有数据仅在本地处理，不会上传服务器</span>
+                            <span>All data is processed locally and never uploaded to the server</span>
                         </div>
                     </>
                 )}
@@ -757,27 +746,27 @@ const BasicSection: React.FC<{
     onChange: (updates: Partial<LifeStateSnapshot>) => void;
 }> = ({ state, onChange }) => (
     <div className="space-y-5">
-        <FormField label="年龄">
+        <FormField label="Age">
             <NumberInput 
                 value={state.age} 
                 onChange={(age) => onChange({ age })}
                 min={16}
                 max={80}
-                suffix="岁"
+                suffix="yrs"
             />
         </FormField>
         
-        <FormField label="人生阶段">
+        <FormField label="Life Stage">
             <SelectInput
                 value={state.lifeStage}
                 onChange={(v) => onChange({ lifeStage: v as LifeStage })}
                 options={[
-                    { value: 'student', label: '学生' },
-                    { value: 'early_career', label: '职业早期' },
-                    { value: 'career_growth', label: '成长期' },
-                    { value: 'career_peak', label: '巅峰期' },
-                    { value: 'late_career', label: '后期' },
-                    { value: 'retired', label: '退休' }
+                    { value: 'student', label: 'Student' },
+                    { value: 'early_career', label: 'Early Career' },
+                    { value: 'career_growth', label: 'Growth Stage' },
+                    { value: 'career_peak', label: 'Peak Stage' },
+                    { value: 'late_career', label: 'Late Career' },
+                    { value: 'retired', label: 'Retired' }
                 ]}
             />
         </FormField>
@@ -789,25 +778,25 @@ const EducationSection: React.FC<{
     onChange: (updates: Partial<LifeStateSnapshot>) => void;
 }> = ({ state, onChange }) => (
     <div className="space-y-5">
-        <FormField label="最高学历">
+        <FormField label="Highest Degree">
             <SelectInput
                 value={state.education.highestDegree}
                 onChange={(v) => onChange({ education: { ...state.education, highestDegree: v as any } })}
                 options={[
-                    { value: 'high_school', label: '高中' },
-                    { value: 'bachelor', label: '本科' },
-                    { value: 'master', label: '硕士' },
-                    { value: 'phd', label: '博士' },
-                    { value: 'other', label: '其他' }
+                    { value: 'high_school', label: 'High School' },
+                    { value: 'bachelor', label: 'Bachelor' },
+                    { value: 'master', label: 'Master' },
+                    { value: 'phd', label: 'PhD' },
+                    { value: 'other', label: 'Other' }
                 ]}
             />
         </FormField>
 
-        <FormField label="专业领域">
+        <FormField label="Field of Study">
             <TextInput 
                 value={state.education.field || ''}
                 onChange={(v) => onChange({ education: { ...state.education, field: v } })}
-                placeholder="计算机科学、金融、设计..."
+                placeholder="Computer Science, Finance, Design..."
             />
         </FormField>
     </div>
@@ -818,44 +807,44 @@ const CareerSection: React.FC<{
     onChange: (updates: Partial<LifeStateSnapshot>) => void;
 }> = ({ state, onChange }) => (
     <div className="space-y-5">
-        <FormField label="职业状态">
+        <FormField label="Employment Status">
             <SelectInput
                 value={state.career.currentStatus}
                 onChange={(v) => onChange({ career: { ...state.career, currentStatus: v as any } })}
                 options={[
-                    { value: 'student', label: '学生' },
-                    { value: 'employed', label: '在职' },
-                    { value: 'self_employed', label: '创业' },
-                    { value: 'freelance', label: '自由职业' },
-                    { value: 'unemployed', label: '待业' },
-                    { value: 'retired', label: '退休' }
+                    { value: 'student', label: 'Student' },
+                    { value: 'employed', label: 'Employed' },
+                    { value: 'self_employed', label: 'Self-employed' },
+                    { value: 'freelance', label: 'Freelance' },
+                    { value: 'unemployed', label: 'Unemployed' },
+                    { value: 'retired', label: 'Retired' }
                 ]}
             />
         </FormField>
 
-        <FormField label="行业">
+        <FormField label="Industry">
             <TextInput 
                 value={state.career.industry || ''}
                 onChange={(v) => onChange({ career: { ...state.career, industry: v } })}
-                placeholder="互联网、金融、医疗..."
+                placeholder="Technology, Finance, Healthcare..."
             />
         </FormField>
 
-        <FormField label="工作年限">
+        <FormField label="Years of Experience">
             <NumberInput 
                 value={state.career.yearsOfExperience} 
                 onChange={(v) => onChange({ career: { ...state.career, yearsOfExperience: v } })}
                 min={0}
                 max={50}
-                suffix="年"
+                suffix="years"
             />
         </FormField>
 
-        <FormField label="职业满意度">
+        <FormField label="Career Satisfaction">
             <SliderInput
                 value={state.career.careerSatisfaction}
                 onChange={(v) => onChange({ career: { ...state.career, careerSatisfaction: v } })}
-                labels={['不满意', '非常满意']}
+                labels={['Unsatisfied', 'Very satisfied']}
             />
         </FormField>
     </div>
@@ -866,37 +855,37 @@ const FinanceSection: React.FC<{
     onChange: (updates: Partial<LifeStateSnapshot>) => void;
 }> = ({ state, onChange }) => (
     <div className="space-y-5">
-        <FormField label="收入水平">
+        <FormField label="Income Level">
             <SelectInput
                 value={state.finance.incomeLevel}
                 onChange={(v) => onChange({ finance: { ...state.finance, incomeLevel: v as any } })}
                 options={[
-                    { value: 'low', label: '较低' },
-                    { value: 'medium', label: '中等' },
-                    { value: 'high', label: '较高' },
-                    { value: 'very_high', label: '很高' }
+                    { value: 'low', label: 'Low' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'high', label: 'High' },
+                    { value: 'very_high', label: 'Very High' }
                 ]}
             />
         </FormField>
 
-        <FormField label="储蓄水平">
+        <FormField label="Savings Level">
             <SelectInput
                 value={state.finance.savingsLevel}
                 onChange={(v) => onChange({ finance: { ...state.finance, savingsLevel: v as any } })}
                 options={[
-                    { value: 'none', label: '无' },
-                    { value: 'low', label: '少量' },
-                    { value: 'medium', label: '中等' },
-                    { value: 'high', label: '充足' }
+                    { value: 'none', label: 'None' },
+                    { value: 'low', label: 'Low' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'high', label: 'High' }
                 ]}
             />
         </FormField>
 
-        <FormField label="财务压力">
+        <FormField label="Financial Stress">
             <SliderInput
                 value={state.finance.financialStress}
                 onChange={(v) => onChange({ finance: { ...state.finance, financialStress: v } })}
-                labels={['无压力', '压力很大']}
+                labels={['No stress', 'Very high stress']}
             />
         </FormField>
 
@@ -904,12 +893,12 @@ const FinanceSection: React.FC<{
             <Checkbox
                 checked={state.finance.hasProperty}
                 onChange={(v) => onChange({ finance: { ...state.finance, hasProperty: v } })}
-                label="有房产"
+                label="Owns property"
             />
             <Checkbox
                 checked={state.finance.hasInvestments}
                 onChange={(v) => onChange({ finance: { ...state.finance, hasInvestments: v } })}
-                label="有投资"
+                label="Has investments"
             />
         </div>
     </div>
@@ -920,39 +909,39 @@ const HealthSection: React.FC<{
     onChange: (updates: Partial<LifeStateSnapshot>) => void;
 }> = ({ state, onChange }) => (
     <div className="space-y-5">
-        <FormField label="身体健康">
+        <FormField label="Physical Health">
             <SliderInput
                 value={state.health.physicalHealth}
                 onChange={(v) => onChange({ health: { ...state.health, physicalHealth: v } })}
-                labels={['较差', '非常好']}
+                labels={['Poor', 'Excellent']}
             />
         </FormField>
 
-        <FormField label="心理健康">
+        <FormField label="Mental Health">
             <SliderInput
                 value={state.health.mentalHealth}
                 onChange={(v) => onChange({ health: { ...state.health, mentalHealth: v } })}
-                labels={['较差', '非常好']}
+                labels={['Poor', 'Excellent']}
             />
         </FormField>
 
-        <FormField label="精力水平">
+        <FormField label="Energy Level">
             <SliderInput
                 value={state.health.energyLevel}
                 onChange={(v) => onChange({ health: { ...state.health, energyLevel: v } })}
-                labels={['疲惫', '精力充沛']}
+                labels={['Exhausted', 'Energized']}
             />
         </FormField>
 
-        <FormField label="运动频率">
+        <FormField label="Exercise Frequency">
             <SelectInput
                 value={state.health.exerciseFrequency}
                 onChange={(v) => onChange({ health: { ...state.health, exerciseFrequency: v as any } })}
                 options={[
-                    { value: 'none', label: '几乎不' },
-                    { value: 'rarely', label: '偶尔' },
-                    { value: 'weekly', label: '每周' },
-                    { value: 'daily', label: '每天' }
+                    { value: 'none', label: 'Almost never' },
+                    { value: 'rarely', label: 'Occasionally' },
+                    { value: 'weekly', label: 'Weekly' },
+                    { value: 'daily', label: 'Daily' }
                 ]}
             />
         </FormField>
@@ -964,15 +953,15 @@ const RelationshipsSection: React.FC<{
     onChange: (updates: Partial<LifeStateSnapshot>) => void;
 }> = ({ state, onChange }) => (
     <div className="space-y-5">
-        <FormField label="感情状态">
+        <FormField label="Relationship Status">
             <SelectInput
                 value={state.relationships.status}
                 onChange={(v) => onChange({ relationships: { ...state.relationships, status: v as any } })}
                 options={[
-                    { value: 'single', label: '单身' },
-                    { value: 'dating', label: '恋爱中' },
-                    { value: 'married', label: '已婚' },
-                    { value: 'divorced', label: '离异' }
+                    { value: 'single', label: 'Single' },
+                    { value: 'dating', label: 'Dating' },
+                    { value: 'married', label: 'Married' },
+                    { value: 'divorced', label: 'Divorced' }
                 ]}
             />
         </FormField>
@@ -980,22 +969,22 @@ const RelationshipsSection: React.FC<{
         <Checkbox
             checked={state.relationships.hasChildren}
             onChange={(v) => onChange({ relationships: { ...state.relationships, hasChildren: v } })}
-            label="有子女"
+            label="Has children"
         />
 
-        <FormField label="家庭关系质量">
+        <FormField label="Family Relationship Quality">
             <SliderInput
                 value={state.relationships.familyRelationshipQuality}
                 onChange={(v) => onChange({ relationships: { ...state.relationships, familyRelationshipQuality: v } })}
-                labels={['紧张', '融洽']}
+                labels={['Tense', 'Harmonious']}
             />
         </FormField>
 
-        <FormField label="社交满意度">
+        <FormField label="Social Satisfaction">
             <SliderInput
                 value={state.relationships.socialSatisfaction}
                 onChange={(v) => onChange({ relationships: { ...state.relationships, socialSatisfaction: v } })}
-                labels={['不满意', '非常满意']}
+                labels={['Unsatisfied', 'Very satisfied']}
             />
         </FormField>
     </div>
@@ -1006,37 +995,37 @@ const SkillsSection: React.FC<{
     onChange: (updates: Partial<LifeStateSnapshot>) => void;
 }> = ({ state, onChange }) => (
     <div className="space-y-5">
-        <FormField label="核心技能" hint="最多 5 个">
+        <FormField label="Core Skills" hint="Up to 5">
             <TagInput
                 tags={state.skills.topSkills}
                 onChange={(tags) => onChange({ skills: { ...state.skills, topSkills: tags } })}
-                placeholder="编程、演讲、管理..."
+                placeholder="Programming, Speaking, Management..."
                 maxTags={5}
             />
         </FormField>
 
-        <FormField label="学习目标">
+        <FormField label="Learning Goals">
             <TagInput
                 tags={state.skills.learningGoals}
                 onChange={(tags) => onChange({ skills: { ...state.skills, learningGoals: tags } })}
-                placeholder="想学习的技能..."
+                placeholder="Skills you want to learn..."
                 maxTags={5}
             />
         </FormField>
 
-        <FormField label="技术能力">
+        <FormField label="Technical Proficiency">
             <SliderInput
                 value={state.skills.technicalProficiency}
                 onChange={(v) => onChange({ skills: { ...state.skills, technicalProficiency: v } })}
-                labels={['入门', '专家']}
+                labels={['Beginner', 'Expert']}
             />
         </FormField>
 
-        <FormField label="领导经验">
+        <FormField label="Leadership Experience">
             <SliderInput
                 value={state.skills.leadershipExperience}
                 onChange={(v) => onChange({ skills: { ...state.skills, leadershipExperience: v } })}
-                labels={['无', '丰富']}
+                labels={['None', 'Extensive']}
             />
         </FormField>
     </div>
@@ -1047,35 +1036,35 @@ const GoalsSection: React.FC<{
     onChange: (updates: Partial<LifeStateSnapshot>) => void;
 }> = ({ state, onChange }) => (
     <div className="space-y-5">
-        <FormField label="短期目标 (1年内)">
+        <FormField label="Short-term Goals (within 1 year)">
             <TagInput
                 tags={state.lifeGoals.shortTerm}
                 onChange={(tags) => onChange({ lifeGoals: { ...state.lifeGoals, shortTerm: tags } })}
-                placeholder="添加目标..."
+                placeholder="Add goals..."
             />
         </FormField>
 
-        <FormField label="中期目标 (1-5年)">
+        <FormField label="Mid-term Goals (1-5 years)">
             <TagInput
                 tags={state.lifeGoals.mediumTerm}
                 onChange={(tags) => onChange({ lifeGoals: { ...state.lifeGoals, mediumTerm: tags } })}
-                placeholder="添加目标..."
+                placeholder="Add goals..."
             />
         </FormField>
 
-        <FormField label="长期目标 (5年+)">
+        <FormField label="Long-term Goals (5+ years)">
             <TagInput
                 tags={state.lifeGoals.longTerm}
                 onChange={(tags) => onChange({ lifeGoals: { ...state.lifeGoals, longTerm: tags } })}
-                placeholder="添加目标..."
+                placeholder="Add goals..."
             />
         </FormField>
 
-        <FormField label="核心价值观">
+        <FormField label="Core Values">
             <TagInput
                 tags={state.lifeGoals.coreValues}
                 onChange={(tags) => onChange({ lifeGoals: { ...state.lifeGoals, coreValues: tags } })}
-                placeholder="家庭、成长、自由..."
+                placeholder="Family, Growth, Freedom..."
             />
         </FormField>
     </div>
@@ -1098,51 +1087,51 @@ const PreferencesSection: React.FC<{
                 className="p-3 rounded-lg text-xs"
                 style={{ backgroundColor: colors.primaryMuted, color: colors.primary }}
             >
-                这些设置将影响算法如何为你计算最优人生路径
+                These settings affect how the algorithm computes your optimal life path
             </div>
 
-            <FormField label="优化目标">
+            <FormField label="Optimization Goal">
                 <SelectInput
                     value={prefs.optimizationGoal}
                     onChange={(v) => onChange({ optimizationGoal: v as any })}
                     options={[
-                        { value: 'wealth', label: '财富最大化' },
-                        { value: 'happiness', label: '幸福最大化' },
-                        { value: 'health', label: '健康优先' },
-                        { value: 'balance', label: '平衡发展' },
-                        { value: 'achievement', label: '成就导向' }
+                        { value: 'wealth', label: 'Maximize Wealth' },
+                        { value: 'happiness', label: 'Maximize Happiness' },
+                        { value: 'health', label: 'Health First' },
+                        { value: 'balance', label: 'Balanced Growth' },
+                        { value: 'achievement', label: 'Achievement-oriented' }
                     ]}
                 />
             </FormField>
 
-            <FormField label="风险偏好">
+            <FormField label="Risk Appetite">
                 <SliderInput
                     value={prefs.riskAppetite}
                     onChange={(v) => onChange({ riskAppetite: v })}
-                    labels={['保守', '激进']}
+                    labels={['Conservative', 'Aggressive']}
                 />
             </FormField>
 
-            <FormField label="规划周期">
+            <FormField label="Planning Horizon">
                 <SelectInput
                     value={prefs.timeHorizon}
                     onChange={(v) => onChange({ timeHorizon: v as any })}
                     options={[
-                        { value: 'short', label: '短期 (1-3年)' },
-                        { value: 'medium', label: '中期 (5-10年)' },
-                        { value: 'long', label: '长期 (20年+)' },
-                        { value: 'very_long', label: '终身 (60岁视角)' }
+                        { value: 'short', label: 'Short-term (1-3 years)' },
+                        { value: 'medium', label: 'Mid-term (5-10 years)' },
+                        { value: 'long', label: 'Long-term (20+ years)' },
+                        { value: 'very_long', label: 'Lifelong (age-60 perspective)' }
                     ]}
                 />
             </FormField>
 
-            <FormField label={`远见系数 (γ = ${prefs.gamma.toFixed(2)})`} hint="越高越重视长期收益">
+            <FormField label={`Foresight Coefficient (γ = ${prefs.gamma.toFixed(2)})`} hint="Higher values prioritize long-term returns">
                 <SliderInput
                     value={Math.round(prefs.gamma * 100)}
                     onChange={(v) => onChange({ gamma: v / 100 })}
                     min={80}
                     max={99}
-                    labels={['关注当下', '极度远见']}
+                    labels={['Present-focused', 'Highly foresighted']}
                 />
             </FormField>
         </div>
@@ -1175,16 +1164,16 @@ export const DigitalSoulEditor: React.FC<DigitalSoulEditorProps> = ({ isDark = t
         manager.updateDestinyPreferences(prefs);
     }, [manager]);
 
-    // 处理数据导入
+    // Handle data import
     const handleDataImport = useCallback((profile: AnalyzedProfile) => {
         const updates: Partial<LifeStateSnapshot> = {};
         
-        // 年龄
+        // Age
         if (profile.age && profile.age > 0 && profile.age < 100) {
             updates.age = profile.age;
         }
         
-        // 职业信息
+        // Occupation
         if (profile.occupation) {
             updates.career = {
                 ...lifeState.career,
@@ -1192,7 +1181,7 @@ export const DigitalSoulEditor: React.FC<DigitalSoulEditorProps> = ({ isDark = t
             };
         }
 
-        // 兴趣转为技能/目标
+        // Map interests to skills/goals
         if (profile.interests.length > 0) {
             updates.skills = {
                 ...lifeState.skills,
@@ -1200,7 +1189,7 @@ export const DigitalSoulEditor: React.FC<DigitalSoulEditorProps> = ({ isDark = t
             };
         }
 
-        // 担忧转为挑战
+        // Map concerns to challenges
         if (profile.concerns.length > 0) {
             updates.currentChallenges = {
                 ...lifeState.currentChallenges,
@@ -1209,7 +1198,7 @@ export const DigitalSoulEditor: React.FC<DigitalSoulEditorProps> = ({ isDark = t
             };
         }
 
-        // 目标
+        // Goals
         if (profile.goals.length > 0) {
             updates.lifeGoals = {
                 ...lifeState.lifeGoals,
@@ -1217,7 +1206,7 @@ export const DigitalSoulEditor: React.FC<DigitalSoulEditorProps> = ({ isDark = t
             };
         }
 
-        // 健康信息 - 基于压力等级
+        // Health info based on stress level
         if (profile.stressLevel) {
             updates.health = {
                 ...lifeState.health,
@@ -1272,14 +1261,14 @@ export const DigitalSoulEditor: React.FC<DigitalSoulEditorProps> = ({ isDark = t
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-lg font-semibold" style={{ color: colors.text1 }}>
-                            数字分身配置
+                            Digital Twin Configuration
                         </h2>
                         <p className="text-xs mt-1" style={{ color: colors.text3 }}>
-                            完善信息以获得更精准的导航建议
+                            Complete your profile for more accurate navigation recommendations
                         </p>
                     </div>
                     <div className="text-right">
-                        <div className="text-xs" style={{ color: colors.text3 }}>完成度</div>
+                        <div className="text-xs" style={{ color: colors.text3 }}>Completion</div>
                         <div 
                             className="text-2xl font-mono font-semibold"
                             style={{ 
@@ -1377,7 +1366,7 @@ export const DigitalSoulEditor: React.FC<DigitalSoulEditorProps> = ({ isDark = t
                 >
                     <Check size={16} style={{ color: colors.positive }} />
                     <span className="text-sm" style={{ color: colors.text2 }}>
-                        数字分身已就绪，可前往 <span style={{ color: colors.text1 }}>Destiny</span> 查看导航建议
+                        Digital twin is ready. Open <span style={{ color: colors.text1 }}>Destiny</span> to view navigation suggestions
                     </span>
                 </div>
             )}

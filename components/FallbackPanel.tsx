@@ -30,10 +30,10 @@ export const FallbackPanel: React.FC<FallbackPanelProps> = ({
         } else if (option.action_type === 'save_task') {
             // Delegate task creation to parent via callback
             onOptionSelect?.(option, {
-                title: intentText || '待处理意图',
+                title: intentText || 'Pending intent',
                 status: 'pending',
                 priority: 'medium',
-                notes: `原始意图: ${intentText}\n域: ${fallbackResponse.intent_domain}`
+                notes: `Original intent: ${intentText}\nDomain: ${fallbackResponse.intent_domain}`
             });
             setSelectedOption(null);
         } else if (option.action_type === 'upload_screenshot') {
@@ -232,8 +232,8 @@ export const FallbackPanel: React.FC<FallbackPanelProps> = ({
                         type="text"
                         placeholder={
                             selectedOption === 'paste_link'
-                                ? '粘贴链接...'
-                                : '输入信息...'
+                                ? 'Paste link...'
+                                : 'Enter details...'
                         }
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
@@ -244,14 +244,14 @@ export const FallbackPanel: React.FC<FallbackPanelProps> = ({
                         disabled={!inputValue.trim()}
                         onClick={handleInputSubmit}
                     >
-                        提交
+                        Submit
                     </button>
                 </div>
             )}
 
             {onDismiss && (
                 <button className="dismiss-btn" onClick={onDismiss}>
-                    暂时跳过
+                    Skip for now
                 </button>
             )}
         </div>

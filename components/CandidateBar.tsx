@@ -52,7 +52,7 @@ export const CandidateBar: React.FC<CandidateBarProps> = ({
               </button>
             ))}
           </div>
-          {/* 联想建议 */}
+          {/* Associated suggestions */}
           {output.associatedSuggestions && output.associatedSuggestions.length > 0 && (
             <AssociatedSuggestionsView
               suggestions={output.associatedSuggestions}
@@ -66,7 +66,7 @@ export const CandidateBar: React.FC<CandidateBarProps> = ({
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
           <div className="flex items-center gap-2 text-indigo-700 text-xs font-semibold uppercase tracking-wider mb-2">
             <AlertCircle size={14} />
-            需要补充信息
+            Additional information required
           </div>
           <div className="text-sm text-indigo-900 leading-relaxed">{output.prompt}</div>
           {output.missingFields && output.missingFields.length > 0 && (
@@ -83,10 +83,10 @@ export const CandidateBar: React.FC<CandidateBarProps> = ({
           )}
           {output.contextQuery && (
             <div className="mt-2 text-[11px] text-indigo-500">
-              已保留意图：{output.contextQuery.slice(0, 40)}{output.contextQuery.length > 40 ? '…' : ''}
+              Intent retained: {output.contextQuery.slice(0, 40)}{output.contextQuery.length > 40 ? '…' : ''}
             </div>
           )}
-          <div className="mt-2 text-[11px] text-indigo-600">请在下方输入补充信息。</div>
+          <div className="mt-2 text-[11px] text-indigo-600">Please enter the missing details below.</div>
         </div>
       )}
 
@@ -115,7 +115,7 @@ export const CandidateBar: React.FC<CandidateBarProps> = ({
               </div>
             ))}
           </div>
-          {/* 联想建议 */}
+          {/* Associated suggestions */}
           {output.associatedSuggestions && output.associatedSuggestions.length > 0 && (
             <AssociatedSuggestionsView
               suggestions={output.associatedSuggestions}
@@ -214,7 +214,7 @@ export const CandidateBar: React.FC<CandidateBarProps> = ({
 };
 
 // =============================================================================
-// 联想建议组件 - AssociatedSuggestionsView
+// Associated suggestions component - AssociatedSuggestionsView
 // =============================================================================
 interface AssociatedSuggestionsViewProps {
   suggestions: AssociatedSuggestion[];
@@ -247,11 +247,11 @@ const AssociatedSuggestionsView: React.FC<AssociatedSuggestionsViewProps> = ({
   const getCategoryBadge = (category: string) => {
     switch (category) {
       case 'warning':
-        return <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded">注意</span>;
+        return <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded">Caution</span>;
       case 'opportunity':
-        return <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded">机会</span>;
+        return <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded">Opportunity</span>;
       case 'reminder':
-        return <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded">提醒</span>;
+        return <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded">Reminder</span>;
       default:
         return null;
     }
@@ -261,8 +261,8 @@ const AssociatedSuggestionsView: React.FC<AssociatedSuggestionsViewProps> = ({
     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-2 border border-indigo-100">
       <div className="flex items-center gap-1.5 mb-2">
         <Sparkles size={14} className="text-indigo-500" />
-        <span className="text-xs font-medium text-indigo-700">智能联想</span>
-        <span className="text-[10px] text-indigo-400 bg-indigo-100 px-1.5 py-0.5 rounded">AI 发散思维</span>
+        <span className="text-xs font-medium text-indigo-700">Smart suggestions</span>
+        <span className="text-[10px] text-indigo-400 bg-indigo-100 px-1.5 py-0.5 rounded">AI divergent thinking</span>
       </div>
       <div className={compact ? "flex gap-1.5 overflow-x-auto" : "space-y-1.5"}>
         {suggestions.map((suggestion) => (
@@ -314,6 +314,15 @@ interface TaskProgressViewProps {
 }
 
 const TaskProgressView: React.FC<TaskProgressViewProps> = ({ task, onAction, onClear }) => {
+  const policyDecisionIds = Array.isArray(task.audit?.policy_decision_ids)
+    ? task.audit?.policy_decision_ids
+    : [];
+  const policyDecisionPreview = policyDecisionIds.slice(0, 3);
+  const approvalExpiresAt = Number(task.audit?.approval_expires_at || 0);
+  const approvalExpiryText = approvalExpiresAt > 0
+    ? new Date(approvalExpiresAt).toLocaleString()
+    : '';
+
   const getStepIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -340,9 +349,9 @@ const TaskProgressView: React.FC<TaskProgressViewProps> = ({ task, onAction, onC
       case 'calculator':
         return `= ${data.result}`;
       case 'web_search':
-        return `${data.results?.length || 0} 条结果`;
+        return `${data.results?.length || 0} results`;
       case 'location':
-        return `${data.places?.length || 0} 个地点`;
+        return `${data.places?.length || 0} places`;
       case 'notes':
         return data.message;
       default:
@@ -371,8 +380,8 @@ const TaskProgressView: React.FC<TaskProgressViewProps> = ({ task, onAction, onC
                 <CheckCircle2 size={24} className="text-white animate-bounce" />
               </div>
               <div>
-                <span className="font-bold text-lg">🎉 任务完成！</span>
-                <div className="text-xs opacity-80">共 {task.steps.length} 个步骤</div>
+                <span className="font-bold text-lg">🎉 Task completed!</span>
+                <div className="text-xs opacity-80">{task.steps.length} steps total</div>
               </div>
             </div>
             <button onClick={onClear} className="text-white/70 hover:text-white z-10">
@@ -461,7 +470,7 @@ const TaskProgressView: React.FC<TaskProgressViewProps> = ({ task, onAction, onC
       <div className="flex items-center justify-between mb-3">
         <div>
           <div className="text-xs opacity-75 uppercase tracking-wider">
-            {task.status === 'failed' ? '任务失败' : task.status === 'executing' ? '执行中...' : '任务规划'}
+            {task.status === 'failed' ? 'Task failed' : task.status === 'executing' ? 'Running...' : 'Task planning'}
           </div>
           <div className="font-bold">{task.goal}</div>
         </div>
@@ -469,6 +478,34 @@ const TaskProgressView: React.FC<TaskProgressViewProps> = ({ task, onAction, onC
           <X size={16} />
         </button>
       </div>
+
+      {(task.summary || task.audit?.approval_reason || policyDecisionIds.length > 0 || approvalExpiryText) && (
+        <div className="bg-white/15 rounded-lg p-2 mb-3 text-xs space-y-1">
+          {(task.audit?.approval_reason || task.summary) && (
+            <div className="text-white/90">
+              {task.audit?.approval_reason || task.summary}
+            </div>
+          )}
+          {policyDecisionPreview.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 text-white/80">
+              <span className="opacity-70">Policy trace:</span>
+              {policyDecisionPreview.map((id) => (
+                <span key={id} className="bg-white/20 px-1.5 py-0.5 rounded">
+                  {id.slice(0, 12)}
+                </span>
+              ))}
+              {policyDecisionIds.length > policyDecisionPreview.length && (
+                <span className="opacity-70">+{policyDecisionIds.length - policyDecisionPreview.length}</span>
+              )}
+            </div>
+          )}
+          {approvalExpiryText && (
+            <div className="text-white/70">
+              Expires at: {approvalExpiryText}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Steps Progress with Flow Lines */}
       <div className="task-flow-container mb-3">
@@ -513,12 +550,12 @@ const TaskProgressView: React.FC<TaskProgressViewProps> = ({ task, onAction, onC
                   )}
                   {step.status === 'retrying' && step.retryCount && (
                     <div className="text-xs text-orange-200 mt-1 ml-5">
-                      重试中 ({step.retryCount}/{step.maxRetries || 2})
+                      Retrying ({step.retryCount}/{step.maxRetries || 2})
                     </div>
                   )}
                   {step.dependsOn && step.dependsOn.length > 0 && step.status === 'pending' && (
                     <div className="text-xs text-white/50 mt-1 ml-5">
-                      等待: {step.dependsOn.join(', ')}
+                      Waiting: {step.dependsOn.join(', ')}
                     </div>
                   )}
                 </div>
@@ -602,13 +639,13 @@ const TaskProgressView: React.FC<TaskProgressViewProps> = ({ task, onAction, onC
             onClick={() => onAction(task, 'cancel')}
             className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-sm"
           >
-            取消
+            Cancel
           </button>
           <button
             onClick={() => onAction(task, 'confirm')}
             className="px-3 py-1 bg-white hover:bg-white/90 text-indigo-600 rounded text-sm font-medium"
           >
-            {task.status === 'planning' ? '开始执行' : '继续执行'}
+            {task.status === 'planning' ? 'Start execution' : 'Continue execution'}
           </button>
         </div>
       )}
@@ -637,11 +674,11 @@ const TaskProgressView: React.FC<TaskProgressViewProps> = ({ task, onAction, onC
           )}
         </div>
         <div className="flex items-center justify-between text-xs opacity-75 mt-1">
-          <span>步骤 {task.steps.filter(s => s.status === 'completed').length} / {task.steps.length}</span>
+          <span>Steps {task.steps.filter(s => s.status === 'completed').length} / {task.steps.length}</span>
           {task.status === 'executing' && (
             <span className="flex items-center gap-1">
               <Loader2 size={10} className="animate-spin" />
-              执行中
+              Running
             </span>
           )}
         </div>
@@ -667,7 +704,7 @@ const OrchestrationResultView: React.FC<OrchestrationResultViewProps> = ({ plan,
     return (
       <div className="bg-gray-100 p-4 rounded-xl">
         <Loader2 className="animate-spin mx-auto" />
-        <p className="text-center text-sm text-gray-500 mt-2">正在协调多个Agent...</p>
+        <p className="text-center text-sm text-gray-500 mt-2">Coordinating multiple agents...</p>
       </div>
     );
   }
@@ -684,7 +721,7 @@ const OrchestrationResultView: React.FC<OrchestrationResultViewProps> = ({ plan,
             </h3>
             {result.totalEstimatedCost && (
               <p className="text-sm opacity-80 mt-1">
-                💰 预估总费用: ¥{result.totalEstimatedCost.toLocaleString()}
+                💰 Estimated total cost: ¥{result.totalEstimatedCost.toLocaleString()}
               </p>
             )}
           </div>
@@ -756,12 +793,12 @@ const OrchestrationSectionView: React.FC<{
           <span className="text-xl">{section.icon}</span>
           <div className="text-left">
             <h4 className="font-medium text-gray-900">{section.title}</h4>
-            <p className="text-xs text-gray-500">{section.options.length} 个推荐</p>
+            <p className="text-xs text-gray-500">{section.options.length} recommendations</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-            个性化
+            Personalized
           </span>
           <svg
             className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
@@ -796,7 +833,7 @@ const OrchestrationSectionView: React.FC<{
 
           {section.options.length > 3 && (
             <button className="w-full text-center text-sm text-purple-600 mt-2 py-1 hover:bg-purple-50 rounded">
-              查看更多 ({section.options.length - 3} 个)
+              View more ({section.options.length - 3})
             </button>
           )}
         </div>
@@ -828,18 +865,18 @@ const OptionCard: React.FC<{
           </div>
           <div className="text-right">
             <div className="font-bold text-purple-600">¥{option.price?.toLocaleString()}</div>
-            <div className="text-xs text-gray-500">{option.class === 'economy' ? '经济舱' : '商务舱'}</div>
+            <div className="text-xs text-gray-500">{option.class === 'economy' ? 'Economy' : 'Business'}</div>
           </div>
         </div>
         <div className="flex items-center justify-between mt-2 text-sm">
-          <span>{option.departure} 出发</span>
+          <span>{option.departure} Depart</span>
           <span className="text-gray-400">⟶</span>
-          <span>{option.arrival} 到达</span>
+          <span>{option.arrival} Arrive</span>
           <span className="text-xs text-gray-500">{option.duration}</span>
         </div>
         {option.matchScore > 90 && (
           <div className="mt-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded inline-block">
-            ⭐ 高度匹配您的偏好
+            ⭐ Highly matched to your preferences
           </div>
         )}
       </div>
@@ -862,7 +899,7 @@ const OptionCard: React.FC<{
           </div>
           <div className="text-right">
             <div className="font-bold text-purple-600">¥{option.pricePerNight?.toLocaleString()}</div>
-            <div className="text-xs text-gray-500">每晚</div>
+            <div className="text-xs text-gray-500">per night</div>
           </div>
         </div>
         <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -906,7 +943,7 @@ const OptionCard: React.FC<{
             <div className="text-xs text-gray-500">{option.type} · {option.recommendTime}</div>
           </div>
           {option.style === 'offbeat' && (
-            <span className="text-xs bg-orange-50 text-orange-600 px-2 py-0.5 rounded">小众</span>
+            <span className="text-xs bg-orange-50 text-orange-600 px-2 py-0.5 rounded">Hidden gem</span>
           )}
         </div>
         <p className="text-xs text-gray-600 mt-1">{option.description}</p>
@@ -993,14 +1030,14 @@ const SuperAgentResultView: React.FC<SuperAgentResultViewProps> = ({
   // Get agent type label
   const getAgentLabel = (type: string) => {
     switch (type) {
-      case 'flight_booking': return '航班搜索';
-      case 'hotel_booking': return '酒店推荐';
-      case 'weather': return '天气预报';
-      case 'attraction': return '景点推荐';
-      case 'restaurant': return '餐厅推荐';
-      case 'itinerary': return '行程安排';
-      case 'translation': return '翻译服务';
-      case 'transportation': return '接送机与交通';
+      case 'flight_booking': return 'Flight search';
+      case 'hotel_booking': return 'Hotel recommendations';
+      case 'weather': return 'Weather forecast';
+      case 'attraction': return 'Attractions';
+      case 'restaurant': return 'Restaurants';
+      case 'itinerary': return 'Itinerary';
+      case 'translation': return 'Translation';
+      case 'transportation': return 'Airport transfer & transport';
       default: return type;
     }
   };
@@ -1025,9 +1062,9 @@ const SuperAgentResultView: React.FC<SuperAgentResultViewProps> = ({
                 <Sparkles size={24} className="text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-lg">🧠 Super Agent 智能规划</h3>
+                <h3 className="font-bold text-lg">🧠 Super Agent Planning</h3>
                 <p className="text-sm opacity-80">
-                  已完成 {results.length} 项搜索 · 优化评分: {solution.optimizationScore}%
+                  Completed {results.length} searches · Optimization score: {solution.optimizationScore}%
                 </p>
               </div>
             </div>
@@ -1035,7 +1072,7 @@ const SuperAgentResultView: React.FC<SuperAgentResultViewProps> = ({
               <button
                 onClick={() => setIsExpanded((prev) => !prev)}
                 className="text-white/70 hover:text-white"
-                title={isExpanded ? '收起' : '展开'}
+                title={isExpanded ? 'Collapse' : 'Expand'}
               >
                 {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
               </button>
@@ -1054,7 +1091,7 @@ const SuperAgentResultView: React.FC<SuperAgentResultViewProps> = ({
 
           {/* Execution time */}
           <div className="mt-2 text-xs opacity-60">
-            ⏱️ 耗时 {(solution.executionTime / 1000).toFixed(1)} 秒
+            ⏱️ Time {(solution.executionTime / 1000).toFixed(1)} s
           </div>
         </div>
 
@@ -1062,7 +1099,7 @@ const SuperAgentResultView: React.FC<SuperAgentResultViewProps> = ({
           <div className="bg-white border-b border-gray-200 px-4 py-3">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
               <span className="text-lg">🕒</span>
-              行程时间轴
+              Itinerary timeline
             </div>
             <div className="space-y-2">
               {timeline.map((item, idx) => (
@@ -1120,13 +1157,13 @@ const SuperAgentResultView: React.FC<SuperAgentResultViewProps> = ({
           ))}
         </div>
 
-        {/* 💡 联想建议 - 发散性思维 */}
+        {/* 💡 Associated suggestions - divergent thinking */}
         {solution.associatedSuggestions && solution.associatedSuggestions.length > 0 && (
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-3 border-t border-amber-200">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">💡</span>
-              <span className="text-sm font-medium text-amber-800">智能联想</span>
-              <span className="text-xs text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">AI 发散思维</span>
+              <span className="text-sm font-medium text-amber-800">Smart suggestions</span>
+              <span className="text-xs text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">AI divergent thinking</span>
             </div>
             <div className="space-y-2">
               {solution.associatedSuggestions.map((suggestion: any) => (
@@ -1144,10 +1181,10 @@ const SuperAgentResultView: React.FC<SuperAgentResultViewProps> = ({
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm text-gray-900">{suggestion.title}</span>
                       {suggestion.category === 'warning' && (
-                        <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">注意</span>
+                        <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">Caution</span>
                       )}
                       {suggestion.category === 'opportunity' && (
-                        <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">机会</span>
+                        <span className="text-xs bg-green-500 text-white px-1.5 py-0.5 rounded">Opportunity</span>
                       )}
                     </div>
                     <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{suggestion.description}</p>
@@ -1228,15 +1265,15 @@ const buildTravelTimeline = (groupedResults: Record<string, any>): TimelineItem[
   if (transport?.recommendedLeaveTime) {
     timeline.push({
       time: transport.recommendedLeaveTime,
-      title: '出发前往机场',
-      detail: transport.toAirport?.[0]?.mode ? `推荐：${transport.toAirport[0].mode}` : undefined
+      title: 'Leave for airport',
+      detail: transport.toAirport?.[0]?.mode ? `Recommended: ${transport.toAirport[0].mode}` : undefined
     });
   }
 
   if (flight?.bestOption?.departure) {
     timeline.push({
       time: flight.bestOption.departure,
-      title: `航班起飞 · ${flight.origin || ''} → ${flight.destination || ''}`.trim(),
+      title: `Flight departure · ${flight.origin || ''} → ${flight.destination || ''}`.trim(),
       detail: flight.bestOption.airline ? `${flight.bestOption.airline} ${flight.bestOption.flightNo || ''}`.trim() : undefined
     });
   }
@@ -1244,15 +1281,15 @@ const buildTravelTimeline = (groupedResults: Record<string, any>): TimelineItem[
   if (flight?.bestOption?.arrival) {
     timeline.push({
       time: flight.bestOption.arrival,
-      title: `抵达 ${flight.destination || ''}`.trim(),
-      detail: transport?.fromAirport?.[0]?.mode ? `接驳：${transport.fromAirport[0].mode}` : undefined
+      title: `Arrive ${flight.destination || ''}`.trim(),
+      detail: transport?.fromAirport?.[0]?.mode ? `Transfer: ${transport.fromAirport[0].mode}` : undefined
     });
   }
 
   if (hotel?.hotels?.[0]) {
     timeline.push({
-      time: '当日',
-      title: `入住 ${hotel.hotels[0].name}`,
+      time: 'Same day',
+      title: `Check in ${hotel.hotels[0].name}`,
       detail: hotel.hotels[0].location || hotel.hotels[0].area
     });
   }
@@ -1260,23 +1297,23 @@ const buildTravelTimeline = (groupedResults: Record<string, any>): TimelineItem[
   if (weather?.forecast?.[0]) {
     const weatherDay = weather.forecast[0];
     timeline.push({
-      time: weatherDay.day || '天气',
-      title: `天气 ${weatherDay.condition || ''} ${weatherDay.temp || weatherDay.temperature || ''}`.trim()
+      time: weatherDay.day || 'Weather',
+      title: `Weather ${weatherDay.condition || ''} ${weatherDay.temp || weatherDay.temperature || ''}`.trim()
     });
   }
 
   if (attractions[0]) {
     timeline.push({
-      time: '白天',
-      title: `推荐景点：${attractions[0].name}`,
+      time: 'Daytime',
+      title: `Recommended attraction: ${attractions[0].name}`,
       detail: attractions[0].recommendTime || attractions[0].type
     });
   }
 
   if (restaurants[0]) {
     timeline.push({
-      time: '晚餐',
-      title: `推荐餐厅：${restaurants[0].name}`,
+      time: 'Dinner',
+      title: `Recommended restaurant: ${restaurants[0].name}`,
       detail: restaurants[0].type || restaurants[0].cuisine
     });
   }
@@ -1334,14 +1371,14 @@ const SuperAgentSection: React.FC<SuperAgentSectionProps> = ({
           <span className="text-xl">{icon}</span>
           <div className="text-left">
             <h4 className="font-medium text-gray-900">{label}</h4>
-            <p className="text-xs text-gray-500">{getItemCount()} 个结果</p>
+            <p className="text-xs text-gray-500">{getItemCount()} results</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {data.lowestPrice && (
             <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
               <DollarSign size={10} />
-              最低 ${data.lowestPrice.price}
+              Lowest ${data.lowestPrice.price}
             </span>
           )}
           <svg
@@ -1383,7 +1420,7 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
   const preferenceWeights = comparisonSummary?.preferenceWeights;
   const chronotype = comparisonSummary?.chronotype;
   const fetchedAtLabel = realtimeStatus?.fetched_at
-    ? new Date(realtimeStatus.fetched_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    ? new Date(realtimeStatus.fetched_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
     : null;
 
   // Handle opening booking URL
@@ -1398,7 +1435,7 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
       {bestOption && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
-            <div className="text-xs text-blue-700 font-medium">🤖 Agent 比价结果</div>
+            <div className="text-xs text-blue-700 font-medium">🤖 Agent price comparison result</div>
             {data.dataSource && (
               <span className="text-[10px] text-blue-500 bg-white/80 px-2 py-0.5 rounded">
                 {data.dataSource}
@@ -1406,15 +1443,15 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
             )}
           </div>
           <div className="mt-2 text-sm text-blue-900">
-            推荐: {bestOption.airline} · {bestOption.price ? `$${bestOption.price}` : '价格待确认'}
+            Recommended: {bestOption.airline} · {bestOption.price ? `$${bestOption.price}` : 'Price pending'}
           </div>
           <div className="mt-1 flex flex-wrap gap-1.5 text-[10px]">
             <span className={`px-2 py-0.5 rounded-full ${realtimeStatus?.verified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-              {realtimeStatus?.verified ? '实时已验证' : '实时未验证'}
+              {realtimeStatus?.verified ? 'Live verified' : 'Live unverified'}
             </span>
             {fetchedAtLabel && (
               <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                抓取时间 {fetchedAtLabel}
+                Fetched at {fetchedAtLabel}
               </span>
             )}
             {typeof realtimeStatus?.ttl_seconds === 'number' && realtimeStatus.ttl_seconds > 0 && (
@@ -1425,15 +1462,15 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
           </div>
           {data.searchError && (
             <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-              SerpApi 请求失败：{data.searchError}
+              SerpApi request failed: {data.searchError}
               <div className="mt-1 text-[10px] text-amber-600">
-                可能原因：日期超出可查范围 / 目的地不识别 / API Key 无权限或额度不足
+                Possible causes: date out of searchable range / destination not recognized / API key lacks permission or quota.
               </div>
             </div>
           )}
           {data.error && !data.searchError && (
             <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-              航班搜索提示：{data.error}
+              Flight search note: {data.error}
             </div>
           )}
           {bestOption.matchReasons && bestOption.matchReasons.length > 0 && (
@@ -1447,17 +1484,17 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
           )}
           {comparisonSummary && (
             <div className="mt-2 text-xs text-blue-700">
-              均价 ${comparisonSummary.averagePrice || '--'} · 直飞 {comparisonSummary.directCount || 0} 条 · 共 {comparisonSummary.totalOptions || flights.length} 个方案
+              Avg ${comparisonSummary.averagePrice || '--'} · Direct {comparisonSummary.directCount || 0} flights · Total {comparisonSummary.totalOptions || flights.length} options
             </div>
           )}
           {(data.origin || data.destination) && (
             <div className="mt-1 text-[11px] text-blue-600">
-              航线：{data.origin || '出发地待补充'} → {data.destination || '目的地待补充'} {data.departureDate ? `· ${data.departureDate}` : ''}
+              Route: {data.origin || 'origin needed'} → {data.destination || 'destination needed'} {data.departureDate ? `· ${data.departureDate}` : ''}
             </div>
           )}
           {chronotype && chronotype !== 'flexible' && (
             <div className="mt-1 text-[11px] text-blue-600">
-              时间偏好：{chronotype === 'morning_person' ? '早出发' : '晚出发'}
+              Time preference: {chronotype === 'morning_person' ? 'Early departure' : 'Late departure'}
             </div>
           )}
         </div>
@@ -1465,11 +1502,11 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
 
       {preferenceWeights && (
         <div className="bg-white border border-slate-200 rounded-lg p-3">
-          <div className="text-xs text-slate-500 mb-2">偏好权重</div>
-          <WeightRow label="价格" value={preferenceWeights.price} color="bg-emerald-400" />
-          <WeightRow label="时长" value={preferenceWeights.duration} color="bg-blue-400" />
-          <WeightRow label="中转" value={preferenceWeights.stops} color="bg-purple-400" />
-          <WeightRow label="时间" value={preferenceWeights.time} color="bg-amber-400" />
+          <div className="text-xs text-slate-500 mb-2">Preference weights</div>
+          <WeightRow label="Price" value={preferenceWeights.price} color="bg-emerald-400" />
+          <WeightRow label="Duration" value={preferenceWeights.duration} color="bg-blue-400" />
+          <WeightRow label="Stops" value={preferenceWeights.stops} color="bg-purple-400" />
+          <WeightRow label="Time" value={preferenceWeights.time} color="bg-amber-400" />
         </div>
       )}
 
@@ -1478,7 +1515,7 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="bg-green-500 text-white text-xs px-2 py-0.5 rounded">最低价</div>
+              <div className="bg-green-500 text-white text-xs px-2 py-0.5 rounded">Lowest price</div>
               <span className="font-medium">{lowestPrice.airline || lowestPrice.source}</span>
             </div>
             <div className="text-xl font-bold text-green-600">${lowestPrice.price}</div>
@@ -1494,7 +1531,7 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
       {/* Flight list */}
       {flights.length === 0 && (
         <div className="bg-white border border-dashed border-gray-300 rounded-lg p-3 text-xs text-gray-500">
-          暂未获取到航班详情，请补充出发地/日期或检查 SerpApi 配置。
+          No flight details yet. Add origin/date or check SerpApi configuration.
         </div>
       )}
       {flights.slice(0, 5).map((flight: any, idx: number) => (
@@ -1518,7 +1555,7 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
               <div className="font-bold text-blue-600">
                 {flight.price ? `$${flight.price}` : flight.priceRange}
               </div>
-              <div className="text-xs text-gray-500">{flight.class || '经济舱'}</div>
+              <div className="text-xs text-gray-500">{flight.class || 'Economy'}</div>
             </div>
           </div>
           {flight.departure && (
@@ -1531,18 +1568,18 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
           )}
           {Number.isFinite(flight.matchScore) && (
             <div className="mt-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block">
-              匹配度 {flight.matchScore}%
+              Match score {flight.matchScore}%
             </div>
           )}
           {flight.matchBreakdown && (
             <div className="mt-1 text-[10px] text-gray-500">
-              价格 {Math.round(flight.matchBreakdown.priceScore)} · 时长 {Math.round(flight.matchBreakdown.durationScore)} · 中转 {Math.round(flight.matchBreakdown.stopScore)} · 时间 {Math.round(flight.matchBreakdown.timeScore)}
+              Price {Math.round(flight.matchBreakdown.priceScore)} · Duration {Math.round(flight.matchBreakdown.durationScore)} · Stops {Math.round(flight.matchBreakdown.stopScore)} · Time {Math.round(flight.matchBreakdown.timeScore)}
             </div>
           )}
           {/* Booking link */}
           <div className="flex items-center justify-between mt-2">
             {flight.source && (
-              <span className="text-xs text-gray-400">来源: {flight.source}</span>
+              <span className="text-xs text-gray-400">Source: {flight.source}</span>
             )}
             {showExternal && flight.bookingUrl && (
               <a
@@ -1553,7 +1590,7 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
                 className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
               >
                 <ExternalLink size={12} />
-                查看详情
+                View details
               </a>
             )}
           </div>
@@ -1565,13 +1602,13 @@ const FlightResults: React.FC<{ data: any }> = ({ data }) => {
           onClick={() => setShowExternal(!showExternal)}
           className="w-full text-xs text-blue-600 hover:text-blue-800 py-1"
         >
-          {showExternal ? '隐藏外部平台' : '查看外部比价平台'}
+          {showExternal ? 'Hide external platforms' : 'View external comparison platforms'}
         </button>
       )}
 
       {priceComparisonLinks && showExternal && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
-          <div className="text-xs text-blue-700 mb-2 font-medium">🔍 外部比价平台</div>
+          <div className="text-xs text-blue-700 mb-2 font-medium">🔍 External comparison platforms</div>
           <div className="flex flex-wrap gap-2">
             {Object.entries(priceComparisonLinks).map(([key, link]: [string, any]) => (
               <a
@@ -1626,12 +1663,12 @@ const HotelResults: React.FC<{ data: any }> = ({ data }) => {
               <div className="font-bold text-purple-600">
                 {hotel.pricePerNight ? `¥${hotel.pricePerNight}` : hotel.priceRange}
               </div>
-              <div className="text-xs text-gray-500">每晚</div>
+              <div className="text-xs text-gray-500">per night</div>
             </div>
           </div>
           {Number.isFinite(hotel.matchScore) && (
             <div className="mt-2 text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded inline-block">
-              匹配度 {hotel.matchScore}%
+              Match score {hotel.matchScore}%
             </div>
           )}
           {hotel.amenities && (
@@ -1670,13 +1707,13 @@ const WeatherResults: React.FC<{ data: any }> = ({ data }) => {
           <div className="flex items-center gap-3">
             <div className="text-2xl">{day.icon || '☀️'}</div>
             <div>
-              <div className="font-medium">{day.date || '今天'}</div>
+              <div className="font-medium">{day.date || 'Today'}</div>
               <div className="text-sm text-gray-600">{day.condition}</div>
             </div>
           </div>
           <div className="text-right">
             <div className="font-bold text-lg">{day.temp || day.temperature}</div>
-            {day.humidity && <div className="text-xs text-gray-500">湿度 {day.humidity}</div>}
+            {day.humidity && <div className="text-xs text-gray-500">Humidity {day.humidity}</div>}
           </div>
         </div>
       ))}
@@ -1715,7 +1752,7 @@ const AttractionResults: React.FC<{ data: any }> = ({ data }) => {
           </div>
           {Number.isFinite(attraction.matchScore) && (
             <div className="mt-2 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded inline-block">
-              匹配度 {attraction.matchScore}%
+              Match score {attraction.matchScore}%
             </div>
           )}
           {attraction.description && (
@@ -1775,23 +1812,23 @@ const RestaurantResults: React.FC<{ data: any }> = ({ data }) => {
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
                   {Number.isFinite(restaurant.rating) && <span>⭐ {restaurant.rating}</span>}
-                  {restaurant.reviewCount && <span>{restaurant.reviewCount}评</span>}
+                  {restaurant.reviewCount && <span>{restaurant.reviewCount} reviews</span>}
                 </div>
                 {signatureList.length > 0 && (
                   <div className="mt-1 text-xs text-gray-600">
-                    招牌：{signatureList.slice(0, 2).join(' · ')}
+                    Signature: {signatureList.slice(0, 2).join(' · ')}
                   </div>
                 )}
               </div>
             </div>
             {Number.isFinite(restaurant.matchScore) && (
               <div className="mt-2 text-xs text-red-600 bg-red-50 px-2 py-1 rounded inline-block">
-                匹配度 {restaurant.matchScore}%
+                Match score {restaurant.matchScore}%
               </div>
             )}
             {menuList.length > 0 && (
               <div className="mt-2 text-xs text-gray-600">
-                菜单：{menuList.slice(0, 2).map((item: any) => item.name || item).join(' · ')}
+                Menu: {menuList.slice(0, 2).map((item: any) => item.name || item).join(' · ')}
               </div>
             )}
             {reviewList.length > 0 && (
@@ -1830,7 +1867,7 @@ const TransportationResults: React.FC<{ data: any }> = ({ data }) => {
 
       {toAirport.length > 0 && (
         <div className="bg-white rounded-lg p-3 border border-gray-200">
-          <div className="text-xs text-gray-500 mb-2">前往机场</div>
+          <div className="text-xs text-gray-500 mb-2">To airport</div>
           <div className="space-y-1.5">
             {toAirport.map((option: any, idx: number) => (
               <div key={idx} className="text-sm">
@@ -1839,7 +1876,7 @@ const TransportationResults: React.FC<{ data: any }> = ({ data }) => {
                   <span className="text-gray-500">{option.duration} · {option.cost}</span>
                 </div>
                 {Number.isFinite(option.matchScore) && (
-                  <div className="mt-1 text-[10px] text-indigo-600">匹配度 {option.matchScore}%</div>
+                  <div className="mt-1 text-[10px] text-indigo-600">Match score {option.matchScore}%</div>
                 )}
                 {option.matchReasons && option.matchReasons.length > 0 && (
                   <div className="mt-1 flex gap-1 flex-wrap">
@@ -1858,7 +1895,7 @@ const TransportationResults: React.FC<{ data: any }> = ({ data }) => {
 
       {fromAirport.length > 0 && (
         <div className="bg-white rounded-lg p-3 border border-gray-200">
-          <div className="text-xs text-gray-500 mb-2">到达后交通</div>
+          <div className="text-xs text-gray-500 mb-2">Post-arrival transport</div>
           <div className="space-y-1.5">
             {fromAirport.map((option: any, idx: number) => (
               <div key={idx} className="text-sm">
@@ -1867,7 +1904,7 @@ const TransportationResults: React.FC<{ data: any }> = ({ data }) => {
                   <span className="text-gray-500">{option.duration} · {option.cost}</span>
                 </div>
                 {Number.isFinite(option.matchScore) && (
-                  <div className="mt-1 text-[10px] text-indigo-600">匹配度 {option.matchScore}%</div>
+                  <div className="mt-1 text-[10px] text-indigo-600">Match score {option.matchScore}%</div>
                 )}
                 {option.matchReasons && option.matchReasons.length > 0 && (
                   <div className="mt-1 flex gap-1 flex-wrap">
@@ -1906,7 +1943,7 @@ const ItineraryResults: React.FC<{ data: any }> = ({ data }) => {
           key={idx}
           className="bg-white rounded-lg p-3 border border-gray-200"
         >
-          <div className="font-medium text-indigo-600">{day.date || `第 ${idx + 1} 天`}</div>
+          <div className="font-medium text-indigo-600">{day.date || `Day ${idx + 1}`}</div>
           {day.activities && (
             <div className="mt-2 space-y-1">
               {day.activities.map((activity: any, i: number) => (
@@ -1960,19 +1997,19 @@ const NextBestActionView: React.FC<NextBestActionViewProps> = ({
 
   const getTimeHorizonLabel = (timeHorizon: string) => {
     switch (timeHorizon) {
-      case 'immediate': return '立即可做';
-      case 'short': return '今天';
-      case 'medium': return '本周';
-      case 'long': return '长期规划';
+      case 'immediate': return 'Do now';
+      case 'short': return 'Today';
+      case 'medium': return 'This week';
+      case 'long': return 'Long-term plan';
       default: return '';
     }
   };
 
   const getGammaLabel = (g: number) => {
-    if (g < 0.4) return '关注当下';
-    if (g < 0.6) return '均衡型';
-    if (g < 0.8) return '未来导向';
-    return '远见型';
+    if (g < 0.4) return 'Present-focused';
+    if (g < 0.6) return 'Balanced';
+    if (g < 0.8) return 'Future-oriented';
+    return 'Visionary';
   };
 
   return (
@@ -1986,7 +2023,7 @@ const NextBestActionView: React.FC<NextBestActionViewProps> = ({
           <div className="nba-title-area">
             <div className="nba-subtitle">
               <Brain size={14} />
-              <span>下一步最优行动</span>
+              <span>Next best action</span>
             </div>
             <h2 className="nba-main-title">
               {getDomainIcon(recommendation.action.domain)} {recommendation.action.name}
@@ -2000,7 +2037,7 @@ const NextBestActionView: React.FC<NextBestActionViewProps> = ({
         {/* Confidence Bar */}
         <div className="nba-confidence">
           <div className="nba-confidence-label">
-            <span>置信度</span>
+            <span>Confidence</span>
             <span className="nba-confidence-value">{recommendation.confidence}%</span>
           </div>
           <div className="nba-confidence-bar">
@@ -2033,7 +2070,7 @@ const NextBestActionView: React.FC<NextBestActionViewProps> = ({
         <div className="nba-outcome-section">
           <div className="nba-section-title">
             <Zap size={18} className="text-amber-500" />
-            <span>预期效果</span>
+            <span>Expected outcome</span>
           </div>
           <p className="nba-outcome-text">{recommendation.expectedOutcome}</p>
         </div>
@@ -2042,7 +2079,7 @@ const NextBestActionView: React.FC<NextBestActionViewProps> = ({
         <div className="nba-reasoning-section">
           <div className="nba-section-title">
             <Brain size={18} className="text-indigo-500" />
-            <span>为什么推荐</span>
+            <span>Why this is recommended</span>
           </div>
           <p className="nba-reasoning-text">{recommendation.reasoning}</p>
         </div>
@@ -2058,7 +2095,7 @@ const NextBestActionView: React.FC<NextBestActionViewProps> = ({
                 size={16}
                 className={`transition-transform ${showAlternatives ? 'rotate-90' : ''}`}
               />
-              <span>备选方案 ({recommendation.alternatives.length})</span>
+              <span>Alternatives ({recommendation.alternatives.length})</span>
             </button>
 
             {showAlternatives && (

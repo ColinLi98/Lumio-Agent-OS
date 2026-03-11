@@ -17,67 +17,67 @@ export const QUICK_TEMPLATES: QuickTemplate[] = [
     {
         id: 'decline-politely',
         label: 'Decline Politely',
-        labelZh: '婉拒邀请',
+        labelZh: 'Decline Politely',
         icon: '🙅',
-        prompt: '帮我婉拒这个邀请',
+        prompt: 'Help me decline this invitation politely',
         category: 'social'
     },
     {
         id: 'reschedule',
         label: 'Reschedule',
-        labelZh: '改约时间',
+        labelZh: 'Reschedule',
         icon: '📅',
-        prompt: '帮我礼貌地改约到下周',
+        prompt: 'Help me politely reschedule this to next week',
         category: 'social'
     },
     {
         id: 'thank-you',
         label: 'Say Thanks',
-        labelZh: '表达感谢',
+        labelZh: 'Say Thanks',
         icon: '🙏',
-        prompt: '帮我写一段真诚的感谢',
+        prompt: 'Help me write a sincere thank-you message',
         category: 'social'
     },
     {
         id: 'follow-up',
         label: 'Follow Up',
-        labelZh: '催促回复',
+        labelZh: 'Follow Up',
         icon: '⏰',
-        prompt: '帮我礼貌地催一下对方回复',
+        prompt: 'Help me politely follow up for a reply',
         category: 'social'
     },
     // Work
     {
         id: 'leave-request',
         label: 'Leave Request',
-        labelZh: '请假申请',
+        labelZh: 'Leave Request',
         icon: '🏖️',
-        prompt: '帮我写一份请假申请',
+        prompt: 'Help me draft a leave request',
         category: 'work'
     },
     {
         id: 'decline-overtime',
         label: 'Decline OT',
-        labelZh: '婉拒加班',
+        labelZh: 'Decline OT',
         icon: '💼',
-        prompt: '帮我委婉拒绝加班',
+        prompt: 'Help me politely decline overtime',
         category: 'work'
     },
     {
         id: 'meeting-summary',
         label: 'Summarize',
-        labelZh: '总结会议',
+        labelZh: 'Summarize',
         icon: '📝',
-        prompt: '帮我总结刚才的对话要点',
+        prompt: 'Help me summarize key points from the conversation',
         category: 'work'
     },
     // Privacy
     {
         id: 'mask-phone',
         label: 'Mask Phone',
-        labelZh: '隐藏手机号',
+        labelZh: 'Mask Phone',
         icon: '📞',
-        prompt: '请帮我把手机号隐私处理',
+        prompt: 'Help me mask this phone number for privacy',
         category: 'privacy'
     }
 ];
@@ -85,7 +85,7 @@ export const QUICK_TEMPLATES: QuickTemplate[] = [
 export type TemplateCategory = QuickTemplate['category'];
 
 export const CATEGORY_LABELS: Record<TemplateCategory, { en: string; zh: string }> = {
-    social: { en: 'Social', zh: '社交' },
-    work: { en: 'Work', zh: '工作' },
-    privacy: { en: 'Privacy', zh: '隐私' }
+    social: { en: 'Social', zh: 'Social' },
+    work: { en: 'Work', zh: 'Work' },
+    privacy: { en: 'Privacy', zh: 'Privacy' }
 };

@@ -9,6 +9,12 @@ function readEnvBaseUrl(): string | undefined {
     return process.env.LUMI_API_BASE_URL || process.env.LUMI_BASE_URL;
 }
 
+function shouldPreferLocalServerBase(): boolean {
+    if (typeof process === 'undefined' || !process.env) return false;
+    const flag = String(process.env.LUMI_USE_LOCAL_API || process.env.LUMI_LOCAL_API || '').trim().toLowerCase();
+    return flag === '1' || flag === 'true' || flag === 'yes';
+}
+
 function getServerRuntimeBaseUrl(): string | undefined {
     if (typeof process === 'undefined' || !process.env) return undefined;
 
@@ -20,7 +26,7 @@ function getServerRuntimeBaseUrl(): string | undefined {
         return trimTrailingSlash(explicitAppUrl);
     }
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production' && shouldPreferLocalServerBase()) {
         const port = process.env.PORT || process.env.VITE_PORT || '3000';
         return `http://127.0.0.1:${port}`;
     }

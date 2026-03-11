@@ -48,6 +48,12 @@ export interface Skill {
     // 优先级（0-100，越高越优先）
     priority?: number;
 
+    // Governance metadata for skill policy engine
+    policy_tags?: string[];
+    required_permissions?: string[];
+    safety_level?: 'decision_support_only' | 'bounded_execution' | 'standard';
+    last_verified_at?: number;
+
     // 执行函数
     execute: (input: Record<string, any>, context: ExecutionContext) => Promise<SkillResult>;
 }
@@ -340,6 +346,10 @@ export function createSkill(config: {
     capabilities: string[];
     parameters: SkillParameter[];
     priority?: number;
+    policy_tags?: string[];
+    required_permissions?: string[];
+    safety_level?: 'decision_support_only' | 'bounded_execution' | 'standard';
+    last_verified_at?: number;
     execute: (input: Record<string, any>, context: ExecutionContext) => Promise<SkillResult>;
 }): Skill {
     return {
@@ -349,6 +359,10 @@ export function createSkill(config: {
         capabilities: config.capabilities,
         parameters: config.parameters,
         priority: config.priority || 50,
+        policy_tags: config.policy_tags || [],
+        required_permissions: config.required_permissions || [],
+        safety_level: config.safety_level || 'standard',
+        last_verified_at: config.last_verified_at || Date.now(),
         execute: config.execute
     };
 }

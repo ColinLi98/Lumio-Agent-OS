@@ -2,7 +2,7 @@
 
 import { spawn } from 'node:child_process';
 
-const DEFAULT_BASE_URL = 'https://lumi-agent-simulator.vercel.app';
+const DEFAULT_BASE_URL = 'http://127.0.0.1:3000';
 const baseUrl = process.env.LUMI_BASE_URL || DEFAULT_BASE_URL;
 
 const markerIndex = process.argv.indexOf('--');
@@ -66,12 +66,23 @@ function runShell(commandString, env = process.env) {
   });
 }
 
+function shouldUseApiRuntime(commandString) {
+  const forced = String(process.env.LUMI_DEV_RUNTIME || '').trim().toLowerCase();
+  if (forced === 'api') return true;
+  if (forced === 'vite') return false;
+  return /test:script:raw|lix-v02-compliance\.test\.ts|lix-validation\.test\.ts/i.test(commandString);
+}
+
 async function main() {
   const { host, port, isLocalHost } = parseBaseUrl(baseUrl);
+  const useApiRuntime = shouldUseApiRuntime(command);
   const env = {
     ...process.env,
     LUMI_BASE_URL: baseUrl,
     BASE_URL: baseUrl,
+    ...(useApiRuntime
+      ? { LIX_BROADCAST_SKIP_PROVIDER_SEARCH: process.env.LIX_BROADCAST_SKIP_PROVIDER_SEARCH || 'true' }
+      : {}),
   };
 
   const alreadyRunning = await isReachable(baseUrl);
@@ -85,10 +96,24 @@ async function main() {
     process.exit(1);
   }
 
-  const devChild = spawn('npm', ['run', 'dev', '--', '--host', host, '--port', String(port)], {
-    stdio: 'inherit',
-    env,
-  });
+  const devChild = useApiRuntime
+    ? spawn('npx', ['vite-node', 'scripts/local-api-runtime.ts', '--host', host, '--port', String(port)], {
+      stdio: 'inherit',
+      env,
+    })
+    : spawn('npm', ['run', 'dev', '--', '--host', host, '--port', String(port)], {
+      stdio: 'inherit',
+      env,
+    });
+
+  if (useApiRuntime) {
+    console.log(`[with-dev-server] Using local API runtime for ${baseUrl}`);
+  }
+
+  if (!devChild || !devChild.pid) {
+    console.error('[with-dev-server] Failed to start dev runtime process');
+    process.exit(1);
+  }
 
   const stopDevServer = () => {
     if (devChild.killed) return;

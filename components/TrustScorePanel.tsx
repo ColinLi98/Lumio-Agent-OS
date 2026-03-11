@@ -1,11 +1,11 @@
 /**
- * TrustScorePanel - 信任评分可视化组件
+ * TrustScorePanel - Trust score visualization component
  *
- * 展示用户信任评分的多维度可视化:
- * - 综合评分仪表盘
- * - 四维度雷达图
- * - 历史变化趋势
- * - 信任等级徽章
+ * Multi-dimensional trust visualization:
+ * - Overall score gauge
+ * - Four-dimension view
+ * - Historical trend
+ * - Trust level badge
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +13,7 @@ import { Shield, TrendingUp, TrendingDown, Award, AlertTriangle, CheckCircle, In
 import { getTrustScore, TrustScore, TrustLevel, TrustDimensions } from '../services/trustScoreService';
 
 // ============================================================================
-// Trust Gauge - 信任仪表盘
+// Trust Gauge
 // ============================================================================
 
 interface TrustGaugeProps {
@@ -25,10 +25,10 @@ interface TrustGaugeProps {
 const TrustGauge: React.FC<TrustGaugeProps> = ({ score, level, size = 120 }) => {
     const strokeWidth = 10;
     const radius = (size - strokeWidth) / 2;
-    const circumference = Math.PI * radius; // 半圆
+    const circumference = Math.PI * radius; // semicircle
     const offset = circumference - (score / 100) * circumference;
 
-    // 根据等级获取颜色
+    // Get color by trust level.
     const getColor = (l: TrustLevel): string => {
         const colors: Record<TrustLevel, string> = {
             [TrustLevel.UNTRUSTED]: '#ef4444',
@@ -42,11 +42,11 @@ const TrustGauge: React.FC<TrustGaugeProps> = ({ score, level, size = 120 }) => 
 
     const getLevelLabel = (l: TrustLevel): string => {
         const labels: Record<TrustLevel, string> = {
-            [TrustLevel.UNTRUSTED]: '未信任',
-            [TrustLevel.LOW]: '低信任',
-            [TrustLevel.MEDIUM]: '中等',
-            [TrustLevel.HIGH]: '高信任',
-            [TrustLevel.VERIFIED]: '已验证',
+            [TrustLevel.UNTRUSTED]: 'Untrusted',
+            [TrustLevel.LOW]: 'Low Trust',
+            [TrustLevel.MEDIUM]: 'Medium',
+            [TrustLevel.HIGH]: 'High Trust',
+            [TrustLevel.VERIFIED]: 'Verified',
         };
         return labels[l];
     };
@@ -56,7 +56,7 @@ const TrustGauge: React.FC<TrustGaugeProps> = ({ score, level, size = 120 }) => 
     return (
         <div className="relative" style={{ width: size, height: size / 2 + 20 }}>
             <svg width={size} height={size / 2 + 10} className="overflow-visible">
-                {/* 背景弧 */}
+                {/* Background arc */}
                 <path
                     d={`M ${strokeWidth / 2} ${size / 2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth / 2} ${size / 2}`}
                     fill="none"
@@ -64,7 +64,7 @@ const TrustGauge: React.FC<TrustGaugeProps> = ({ score, level, size = 120 }) => 
                     strokeWidth={strokeWidth}
                     strokeLinecap="round"
                 />
-                {/* 进度弧 */}
+                {/* Progress arc */}
                 <path
                     d={`M ${strokeWidth / 2} ${size / 2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth / 2} ${size / 2}`}
                     fill="none"
@@ -75,7 +75,7 @@ const TrustGauge: React.FC<TrustGaugeProps> = ({ score, level, size = 120 }) => 
                     strokeDashoffset={offset}
                     className="transition-all duration-700"
                 />
-                {/* 刻度 */}
+                {/* Ticks */}
                 {[0, 25, 50, 75, 100].map((tick) => {
                     const angle = Math.PI - (tick / 100) * Math.PI;
                     const x = size / 2 + (radius + 15) * Math.cos(angle);
@@ -94,7 +94,7 @@ const TrustGauge: React.FC<TrustGaugeProps> = ({ score, level, size = 120 }) => 
                     );
                 })}
             </svg>
-            {/* 中心分数 */}
+            {/* Center score */}
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center">
                 <div className="text-2xl font-bold" style={{ color }}>{score}</div>
                 <div className="text-xs text-slate-400">{getLevelLabel(level)}</div>
@@ -104,7 +104,7 @@ const TrustGauge: React.FC<TrustGaugeProps> = ({ score, level, size = 120 }) => 
 };
 
 // ============================================================================
-// Dimension Bar - 维度进度条
+// Dimension Bar
 // ============================================================================
 
 interface DimensionBarProps {
@@ -135,7 +135,7 @@ const DimensionBar: React.FC<DimensionBarProps> = ({ label, value, icon, color }
 };
 
 // ============================================================================
-// Trust History Item - 历史记录项
+// Trust History Item
 // ============================================================================
 
 interface HistoryItemProps {
@@ -147,7 +147,7 @@ interface HistoryItemProps {
 
 const HistoryItem: React.FC<HistoryItemProps> = ({ action, delta, reason, timestamp }) => {
     const isPositive = delta >= 0;
-    const timeStr = new Date(timestamp).toLocaleString('zh-CN', {
+    const timeStr = new Date(timestamp).toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
@@ -175,7 +175,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ action, delta, reason, timest
 };
 
 // ============================================================================
-// Trust Level Badge - 信任等级徽章
+// Trust Level Badge
 // ============================================================================
 
 interface TrustBadgeProps {
@@ -188,31 +188,31 @@ const TrustBadge: React.FC<TrustBadgeProps> = ({ level }) => {
             icon: <AlertTriangle size={14} />,
             bg: 'bg-red-500/20 border-red-500/30',
             text: 'text-red-400',
-            label: '需建立信任',
+            label: 'Trust Not Established',
         },
         [TrustLevel.LOW]: {
             icon: <Info size={14} />,
             bg: 'bg-orange-500/20 border-orange-500/30',
             text: 'text-orange-400',
-            label: '低信任',
+            label: 'Low Trust',
         },
         [TrustLevel.MEDIUM]: {
             icon: <Shield size={14} />,
             bg: 'bg-yellow-500/20 border-yellow-500/30',
             text: 'text-yellow-400',
-            label: '中等信任',
+            label: 'Medium Trust',
         },
         [TrustLevel.HIGH]: {
             icon: <CheckCircle size={14} />,
             bg: 'bg-green-500/20 border-green-500/30',
             text: 'text-green-400',
-            label: '高信任',
+            label: 'High Trust',
         },
         [TrustLevel.VERIFIED]: {
             icon: <Award size={14} />,
             bg: 'bg-blue-500/20 border-blue-500/30',
             text: 'text-blue-400',
-            label: '已验证',
+            label: 'Verified',
         },
     };
 
@@ -227,7 +227,7 @@ const TrustBadge: React.FC<TrustBadgeProps> = ({ level }) => {
 };
 
 // ============================================================================
-// Main Component - 主面板
+// Main Component
 // ============================================================================
 
 interface TrustScorePanelProps {
@@ -239,7 +239,7 @@ export const TrustScorePanel: React.FC<TrustScorePanelProps> = ({ onLog }) => {
 
     useEffect(() => {
         loadTrustData();
-        // 监听存储变化
+        // Listen for storage changes.
         const handleStorage = () => loadTrustData();
         window.addEventListener('storage', handleStorage);
         return () => window.removeEventListener('storage', handleStorage);
@@ -254,7 +254,7 @@ export const TrustScorePanel: React.FC<TrustScorePanelProps> = ({ onLog }) => {
         return (
             <div className="text-center py-4 text-slate-400">
                 <Shield size={24} className="mx-auto mb-2 opacity-50" />
-                <p className="text-sm">加载中...</p>
+                <p className="text-sm">Loading...</p>
             </div>
         );
     }
@@ -265,10 +265,10 @@ export const TrustScorePanel: React.FC<TrustScorePanelProps> = ({ onLog }) => {
         icon: React.ReactNode;
         color: string;
     }[] = [
-            { key: 'authentication', label: '身份认证', icon: <Shield size={12} />, color: '#3b82f6' },
-            { key: 'behaviorHistory', label: '历史行为', icon: <TrendingUp size={12} />, color: '#22c55e' },
-            { key: 'communityReputation', label: '社区声誉', icon: <Award size={12} />, color: '#a855f7' },
-            { key: 'technicalSecurity', label: '技术安全', icon: <CheckCircle size={12} />, color: '#f59e0b' },
+            { key: 'authentication', label: 'Authentication', icon: <Shield size={12} />, color: '#3b82f6' },
+            { key: 'behaviorHistory', label: 'Behavior History', icon: <TrendingUp size={12} />, color: '#22c55e' },
+            { key: 'communityReputation', label: 'Community Reputation', icon: <Award size={12} />, color: '#a855f7' },
+            { key: 'technicalSecurity', label: 'Technical Security', icon: <CheckCircle size={12} />, color: '#f59e0b' },
         ];
 
     return (
@@ -277,7 +277,7 @@ export const TrustScorePanel: React.FC<TrustScorePanelProps> = ({ onLog }) => {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Shield size={18} className="text-blue-400" />
-                    <span className="font-semibold text-white">信任评分</span>
+                    <span className="font-semibold text-white">Trust Score</span>
                 </div>
                 <TrustBadge level={trustData.level} />
             </div>
@@ -289,7 +289,7 @@ export const TrustScorePanel: React.FC<TrustScorePanelProps> = ({ onLog }) => {
 
             {/* Dimensions */}
             <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                <div className="text-xs font-medium text-slate-300 mb-3">评分维度</div>
+                <div className="text-xs font-medium text-slate-300 mb-3">Score Dimensions</div>
                 <div className="space-y-3">
                     {dimensionConfig.map((dim) => (
                         <DimensionBar
@@ -306,7 +306,7 @@ export const TrustScorePanel: React.FC<TrustScorePanelProps> = ({ onLog }) => {
             {/* History */}
             {trustData.history.length > 0 && (
                 <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-                    <div className="text-xs font-medium text-slate-300 mb-3">最近变化</div>
+                    <div className="text-xs font-medium text-slate-300 mb-3">Recent Changes</div>
                     <div className="max-h-32 overflow-y-auto">
                         {trustData.history.slice(-5).reverse().map((entry, i) => (
                             <HistoryItem
@@ -323,7 +323,7 @@ export const TrustScorePanel: React.FC<TrustScorePanelProps> = ({ onLog }) => {
 
             {/* Last Updated */}
             <div className="text-center text-xs text-slate-500">
-                最后更新: {new Date(trustData.lastUpdated).toLocaleString('zh-CN')}
+                Last updated: {new Date(trustData.lastUpdated).toLocaleString('en-US')}
             </div>
         </div>
     );

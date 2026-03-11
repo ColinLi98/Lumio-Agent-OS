@@ -100,7 +100,7 @@ export const WeeklyReviewPanel: React.FC<WeeklyReviewPanelProps> = ({
                 justifyContent: 'center',
                 color: colors.text3,
             }}>
-                加载中...
+                Loading...
             </div>
         );
     }
@@ -114,7 +114,7 @@ export const WeeklyReviewPanel: React.FC<WeeklyReviewPanelProps> = ({
                 textAlign: 'center',
                 color: colors.text3,
             }}>
-                本周暂无数据
+                No data for this week yet
             </div>
         );
     }
@@ -122,7 +122,7 @@ export const WeeklyReviewPanel: React.FC<WeeklyReviewPanelProps> = ({
     const weekStartDate = new Date(review.week_start);
     const weekEndDate = new Date(review.week_end);
     const formatDate = (d: Date) =>
-        `${d.getMonth() + 1}月${d.getDate()}日`;
+        `${d.getMonth() + 1}/${d.getDate()}`;
 
     return (
         <div style={{
@@ -150,7 +150,7 @@ export const WeeklyReviewPanel: React.FC<WeeklyReviewPanelProps> = ({
                             fontWeight: 600,
                             margin: 0,
                         }}>
-                            周回顾
+                            Weekly Review
                         </h3>
                         <p style={{
                             color: colors.text3,
@@ -196,19 +196,19 @@ export const WeeklyReviewPanel: React.FC<WeeklyReviewPanelProps> = ({
             }}>
                 <StatCard
                     icon={<CheckCircle size={16} />}
-                    label="完成任务"
+                    label="Completed Tasks"
                     value={review.summary.tasks_completed}
                     color={colors.positive}
                 />
                 <StatCard
                     icon={<XCircle size={16} />}
-                    label="失败任务"
+                    label="Failed Tasks"
                     value={review.summary.tasks_failed}
                     color={colors.negative}
                 />
                 <StatCard
                     icon={<Star size={16} />}
-                    label="满意度"
+                    label="Satisfaction"
                     value={`${review.summary.avg_satisfaction}/5`}
                     color={colors.warning}
                 />
@@ -227,11 +227,10 @@ export const WeeklyReviewPanel: React.FC<WeeklyReviewPanelProps> = ({
                 <CompletionRing rate={review.summary.completion_rate} size={80} />
                 <div style={{ flex: 1 }}>
                     <div style={{ color: colors.text1, fontSize: 14, fontWeight: 500 }}>
-                        完成率
+                        Completion Rate
                     </div>
                     <div style={{ color: colors.text3, fontSize: 12, marginTop: 4 }}>
-                        创建 {review.summary.tasks_created} 个任务，
-                        完成 {review.summary.tasks_completed} 个
+                        Created {review.summary.tasks_created} tasks, completed {review.summary.tasks_completed}
                     </div>
                     {review.comparison && (
                         <TrendBadge comparison={review.comparison} />
@@ -255,7 +254,7 @@ export const WeeklyReviewPanel: React.FC<WeeklyReviewPanelProps> = ({
                     }}>
                         <PieChart size={16} color={colors.primary} />
                         <span style={{ color: colors.text1, fontSize: 14, fontWeight: 500 }}>
-                            类别分布
+                            Category Distribution
                         </span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -282,7 +281,7 @@ export const WeeklyReviewPanel: React.FC<WeeklyReviewPanelProps> = ({
                     }}>
                         <Lightbulb size={16} color={colors.warning} />
                         <span style={{ color: colors.text1, fontSize: 14, fontWeight: 500 }}>
-                            本周洞察
+                            This Week's Insights
                         </span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -318,7 +317,7 @@ export const WeeklyReviewPanel: React.FC<WeeklyReviewPanelProps> = ({
                     }}>
                         <User size={16} color={colors.primary} />
                         <span style={{ color: colors.text1, fontSize: 14, fontWeight: 500 }}>
-                            Soul Matrix 更新
+                            Soul Matrix Updates
                         </span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -427,19 +426,19 @@ const TrendBadge: React.FC<TrendBadgeProps> = ({ comparison }) => {
             icon: <TrendingUp size={12} />,
             color: colors.positive,
             bg: colors.positiveMuted,
-            label: `上升 ${Math.abs(completion_rate_delta)}%`,
+            label: `Up ${Math.abs(completion_rate_delta)}%`,
         },
         declining: {
             icon: <TrendingDown size={12} />,
             color: colors.negative,
             bg: colors.negativeMuted,
-            label: `下降 ${Math.abs(completion_rate_delta)}%`,
+            label: `Down ${Math.abs(completion_rate_delta)}%`,
         },
         stable: {
             icon: <Minus size={12} />,
             color: colors.text3,
             bg: colors.bg3,
-            label: '持平',
+            label: 'Flat',
         },
     };
 
@@ -459,7 +458,7 @@ const TrendBadge: React.FC<TrendBadgeProps> = ({ comparison }) => {
             marginTop: 8,
         }}>
             {icon}
-            比上周{label}
+            vs last week: {label}
         </div>
     );
 };
@@ -483,7 +482,7 @@ const CategoryBar: React.FC<CategoryBarProps> = ({ category }) => {
                     {category.category}
                 </span>
                 <span style={{ color: colors.text3, fontSize: 11 }}>
-                    {category.count} 个 · {category.success_rate}% 成功
+                    {category.count} items · {category.success_rate}% success
                 </span>
             </div>
             <div style={{

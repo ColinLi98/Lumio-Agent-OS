@@ -1,4 +1,13 @@
-import { BellmanDecisionAction, BellmanDecisionState, BellmanPolicyTrace, SoulMatrix } from '../types.js';
+import {
+    BellmanDecisionAction,
+    BellmanDecisionState,
+    BellmanPolicyTrace,
+    BellmanSafetyGateId,
+    BellmanSafetyGateResult,
+    BellmanSafetyMode,
+    BellmanSafetySnapshot,
+    SoulMatrix
+} from '../types.js';
 
 export type BellmanContext = {
     hasCandidates: boolean;
@@ -8,6 +17,19 @@ export type BellmanContext = {
     riskTolerance?: SoulMatrix['riskTolerance'];
     privacyLevel?: SoulMatrix['privacyLevel'];
     goalType?: 'dining' | 'travel' | 'shopping' | 'generic';
+    safety?: {
+        mode?: BellmanSafetyMode;
+        dataIntegrityPassed?: boolean;
+        constraintsCompliant?: boolean;
+        riskCostDelta?: number;
+        approvedRiskCostDelta?: number;
+        stabilityScore?: number;
+        minStabilityScore?: number;
+        hasRollbackTarget?: boolean;
+        hasRollbackPlaybook?: boolean;
+        policyVersion?: string;
+        previousPolicyVersion?: string;
+    };
 };
 
 type Transition = {
@@ -107,6 +129,143 @@ const ACTION_LABELS: Record<BellmanDecisionAction, string> = {
     RECOMMEND_BEST: '直接推荐最优',
     END: '完成决策'
 };
+
+const DEFAULT_APPROVED_RISK_COST_DELTA = 0.35;
+const DEFAULT_MIN_STABILITY_SCORE = 0.55;
+
+function clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
+}
+
+function round3(value: number): number {
+    return Math.round(value * 1000) / 1000;
+}
+
+function estimateRiskCostDelta(context: BellmanContext): number {
+    let risk = 0;
+
+    if (!context.hasCandidates) risk += 0.16;
+    if (context.averageScore < 65) risk += 0.18;
+    else if (context.averageScore < 75) risk += 0.08;
+
+    risk += Math.min(0.24, context.missingFields.length * 0.06);
+
+    if (context.riskTolerance === 'High') risk += 0.05;
+    if (context.privacyLevel === 'Strict') risk += 0.04;
+
+    return round3(clamp01(risk));
+}
+
+function estimateStabilityScore(context: BellmanContext): number {
+    let stability = clamp01(context.averageScore / 100);
+
+    if (!context.hasCandidates) stability -= 0.2;
+    stability -= Math.min(0.25, context.missingFields.length * 0.05);
+    if (context.riskTolerance === 'High') stability -= 0.03;
+
+    return round3(clamp01(stability));
+}
+
+function resolveGateDecision(
+    passed: boolean,
+    mode: BellmanSafetyMode
+): { decision: BellmanSafetyGateResult['decision']; blocking: boolean } {
+    if (passed) return { decision: 'passed', blocking: false };
+    if (mode === 'promotion') return { decision: 'blocked', blocking: true };
+    return { decision: 'advisory', blocking: false };
+}
+
+function createGateResult(
+    gate: BellmanSafetyGateId,
+    passed: boolean,
+    mode: BellmanSafetyMode,
+    reason: string
+): BellmanSafetyGateResult {
+    const { decision, blocking } = resolveGateDecision(passed, mode);
+    return { gate, decision, blocking, reason };
+}
+
+export function evaluateBellmanSafetyGates(context: BellmanContext): BellmanSafetySnapshot {
+    const safety = context.safety || {};
+    const mode: BellmanSafetyMode = safety.mode || 'runtime_inference';
+
+    const riskCostDelta = Number.isFinite(safety.riskCostDelta)
+        ? round3(clamp01(Number(safety.riskCostDelta)))
+        : estimateRiskCostDelta(context);
+    const approvedRiskCostDelta = Number.isFinite(safety.approvedRiskCostDelta)
+        ? round3(clamp01(Number(safety.approvedRiskCostDelta)))
+        : DEFAULT_APPROVED_RISK_COST_DELTA;
+
+    const stabilityScore = Number.isFinite(safety.stabilityScore)
+        ? round3(clamp01(Number(safety.stabilityScore)))
+        : estimateStabilityScore(context);
+    const minStabilityScore = Number.isFinite(safety.minStabilityScore)
+        ? round3(clamp01(Number(safety.minStabilityScore)))
+        : DEFAULT_MIN_STABILITY_SCORE;
+
+    const rollbackRequired = mode !== 'runtime_inference';
+    const rollbackReady = rollbackRequired
+        ? Boolean(safety.hasRollbackTarget) && Boolean(safety.hasRollbackPlaybook)
+        : true;
+
+    const gateResults: BellmanSafetyGateResult[] = [
+        createGateResult(
+            'B1_DATA_INTEGRITY',
+            safety.dataIntegrityPassed !== false,
+            mode,
+            safety.dataIntegrityPassed === false ? 'dataset_integrity_check_failed' : 'dataset_integrity_check_passed'
+        ),
+        createGateResult(
+            'B2_CONSTRAINT_COMPLIANCE',
+            safety.constraintsCompliant !== false,
+            mode,
+            safety.constraintsCompliant === false ? 'hard_constraint_encoding_missing' : 'hard_constraint_encoding_validated'
+        ),
+        createGateResult(
+            'B3_RISK_BUDGET',
+            riskCostDelta <= approvedRiskCostDelta,
+            mode,
+            `risk_cost_delta=${riskCostDelta} threshold=${approvedRiskCostDelta}`
+        ),
+        createGateResult(
+            'B4_STABILITY',
+            stabilityScore >= minStabilityScore,
+            mode,
+            `stability_score=${stabilityScore} min_required=${minStabilityScore}`
+        ),
+        createGateResult(
+            'B5_ROLLBACK_READY',
+            rollbackReady,
+            mode,
+            rollbackRequired
+                ? (rollbackReady ? 'rollback_target_and_playbook_ready' : 'rollback_target_or_playbook_missing')
+                : 'runtime_mode_no_rollout_required'
+        )
+    ];
+
+    const failedGates = gateResults
+        .filter((gate) => gate.decision !== 'passed')
+        .map((gate) => gate.gate);
+
+    const status: BellmanSafetySnapshot['status'] = gateResults.some((gate) => gate.blocking)
+        ? 'blocked'
+        : failedGates.length > 0
+            ? 'advisory'
+            : 'ready';
+
+    return {
+        mode,
+        status,
+        failedGates,
+        gates: gateResults,
+        riskCostDelta,
+        approvedRiskCostDelta,
+        stabilityScore,
+        minStabilityScore,
+        policyVersion: typeof safety.policyVersion === 'string' ? safety.policyVersion : undefined,
+        previousPolicyVersion: typeof safety.previousPolicyVersion === 'string' ? safety.previousPolicyVersion : undefined
+    };
+}
 
 function computeReward(
     state: BellmanDecisionState,
@@ -291,14 +450,21 @@ export function formatBellmanPath(path: BellmanDecisionAction[]): string[] {
 export function runBellmanPolicy(context: BellmanContext): BellmanPolicyTrace {
     const startState = deriveState(context);
     const { values, policy } = valueIteration(context, 0.95);
-    const bestAction = policy[startState];
-    const path = buildPolicyPath(startState, policy);
+    const safety = evaluateBellmanSafetyGates(context);
+
+    const defaultBestAction = policy[startState];
+    const shouldBlock = safety.status === 'blocked';
+    const safeFallbackAction: BellmanDecisionAction = startState === 'DONE' ? 'END' : 'ASK_CLARIFY';
+
+    const bestAction = shouldBlock ? safeFallbackAction : defaultBestAction;
+    const path = shouldBlock ? [safeFallbackAction] : buildPolicyPath(startState, policy);
 
     return {
         startState,
         bestAction,
         expectedValue: Number(values[startState].toFixed(2)),
-        path
+        path,
+        policyStatus: safety.status,
+        safety
     };
 }
-

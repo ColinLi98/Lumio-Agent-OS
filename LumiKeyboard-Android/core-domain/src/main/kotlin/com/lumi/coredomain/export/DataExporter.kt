@@ -13,7 +13,6 @@ object DataExporter {
     private val json = Json {
         prettyPrint = true
         encodeDefaults = true
-        explicitNulls = false
     }
 
     fun exportToJson(soul: DigitalSoul, graph: List<Entity>, stats: UsageStats): String {
@@ -25,7 +24,7 @@ object DataExporter {
             ),
             digitalSoul = ExportDigitalSoul(
                 communicationStyle = normalizeString(soul.communicationStyle),
-                riskTolerance = normalizeString(soul.riskTolerance),
+                riskTolerance = soul.riskTolerance.toString(),
                 preferences = sanitizePreferences(soul.preferences)
             ),
             knowledgeGraph = graph.map { entity ->
@@ -54,7 +53,7 @@ object DataExporter {
         builder.appendLine("# My Lumi Digital Profile")
         builder.appendLine("## 🧠 Digital Soul")
         builder.appendLine("- Style: ${normalizeString(soul.communicationStyle)}")
-        builder.appendLine("- Risk Tolerance: ${normalizeString(soul.riskTolerance)}")
+        builder.appendLine("- Risk Tolerance: ${soul.riskTolerance}")
         builder.appendLine("## 📚 Top Interests")
         if (topItems.isEmpty()) {
             builder.appendLine("1. (No data)")

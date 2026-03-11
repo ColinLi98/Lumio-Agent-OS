@@ -25,8 +25,10 @@ export interface ProofOfIntent {
     ttl: number;
     /** Expiration timestamp */
     expires_at: number;
-    /** Device fingerprint signature */
+    /** Device fingerprint signature (legacy alias for signature) */
     device_signature: string;
+    /** Canonical signature used by LIX intent_proof contracts */
+    signature: string;
     /** User pseudonym (privacy-preserving) */
     user_pseudonym: string;
 }
@@ -194,6 +196,7 @@ export const proofOfIntentService = {
             ttl,
             expires_at,
             device_signature,
+            signature: device_signature,
             user_pseudonym
         };
     },
@@ -251,7 +254,8 @@ export const proofOfIntentService = {
             `${deviceFingerprint}:${proof.nonce}:${proof.timestamp}`
         );
 
-        if (expectedSignature !== proof.device_signature) {
+        const providedSignature = proof.signature || proof.device_signature;
+        if (expectedSignature !== providedSignature) {
             return {
                 valid: false,
                 expired: false,

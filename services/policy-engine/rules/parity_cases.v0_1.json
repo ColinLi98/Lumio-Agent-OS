@@ -1,0 +1,62 @@
+[
+  {
+    "id": "payment_denied",
+    "context": {
+      "phase": "PRE_TOOL",
+      "tool": {
+        "category": "payment",
+        "side_effect": "payment"
+      }
+    },
+    "expected_action": "DENY"
+  },
+  {
+    "id": "send_requires_approval",
+    "context": {
+      "phase": "PRE_TOOL",
+      "tool": {
+        "category": "communication",
+        "side_effect": "send"
+      }
+    },
+    "expected_action": "REQUIRE_APPROVAL"
+  },
+  {
+    "id": "draft_with_permission_allowed_with_limits",
+    "context": {
+      "phase": "PRE_TOOL",
+      "tool": {
+        "name": "email.draft_invite",
+        "category": "communication",
+        "side_effect": "draft"
+      },
+      "permissions": {
+        "email_write_draft": true
+      }
+    },
+    "expected_action": "ALLOW_WITH_LIMITS"
+  },
+  {
+    "id": "market_pii_requires_approval",
+    "context": {
+      "phase": "CAPSULE",
+      "data": {
+        "egress_target": "market",
+        "contains_pii": true
+      }
+    },
+    "expected_action": "REQUIRE_APPROVAL"
+  },
+  {
+    "id": "budget_exhausted_downgrade",
+    "context": {
+      "phase": "PRE_NODE",
+      "budget": {
+        "tool_calls_left": 0,
+        "latency_left_ms": 100
+      }
+    },
+    "expected_action": "DOWNGRADE"
+  }
+]
+

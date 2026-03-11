@@ -1,6 +1,6 @@
 /**
- * ImageUploadPanel - 增强版图像上传和预览组件
- * 支持：单图/批量上传、裁剪、相机拍摄、离线识别、进度显示
+ * ImageUploadPanel - Enhanced image upload and preview component
+ * Supports: single/batch upload, crop, camera capture, offline recognition, progress display
  */
 
 import React, { useState, useRef, useCallback } from 'react';
@@ -82,12 +82,12 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
 
     const processFile = async (file: File): Promise<{ base64: string; previewUrl: string } | null> => {
         if (!file.type.startsWith('image/')) {
-            setError('请选择图片文件');
+            setError('Please select an image file');
             return null;
         }
 
         if (file.size > 10 * 1024 * 1024) {
-            setError('图片大小不能超过 10MB');
+            setError('Image size must be <= 10MB');
             return null;
         }
 
@@ -99,7 +99,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
             };
         } catch (err) {
             log(`Preprocessing error: ${err}`);
-            setError('图片处理失败');
+            setError('Image processing failed');
             return null;
         }
     };
@@ -194,7 +194,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                     setTimeout(handleClose, 500);
                 } else {
                     setState('error');
-                    setError(result.error || '识别失败');
+                    setError(result.error || 'Recognition failed');
                 }
             } else {
                 // Batch analysis
@@ -222,12 +222,12 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                     setTimeout(handleClose, 500);
                 } else {
                     setState('error');
-                    setError('部分图片识别失败');
+                    setError('Some images failed recognition');
                 }
             }
         } catch (err) {
             setState('error');
-            setError('识别过程出错');
+            setError('Recognition process failed');
             log(`Analysis error: ${err}`);
         }
     };
@@ -323,7 +323,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                 <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
                     <div className="flex items-center gap-2">
                         <Camera size={20} />
-                        <span className="font-semibold">📷 图像识别</span>
+                        <span className="font-semibold">📷 Image Recognition</span>
                         {mode === 'batch' && images.length > 0 && (
                             <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">
                                 {images.length}/10
@@ -349,7 +349,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                                         : 'text-gray-600'
                                     }`}
                             >
-                                单图识别
+                                Single
                             </button>
                             <button
                                 onClick={() => setMode('batch')}
@@ -359,7 +359,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                                     }`}
                             >
                                 <Images size={14} />
-                                批量
+                                Batch
                             </button>
                         </div>
                     </div>
@@ -386,10 +386,10 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                             >
                                 <Upload className={`w-8 h-8 mx-auto mb-2 ${isDragging ? 'text-indigo-600' : 'text-gray-400'}`} />
                                 <p className="text-gray-700 font-medium mb-1">
-                                    {isDragging ? '松开上传' : '点击或拖拽上传'}
+                                    {isDragging ? 'Drop to upload' : 'Click or drag to upload'}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    {mode === 'batch' ? '最多 10 张' : 'JPG/PNG, ≤10MB'}
+                                    {mode === 'batch' ? 'Up to 10 images' : 'JPG/PNG, <=10MB'}
                                 </p>
                             </div>
 
@@ -399,14 +399,14 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                                 className="w-full py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
                             >
                                 <CameraIcon size={18} />
-                                <span>拍照识别</span>
+                                <span>Capture photo</span>
                             </button>
 
                             {/* Offline Toggle */}
                             <div className="flex items-center justify-between px-2">
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                     <WifiOff size={14} />
-                                    <span>离线模式</span>
+                                    <span>Offline mode</span>
                                 </div>
                                 <button
                                     onClick={() => setForceOffline(!forceOffline)}
@@ -435,7 +435,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                                         <button
                                             onClick={handleStartCrop}
                                             className="w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
-                                            title="裁剪"
+                                            title="Crop"
                                         >
                                             <Crop size={14} />
                                         </button>
@@ -503,7 +503,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                                     onClick={handleAnalyze}
                                     className="flex-1 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold hover:opacity-90 flex items-center justify-center gap-2"
                                 >
-                                    <span>🔍 {mode === 'batch' ? `识别 ${images.length} 张` : '开始识别'}</span>
+                                    <span>🔍 {mode === 'batch' ? `Recognize ${images.length}` : 'Start recognition'}</span>
                                 </button>
                             </div>
                         </div>
@@ -517,7 +517,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                             {mode === 'batch' && batchProgress.total > 0 ? (
                                 <>
                                     <p className="text-gray-700 font-medium">
-                                        正在识别 {batchProgress.current}/{batchProgress.total}
+                                        Processing {batchProgress.current}/{batchProgress.total}
                                     </p>
                                     <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
                                         <div
@@ -538,7 +538,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                                 </>
                             ) : (
                                 <p className="text-gray-500">
-                                    {forceOffline ? '离线识别中...' : 'AI 识别中...'}
+                                    {forceOffline ? 'Offline recognition...' : 'AI recognition...'}
                                 </p>
                             )}
                         </div>
@@ -548,7 +548,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                     {state === 'success' && (
                         <div className="text-center py-8">
                             <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-3" />
-                            <p className="text-gray-700 font-semibold">识别完成！</p>
+                            <p className="text-gray-700 font-semibold">Recognition complete!</p>
                         </div>
                     )}
 
@@ -556,13 +556,13 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                     {state === 'error' && (
                         <div className="text-center py-6">
                             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-                            <p className="text-red-600 font-semibold mb-2">识别失败</p>
+                            <p className="text-red-600 font-semibold mb-2">Recognition failed</p>
                             <p className="text-sm text-gray-500 mb-4">{error}</p>
                             <button
                                 onClick={reset}
                                 className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
                             >
-                                重试
+                                Retry
                             </button>
                         </div>
                     )}
@@ -585,7 +585,7 @@ export const ImageUploadPanel: React.FC<ImageUploadPanelProps> = ({
                 {/* Privacy Notice */}
                 <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
                     <p className="text-xs text-gray-500 text-center">
-                        🔒 图片仅用于本次识别，不会被保存
+                        🔒 Images are used only for this run and are not saved
                     </p>
                 </div>
             </div>
@@ -614,7 +614,7 @@ export const ImageUploadButton: React.FC<ImageUploadButtonProps> = ({ onClick, d
                     : 'bg-indigo-700/50 text-indigo-200 hover:bg-indigo-600 active:scale-95'
                 }
             `}
-            title="图片识别"
+            title="Image recognition"
         >
             <Camera size={18} />
         </button>

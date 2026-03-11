@@ -81,9 +81,9 @@ const About = () => {
 
     const milestones = [
         { year: '2024', event: 'Lumi.AI founded in London, UK' },
-        { year: '2024', event: 'Seed Round: £300,000 raised' },
-        { year: '2025', event: 'Building MVP with Digital Avatar technology' },
-        { year: '2025', event: 'Developing Multi-Agent Orchestration system' }
+        { year: '2025', event: 'Seed Round target: $1,000,000' },
+        { year: 'Dec 2025', event: 'Demo product concept initiated' },
+        { year: 'Feb 2026', event: 'Demo product created' }
     ];
 
     const fundingAllocation = [
@@ -125,11 +125,11 @@ const About = () => {
                                 your data completely private.
                             </p>
                             <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                                Our <strong style={{ color: 'var(--primary)' }}>Digital Avatar</strong> technology
-                                learns your unique communication style, preferences, and habits. Combined with
-                                <strong style={{ color: 'var(--primary)' }}> Multi-Agent Orchestration</strong>,
-                                Lumi can handle complex tasks by coordinating specialized AI agents — all while
-                                processing your data locally on your device.
+                                We found that the core gap between people and AI is <strong style={{ color: 'var(--primary)' }}>emotion</strong>.
+                                Lumi builds a <strong style={{ color: 'var(--primary)' }}>Digital Twin</strong> for each user and connects it with
+                                LLM reasoning, so recommendations can reflect personal preferences and current state.
+                                Combined with <strong style={{ color: 'var(--primary)' }}>Super Agent orchestration</strong>, this creates more specific
+                                and actionable outcomes while keeping data local-first.
                             </p>
                             <p style={{ color: 'var(--text-secondary)' }}>
                                 Founded at University College London, we combine cutting-edge FinTech research
@@ -158,9 +158,9 @@ const About = () => {
                             </div>
                             <div style={{ marginBottom: '30px' }}>
                                 <h4 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '0.875rem' }}>
-                                    SEED FUNDING
+                                    SEED ROUND TARGET
                                 </h4>
-                                <p style={{ fontSize: '1.1rem' }}>£300,000</p>
+                                <p style={{ fontSize: '1.1rem' }}>$1,000,000</p>
                             </div>
                             <div>
                                 <h4 style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '0.875rem' }}>
@@ -335,7 +335,7 @@ const About = () => {
                         <div className="card" style={{ padding: '40px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
                                 <TrendingUp size={24} style={{ color: 'var(--primary)' }} />
-                                <h3>Seed Round: £300,000</h3>
+                                <h3>Seed Round Target: $1,000,000</h3>
                             </div>
 
                             <div style={{ marginBottom: '24px' }}>

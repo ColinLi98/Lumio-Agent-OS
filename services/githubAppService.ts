@@ -68,7 +68,14 @@ function getGithubScopes(): string {
 }
 
 function isMockModeEnabled(): boolean {
-  return String(process.env.GITHUB_APP_MOCK_MODE || '1').trim() !== '0';
+  const configured = String(process.env.GITHUB_APP_MOCK_MODE || '').trim().toLowerCase();
+  if (configured) {
+    return !['0', 'false', 'off', 'no'].includes(configured);
+  }
+  // Default policy:
+  // - development / test: allow mock
+  // - production: require real OAuth unless explicitly enabled
+  return process.env.NODE_ENV !== 'production';
 }
 
 function getCallbackUrl(origin?: string): string {
@@ -237,6 +244,9 @@ class GithubAppService {
     });
 
     const clientId = getClientId();
+    if (!clientId && !isMockModeEnabled()) {
+      throw new Error('github_oauth_not_configured');
+    }
     const connectUrl = clientId
       ? `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(clientId)}&scope=${encodeURIComponent(getGithubScopes())}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(callbackUrl)}`
       : `mock://github/connect?state=${encodeURIComponent(state)}`;
@@ -307,7 +317,7 @@ class GithubAppService {
     const connection = connections.get(normalizedUserId);
     if (!connection) {
       if (!isMockModeEnabled()) {
-        return { repos: [], connection: undefined };
+        throw new Error('github_not_connected');
       }
       return {
         repos: readMockRepos(),

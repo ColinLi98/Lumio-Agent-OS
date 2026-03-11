@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🌟 Lumi.AI - Personal Destiny Engine
+# 🌟 Lumi.AI - Agent OS
 
-### 智能意图代理 × 跨平台比价市场 × 个性化决策引擎
+### 智能意图编排 × 可执行交付 × 个性化决策引擎
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-lumi--agent--simulator.vercel.app-blue?style=for-the-badge)](https://lumi-agent-simulator.vercel.app)
 [![Version](https://img.shields.io/badge/Version-v0.2.7%20Beta-green?style=for-the-badge)]()
@@ -15,9 +15,9 @@
 
 ## 🎯 产品愿景
 
-**Lumi.AI** 是一个革命性的 **Personal Destiny Engine（个人命运引擎）**，通过 AI 驱动的智能键盘，在用户日常输入场景中提供实时决策辅助、跨平台比价、意图交易匹配等服务。
+**Lumi.AI** 是一个通用型 **Agent OS**。它把键盘、App、云端推理、LIX 市场和 Digital Twin 组合成一条可执行链路，把用户意图转成可验证的任务分解、执行动作与结果证据。
 
-> *"让每一次输入都成为智能决策的起点"*
+> *"让每个意图都能被拆解、执行、验证与交付"*
 
 ---
 
@@ -28,9 +28,9 @@
 │                        Lumi.AI Platform                          │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │  Smart      │  │   Super     │  │    LIX      │              │
-│  │  Keyboard   │  │   Agent     │  │   Market    │              │
-│  │  (Input)    │──│  (Brain)    │──│  (Exchange) │              │
+│  │  Input      │  │   Agent     │  │    LIX      │              │
+│  │  Surfaces   │  │   Kernel    │  │   Market    │              │
+│  │ (IME/App)   │──│ (Execution) │──│ (Execution) │              │
 │  └─────────────┘  └─────────────┘  └─────────────┘              │
 │         │                │                │                      │
 │         ▼                ▼                ▼                      │
@@ -171,10 +171,10 @@ Total: 15/15 Issues Complete 🎉
 
 ## 🖥️ 界面预览
 
-### 智能键盘 + Agent Mode
-- 长按空格键激活 Agent Mode（键盘变蓝）
-- 输入自然语言查询，AI 实时解析意图
-- 结果以 App Overlay 形式呈现
+### 输入入口（IME + App）
+- 键盘是高频意图入口之一，不是产品唯一入口
+- App Work 面展示任务分解、执行状态、证据与下一步
+- 复杂任务可在输入面与 App 工作面之间无缝切换
 
 ### L.I.X. 意图市场
 - 发布商品需求意图
@@ -201,6 +201,23 @@ Total: 15/15 Issues Complete 🎉
 | **Deployment** | Vercel (Edge Functions) |
 | **Metrics** | Custom Prometheus-style Collectors |
 
+## 🦞 OpenClaw 并入方式（Embedded）
+
+当前仓库采用“仓内固定版本 + 适配层”模式并入 OpenClaw：
+
+- 上游代码：`third_party/openclaw`（git submodule，固定 commit）
+- Lumi 运行入口：`openclaw-relay/main.py`
+- Android 脚本：`LumiKeyboard-Android/build_and_test.sh` 启动仓内 relay
+
+快速初始化：
+
+```bash
+scripts/openclaw/bootstrap-embedded.sh
+scripts/openclaw/start-embedded-relay.sh
+```
+
+详细说明见：`docs/openclaw-embedded-integration.md`
+
 ---
 
 ## 📁 项目结构
@@ -213,7 +230,7 @@ lumi-agent-simulator/
 │   └── lix-offers.ts             # GET 报价列表
 ├── components/                   # React 组件
 │   ├── PhoneSimulator.tsx        # 手机模拟器
-│   ├── SmartKeyboard.tsx         # 智能键盘
+│   ├── SmartKeyboard.tsx         # IME demo 输入面
 │   ├── LumiAppView.tsx           # App 主视图
 │   ├── MarketHome.tsx            # LIX 市场首页
 │   ├── IntentDetail.tsx          # 意图详情页

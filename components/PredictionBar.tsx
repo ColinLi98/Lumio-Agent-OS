@@ -10,8 +10,8 @@ interface PredictionBarProps {
 }
 
 /**
- * 输入预测候选组件
- * 根据当前场景和输入预测用户可能的输入
+ * Input prediction candidate component
+ * Predict likely user input based on current scenario and typed text
  */
 export const PredictionBar: React.FC<PredictionBarProps> = ({
     scenario,
@@ -21,62 +21,62 @@ export const PredictionBar: React.FC<PredictionBarProps> = ({
 }) => {
     if (!visible) return null;
 
-    // 场景特定预测
+    // Scenario-specific predictions
     const scenarioPredictions: Record<string, string[]> = {
         wechat: [
-            '好的，没问题',
-            '稍等，我一会儿回复你',
-            '收到，谢谢',
-            '在呢，怎么了？',
-            '好的，我知道了'
+            'Okay, no problem',
+            'Give me a moment, I\'ll reply soon',
+            'Got it, thanks',
+            'I\'m here, what\'s up?',
+            'Understood'
         ],
         email: [
             'Dear HR, Thank you for...',
-            '您好，收到邮件...',
+            'Hello, I received your email...',
             'I am writing to...',
-            '感谢您的来信...',
+            'Thank you for your message...',
             'Please find attached...'
         ],
         weibo: [
-            '哈哈哈太真实了',
-            '同感！我也是',
-            '这也太可了吧',
-            '支持！加油💪',
-            '期待更新！'
+            'Haha this is so real',
+            'Same here, totally agree',
+            'This is actually adorable',
+            'Support! Keep it up 💪',
+            'Looking forward to updates!'
         ],
         sms: [
-            '收到',
-            '好的',
-            '谢谢',
-            '不需要，谢谢',
-            '已查收'
+            'Received',
+            'Okay',
+            'Thanks',
+            'No need, thanks',
+            'Checked'
         ],
         dingtalk: [
-            '收到，马上处理',
-            '好的，我准备一下',
-            '明白，我会准时参加',
-            '收到，会议见',
-            '了解，稍后汇报'
+            'Received, handling now',
+            'Okay, I\'ll prepare',
+            'Understood, I\'ll join on time',
+            'Got it, see you at the meeting',
+            'Understood, I\'ll report back later'
         ]
     };
 
-    // 根据当前输入过滤预测
+    // Filter predictions by current input
     const basePredictions = scenarioPredictions[scenario.id] || scenarioPredictions.wechat;
 
-    // 如果用户已输入内容，根据输入过滤
+    // If user already typed content, filter by input
     let predictions = basePredictions;
     if (currentInput.trim()) {
         predictions = basePredictions.filter(p =>
             p.toLowerCase().includes(currentInput.toLowerCase()) ||
             currentInput.toLowerCase().includes(p.substring(0, 2).toLowerCase())
         );
-        // 如果过滤后没有匹配，显示前3个默认预测
+        // If no match after filtering, show first three defaults
         if (predictions.length === 0) {
             predictions = basePredictions.slice(0, 3);
         }
     }
 
-    // 最多显示3个预测
+    // Show at most three predictions
     const displayPredictions = predictions.slice(0, 3);
 
     if (displayPredictions.length === 0) return null;
@@ -85,7 +85,7 @@ export const PredictionBar: React.FC<PredictionBarProps> = ({
         <div className="prediction-bar">
             <div className="prediction-header">
                 <Lightbulb size={12} className="text-purple-400" />
-                <span>智能预测</span>
+                <span>Smart Predictions</span>
             </div>
             <div className="prediction-items">
                 {displayPredictions.map((prediction, idx) => (

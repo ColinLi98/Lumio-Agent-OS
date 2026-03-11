@@ -10,11 +10,15 @@ interface ApprovedAgentRecord {
     success_count: number;
     total_revenue_cny: number;
     last_used_at?: string;
+    off_platform_risk_flag?: boolean;
+    last_take_rate_tier?: 'first_trade' | 'repeat_trade';
+    last_order_sequence?: number;
 }
 
 interface AgentUsageInput {
     consumer_id?: string;
     success: boolean;
+    off_platform_suspected?: boolean;
 }
 
 export interface AgentRevenueSnapshot {
@@ -29,6 +33,10 @@ export interface AgentRevenueSnapshot {
     market_visibility: 'public' | 'private';
     last_used_at?: string;
     revenue_delta_cny?: number;
+    effective_take_rate?: number;
+    take_rate_tier?: 'first_trade' | 'repeat_trade';
+    order_sequence?: number;
+    off_platform_risk_flag?: boolean;
 }
 
 export interface OwnerRevenueSummary {
@@ -42,6 +50,7 @@ export interface OwnerRevenueSummary {
 
 class LixAgentRegistryService {
     private approved = new Map<string, ApprovedAgentRecord>();
+    private consumerTradeCounter = new Map<string, number>();
 
     private inferImportedVia(manifest: DeliveredAgentManifest): 'lix_delivery' | 'github_import' {
         return manifest.github_repo ? 'github_import' : 'lix_delivery';
@@ -66,6 +75,9 @@ class LixAgentRegistryService {
             success_count: previous?.success_count || 0,
             total_revenue_cny: previous?.total_revenue_cny || 0,
             last_used_at: previous?.last_used_at,
+            off_platform_risk_flag: previous?.off_platform_risk_flag || false,
+            last_take_rate_tier: previous?.last_take_rate_tier,
+            last_order_sequence: previous?.last_order_sequence,
         };
 
         this.approved.set(manifest.agent_id, nextRecord);
@@ -86,6 +98,13 @@ class LixAgentRegistryService {
                 submitted_by: manifest.submitted_by,
                 github_repo: manifest.github_repo,
                 github_manifest_path: manifest.manifest_path,
+                manifest_snapshot: normalizedManifest,
+                review_snapshot: {
+                    decision: review.decision,
+                    reviewer_id: review.reviewer_id,
+                    reviewed_at: review.reviewed_at,
+                    reason: review.reason,
+                },
             },
         }).catch(() => {
             // Keep runtime registration resilient even if analytics persistence fails.
@@ -128,15 +147,36 @@ class LixAgentRegistryService {
         const isPaid = manifest.pricing_model === 'pay_per_use';
         const pricePerUse = Number.isFinite(manifest.price_per_use_cny) ? Math.max(0, Number(manifest.price_per_use_cny)) : 0;
         const isSelfUse = input.consumer_id && input.consumer_id === manifest.owner_id;
+        const consumerId = String(input.consumer_id || '').trim();
+        const tradeKey = consumerId ? `${consumerId}::${agentId}` : '';
+        const orderSequence = tradeKey
+            ? (this.consumerTradeCounter.get(tradeKey) || 0) + 1
+            : 1;
+        if (tradeKey) {
+            this.consumerTradeCounter.set(tradeKey, orderSequence);
+        }
+        const takeRateTier: 'first_trade' | 'repeat_trade' = orderSequence <= 1 ? 'first_trade' : 'repeat_trade';
+        const effectiveTakeRate = takeRateTier === 'first_trade' ? 0.30 : 0.10;
         let revenueDelta = 0;
         if (isPaid && input.success && !isSelfUse && pricePerUse > 0) {
-            record.total_revenue_cny += pricePerUse;
-            revenueDelta = pricePerUse;
+            const platformCut = Math.round(pricePerUse * effectiveTakeRate * 100) / 100;
+            const providerIncome = Math.max(0, Math.round((pricePerUse - platformCut) * 100) / 100);
+            record.total_revenue_cny += providerIncome;
+            revenueDelta = providerIncome;
+        }
+        record.last_take_rate_tier = takeRateTier;
+        record.last_order_sequence = orderSequence;
+        if (input.off_platform_suspected) {
+            record.off_platform_risk_flag = true;
         }
 
         return {
             ...this.toRevenueSnapshot(agentId, record),
             revenue_delta_cny: revenueDelta,
+            effective_take_rate: effectiveTakeRate,
+            take_rate_tier: takeRateTier,
+            order_sequence: orderSequence,
+            off_platform_risk_flag: record.off_platform_risk_flag || false,
         };
     }
 
@@ -157,6 +197,7 @@ class LixAgentRegistryService {
 
     clear(): void {
         this.approved.clear();
+        this.consumerTradeCounter.clear();
     }
 
     private toRevenueSnapshot(agentId: string, record: ApprovedAgentRecord): AgentRevenueSnapshot {
@@ -174,6 +215,12 @@ class LixAgentRegistryService {
             pricing_model: manifest.pricing_model === 'free' ? 'free' : 'pay_per_use',
             market_visibility: manifest.market_visibility === 'private' ? 'private' : 'public',
             last_used_at: record.last_used_at,
+            take_rate_tier: record.last_take_rate_tier,
+            order_sequence: record.last_order_sequence,
+            effective_take_rate: record.last_take_rate_tier
+                ? (record.last_take_rate_tier === 'first_trade' ? 0.30 : 0.10)
+                : undefined,
+            off_platform_risk_flag: record.off_platform_risk_flag || false,
         };
     }
 
@@ -229,6 +276,8 @@ class LixAgentRegistryService {
                 `price_per_use_cny:${Number.isFinite(manifest.price_per_use_cny) ? Math.max(0, Number(manifest.price_per_use_cny)) : 0}`,
                 `usage_count:${usageCount}`,
                 `revenue_total_cny:${Math.max(0, Number(record.total_revenue_cny || 0))}`,
+                `take_rate_tier:${record.last_take_rate_tier || 'first_trade'}`,
+                `off_platform_risk:${record.off_platform_risk_flag ? 'true' : 'false'}`,
                 manifest.github_repo ? `github_repo:${manifest.github_repo}` : undefined,
                 manifest.manifest_path ? `github_manifest_path:${manifest.manifest_path}` : undefined,
             ].filter((tag): tag is string => Boolean(tag)),

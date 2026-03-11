@@ -13,6 +13,27 @@ function firstQueryParam(value: string | string[] | undefined): string {
     return String(value || '');
 }
 
+function githubErrorCode(error: unknown): string {
+    return error instanceof Error ? String(error.message || '').trim() : '';
+}
+
+function mapImportError(error: unknown): { status: number; error: string; error_code: string } {
+    const message = githubErrorCode(error) || 'internal_error';
+    if (message === 'invalid_repo_full_name') {
+        return { status: 400, error: 'invalid_repo_full_name', error_code: 'invalid_repo' };
+    }
+    if (message === 'Not Found' || message.includes('github_manifest_http_404')) {
+        return { status: 400, error: 'manifest_not_found', error_code: 'manifest_not_found' };
+    }
+    if (message.startsWith('manifest_json_parse_failed')) {
+        return { status: 422, error: message, error_code: 'manifest_json_parse_failed' };
+    }
+    if (message.startsWith('manifest_invalid')) {
+        return { status: 422, error: message, error_code: 'manifest_invalid' };
+    }
+    return { status: 500, error: message, error_code: 'internal_error' };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
     withCors(res);
     if (req.method === 'OPTIONS') {
@@ -54,6 +75,22 @@ async function handleConnect(req: VercelRequest, res: VercelResponse): Promise<v
             mode: session.connect_url.startsWith('mock://') ? 'mock' : 'oauth',
         });
     } catch (error) {
+        const code = githubErrorCode(error);
+        if (code === 'github_oauth_not_configured') {
+            res.status(200).json({
+                success: true,
+                user_id: firstQueryParam(req.query?.user_id).trim() || 'demo_user',
+                connected: false,
+                mode: 'public_only',
+                connect_required: false,
+                connect_url: '',
+                state: '',
+                callback_url: githubAppService.getCallbackUrl(String(req.headers.origin || '').trim()),
+                reason: code,
+                message: 'GitHub OAuth 未配置，已降级为 public-only（可手动导入公开仓库）。',
+            });
+            return;
+        }
         res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'internal_error' });
     }
 }
@@ -99,6 +136,21 @@ async function handleRepos(req: VercelRequest, res: VercelResponse): Promise<voi
             count: repos.length,
         });
     } catch (error) {
+        const code = githubErrorCode(error);
+        if (code === 'github_not_connected' || code === 'github_oauth_not_configured' || code === 'github_oauth_failed_and_mock_disabled') {
+            const userId = firstQueryParam(req.query?.user_id).trim() || 'demo_user';
+            res.status(200).json({
+                success: true,
+                user_id: userId,
+                connected: false,
+                connection_mode: 'public_only',
+                repos: [],
+                count: 0,
+                reason: code,
+                message: '当前未完成 OAuth 连接；可直接输入 owner/repo 导入公开仓库。',
+            });
+            return;
+        }
         res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'internal_error' });
     }
 }
@@ -139,6 +191,7 @@ async function handleImport(req: VercelRequest, res: VercelResponse): Promise<vo
             source: result.source,
         });
     } catch (error) {
-        res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'internal_error' });
+        const mapped = mapImportError(error);
+        res.status(mapped.status).json({ success: false, error: mapped.error, error_code: mapped.error_code });
     }
 }

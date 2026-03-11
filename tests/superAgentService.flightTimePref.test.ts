@@ -64,8 +64,8 @@ describe('SuperAgentService flight time preference', () => {
             constraints
         );
 
-        expect(finalAnswer).toContain('外站页面通常默认按低价优先排序');
-        expect(finalAnswer).toContain('起飞时间');
+        expect(finalAnswer).toContain('External sites often default to lowest-price sorting');
+        expect(finalAnswer).toContain('departure time filter');
         expect(finalAnswer).toContain('https://flights.ctrip.com/online/list/oneway-sha-bjs');
         expect(finalAnswer).not.toContain('已预置');
     });

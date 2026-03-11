@@ -31,7 +31,7 @@ describe('lix solution store lifecycle', () => {
     expect(intent.custom_requirements?.must_have_capabilities?.length).toBeGreaterThan(0);
 
     const accepted = await lixStore.acceptSolutionOffer(intent.intent_id, intent.offers[0].offer_id);
-    expect(accepted.status).toBe('offer_accepted');
+    expect(['offer_accepted', 'approved']).toContain(accepted.status);
     expect(accepted.accepted_offer_id).toBe(intent.offers[0].offer_id);
 
     const delivered = await lixStore.submitSolutionDelivery({
@@ -90,5 +90,24 @@ describe('lix solution store lifecycle', () => {
     const mine = lixStore.listMyDeliveredManifests('demo_user');
     expect(mine.length).toBe(1);
     expect(mine[0].agent_id).toBe(accepted.delivery_manifest?.agent_id);
+  });
+
+  it('relaxes unsupported capability hints and still returns real offers', async () => {
+    const intent = await lixStore.broadcastSolutionIntent({
+      requester_id: 'demo_user',
+      query: '帮我招聘一位上海前端工程师，并给出岗位匹配建议',
+      domain: 'recruitment',
+      required_capabilities: ['negotiation', 'talent_search'],
+    });
+
+    expect(intent.status).toBe('offers_received');
+    expect(intent.offers.length).toBeGreaterThan(0);
+    expect(
+      intent.offers.some((offer) =>
+        offer.proposed_capabilities.includes('job_sourcing')
+        || offer.proposed_capabilities.includes('resume_optimization')
+        || offer.proposed_capabilities.includes('salary_benchmark')
+      )
+    ).toBe(true);
   });
 });

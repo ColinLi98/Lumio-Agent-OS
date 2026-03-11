@@ -31,7 +31,7 @@ interface DigitalAvatarPanelProps {
 }
 
 // ============================================================================
-// Personality Radar Chart - 性格雷达图 (SVG)
+// Personality Radar Chart (SVG)
 // ============================================================================
 
 interface RadarChartProps {
@@ -43,18 +43,18 @@ const PersonalityRadarChart: React.FC<RadarChartProps> = ({ personality, size = 
     const center = size / 2;
     const radius = size * 0.4;
 
-    // Big Five 五维数据
+    // Big Five dimensions
     const dimensions = [
-        { key: 'openness', label: '开放性', value: personality.openness, color: '#a855f7' },
-        { key: 'conscientiousness', label: '尽责性', value: personality.conscientiousness, color: '#3b82f6' },
-        { key: 'extraversion', label: '外向性', value: personality.extraversion, color: '#22c55e' },
-        { key: 'agreeableness', label: '宜人性', value: personality.agreeableness, color: '#f59e0b' },
-        { key: 'neuroticism', label: '情绪性', value: 100 - personality.neuroticism, color: '#ef4444' }, // 反转显示为稳定性
+        { key: 'openness', label: 'Openness', value: personality.openness, color: '#a855f7' },
+        { key: 'conscientiousness', label: 'Conscientiousness', value: personality.conscientiousness, color: '#3b82f6' },
+        { key: 'extraversion', label: 'Extraversion', value: personality.extraversion, color: '#22c55e' },
+        { key: 'agreeableness', label: 'Agreeableness', value: personality.agreeableness, color: '#f59e0b' },
+        { key: 'neuroticism', label: 'Emotionality', value: 100 - personality.neuroticism, color: '#ef4444' }, // inverted to represent stability
     ];
 
     const angleStep = (2 * Math.PI) / dimensions.length;
 
-    // 计算多边形顶点
+    // Compute polygon vertices
     const getPoint = (value: number, index: number) => {
         const angle = index * angleStep - Math.PI / 2;
         const r = (value / 100) * radius;
@@ -64,7 +64,7 @@ const PersonalityRadarChart: React.FC<RadarChartProps> = ({ personality, size = 
         };
     };
 
-    // 生成数据多边形路径
+    // Generate data polygon path
     const dataPath = dimensions
         .map((d, i) => {
             const point = getPoint(d.value, i);
@@ -72,12 +72,12 @@ const PersonalityRadarChart: React.FC<RadarChartProps> = ({ personality, size = 
         })
         .join(' ') + ' Z';
 
-    // 生成网格线
+    // Generate grid lines
     const gridLevels = [20, 40, 60, 80, 100];
 
     return (
         <svg width={size} height={size} className="mx-auto">
-            {/* 背景网格 */}
+            {/* Background grid */}
             {gridLevels.map((level) => (
                 <polygon
                     key={level}
@@ -93,7 +93,7 @@ const PersonalityRadarChart: React.FC<RadarChartProps> = ({ personality, size = 
                 />
             ))}
 
-            {/* 轴线 */}
+            {/* Axes */}
             {dimensions.map((_, i) => {
                 const point = getPoint(100, i);
                 return (
@@ -109,7 +109,7 @@ const PersonalityRadarChart: React.FC<RadarChartProps> = ({ personality, size = 
                 );
             })}
 
-            {/* 数据区域 */}
+            {/* Data area */}
             <path
                 d={dataPath}
                 fill="rgba(139, 92, 246, 0.3)"
@@ -117,7 +117,7 @@ const PersonalityRadarChart: React.FC<RadarChartProps> = ({ personality, size = 
                 strokeWidth="2"
             />
 
-            {/* 数据点 */}
+            {/* Data points */}
             {dimensions.map((d, i) => {
                 const point = getPoint(d.value, i);
                 return (
@@ -133,7 +133,7 @@ const PersonalityRadarChart: React.FC<RadarChartProps> = ({ personality, size = 
                 );
             })}
 
-            {/* 标签 */}
+            {/* Labels */}
             {dimensions.map((d, i) => {
                 const labelRadius = radius + 25;
                 const angle = i * angleStep - Math.PI / 2;
@@ -157,7 +157,7 @@ const PersonalityRadarChart: React.FC<RadarChartProps> = ({ personality, size = 
 };
 
 // ============================================================================
-// Activity Heatmap - 活跃时间热力图
+// Activity Heatmap - Active time heatmap
 // ============================================================================
 
 interface HeatmapProps {
@@ -167,16 +167,16 @@ interface HeatmapProps {
 
 const ActivityHeatmap: React.FC<HeatmapProps> = ({ activeHours, activeDays }) => {
     const maxHour = Math.max(...activeHours, 1);
-    const dayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    // 简化为 6 个时段
+    // Simplified into 6 time slots
     const timeSlots = [
-        { label: '凌晨', hours: [0, 1, 2, 3, 4, 5] },
-        { label: '早晨', hours: [6, 7, 8, 9] },
-        { label: '上午', hours: [10, 11] },
-        { label: '下午', hours: [12, 13, 14, 15, 16, 17] },
-        { label: '傍晚', hours: [18, 19, 20, 21] },
-        { label: '深夜', hours: [22, 23] },
+        { label: 'Late night', hours: [0, 1, 2, 3, 4, 5] },
+        { label: 'Early morning', hours: [6, 7, 8, 9] },
+        { label: 'Morning', hours: [10, 11] },
+        { label: 'Afternoon', hours: [12, 13, 14, 15, 16, 17] },
+        { label: 'Evening', hours: [18, 19, 20, 21] },
+        { label: 'Night', hours: [22, 23] },
     ];
 
     const getSlotValue = (hours: number[]) => {
@@ -196,7 +196,7 @@ const ActivityHeatmap: React.FC<HeatmapProps> = ({ activeHours, activeDays }) =>
 
     return (
         <div className="space-y-2">
-            {/* 时段热力图 */}
+            {/* Time-slot heatmap */}
             <div className="flex gap-1">
                 {timeSlots.map((slot) => {
                     const value = getSlotValue(slot.hours);
@@ -204,7 +204,7 @@ const ActivityHeatmap: React.FC<HeatmapProps> = ({ activeHours, activeDays }) =>
                         <div
                             key={slot.label}
                             className={`flex-1 h-8 rounded flex items-center justify-center text-xs font-medium ${getColor(value, maxSlot)}`}
-                            title={`${slot.label}: ${value} 次`}
+                            title={`${slot.label}: ${value} times`}
                         >
                             {slot.label}
                         </div>
@@ -212,7 +212,7 @@ const ActivityHeatmap: React.FC<HeatmapProps> = ({ activeHours, activeDays }) =>
                 })}
             </div>
 
-            {/* 星期分布 */}
+            {/* Weekday distribution */}
             <div className="flex gap-1">
                 {activeDays.map((count, i) => {
                     const maxDay = Math.max(...activeDays, 1);
@@ -220,7 +220,7 @@ const ActivityHeatmap: React.FC<HeatmapProps> = ({ activeHours, activeDays }) =>
                         <div
                             key={i}
                             className={`flex-1 h-6 rounded flex items-center justify-center text-xs ${getColor(count, maxDay)}`}
-                            title={`周${dayLabels[i]}: ${count} 次`}
+                            title={`${dayLabels[i]}: ${count} times`}
                         >
                             {dayLabels[i]}
                         </div>
@@ -232,7 +232,7 @@ const ActivityHeatmap: React.FC<HeatmapProps> = ({ activeHours, activeDays }) =>
 };
 
 // ============================================================================
-// Profile Completeness Ring - 画像完整度环形图
+// Profile Completeness Ring
 // ============================================================================
 
 interface CompletenessRingProps {
@@ -249,7 +249,7 @@ const CompletenessRing: React.FC<CompletenessRingProps> = ({ percentage, size = 
     return (
         <div className="relative" style={{ width: size, height: size }}>
             <svg width={size} height={size} className="transform -rotate-90">
-                {/* 背景圆环 */}
+                {/* Background ring */}
                 <circle
                     cx={size / 2}
                     cy={size / 2}
@@ -258,7 +258,7 @@ const CompletenessRing: React.FC<CompletenessRingProps> = ({ percentage, size = 
                     stroke="rgba(148, 163, 184, 0.2)"
                     strokeWidth={strokeWidth}
                 />
-                {/* 进度圆环 */}
+                {/* Progress ring */}
                 <circle
                     cx={size / 2}
                     cy={size / 2}
@@ -286,7 +286,7 @@ const CompletenessRing: React.FC<CompletenessRingProps> = ({ percentage, size = 
 };
 
 // ============================================================================
-// Milestone Card - 里程碑卡片
+// Milestone Card
 // ============================================================================
 
 interface MilestoneListProps {
@@ -315,7 +315,7 @@ const MilestoneList: React.FC<MilestoneListProps> = ({ milestones }) => {
             ))}
             {milestones.length === 0 && (
                 <div className="text-center text-sm text-slate-500 py-4">
-                    继续使用解锁成就！
+                    Keep using to unlock achievements!
                 </div>
             )}
         </div>
@@ -323,7 +323,7 @@ const MilestoneList: React.FC<MilestoneListProps> = ({ milestones }) => {
 };
 
 // ============================================================================
-// Main Panel - 主面板
+// Main Panel
 // ============================================================================
 
 export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog }) => {
@@ -355,41 +355,41 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
             saveEnhancedDigitalAvatar(avatar);
             setAvatar({ ...avatar });
             setIsEditingNickname(false);
-            onLog?.('昵称已更新');
+            onLog?.('Nickname updated');
         }
     };
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        onLog?.('正在刷新画像分析...');
+        onLog?.('Refreshing avatar analysis...');
 
-        // 模拟异步操作
+        // Simulate async operation
         await new Promise(resolve => setTimeout(resolve, 500));
         refreshEnhancedAvatarAnalysis();
         loadData();
 
         setIsRefreshing(false);
-        onLog?.('画像分析已刷新');
+        onLog?.('Avatar analysis refreshed');
     };
 
     const handleReset = () => {
-        if (confirm('确定要重置数字分身吗？所有交互记录和画像数据将被清空。')) {
+        if (confirm('Are you sure you want to reset the digital avatar? All interaction records and profile data will be cleared.')) {
             resetEnhancedDigitalAvatar();
             loadData();
-            onLog?.('数字分身已重置');
+            onLog?.('Digital avatar reset');
         }
     };
 
     const handleExport = () => {
         downloadDataAsJSON();
-        onLog?.('数据已导出为 JSON');
+        onLog?.('Data exported as JSON');
     };
 
     const handleTogglePrivacy = () => {
         if (avatar) {
             togglePrivacyMode(!avatar.privacyMode);
             loadData();
-            onLog?.(avatar.privacyMode ? '隐私模式已关闭' : '隐私模式已开启');
+            onLog?.(avatar.privacyMode ? 'Privacy mode disabled' : 'Privacy mode enabled');
         }
     };
 
@@ -397,23 +397,23 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
         return (
             <div className="text-center py-8 text-gray-400">
                 <User size={32} className="mx-auto mb-2 opacity-50" />
-                <p>加载中...</p>
+                <p>Loading...</p>
             </div>
         );
     }
 
-    // 时段描述
+    // Chronotype labels
     const chronotypeDesc = {
-        morning_person: { icon: <Sun size={14} />, text: '早起型' },
-        night_owl: { icon: <Moon size={14} />, text: '夜猫型' },
-        flexible: { icon: <Coffee size={14} />, text: '灵活型' },
+        morning_person: { icon: <Sun size={14} />, text: 'Early riser' },
+        night_owl: { icon: <Moon size={14} />, text: 'Night owl' },
+        flexible: { icon: <Coffee size={14} />, text: 'Flexible' },
     };
 
-    // 沟通风格描述
+    // Communication style labels
     const formalityDesc = {
-        formal: '正式',
-        casual: '休闲',
-        adaptive: '自适应',
+        formal: 'Formal',
+        casual: 'Casual',
+        adaptive: 'Adaptive',
     };
 
     return (
@@ -422,7 +422,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Sparkles size={18} className="text-purple-400" />
-                    <span className="font-semibold text-white">增强型数字分身</span>
+                    <span className="font-semibold text-white">Enhanced Digital Avatar</span>
                     <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded">v2.0</span>
                 </div>
                 <div className="flex gap-1">
@@ -432,7 +432,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                             ? 'text-yellow-400 bg-yellow-500/20 hover:bg-yellow-500/30'
                             : 'text-slate-400 hover:text-white hover:bg-slate-700'
                             }`}
-                        title={avatar.privacyMode ? '隐私模式开启中' : '开启隐私模式'}
+                        title={avatar.privacyMode ? 'Privacy mode enabled' : 'Enable privacy mode'}
                     >
                         {avatar.privacyMode ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
@@ -440,21 +440,21 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                         onClick={handleRefresh}
                         disabled={isRefreshing}
                         className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors disabled:opacity-50"
-                        title="刷新分析"
+                        title="Refresh analysis"
                     >
                         <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
                     </button>
                     <button
                         onClick={handleExport}
                         className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded transition-colors"
-                        title="导出数据"
+                        title="Export data"
                     >
                         <Download size={14} />
                     </button>
                     <button
                         onClick={handleReset}
                         className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                        title="重置"
+                        title="Reset"
                     >
                         <Trash2 size={14} />
                     </button>
@@ -485,7 +485,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                                         value={nicknameInput}
                                         onChange={(e) => setNicknameInput(e.target.value)}
                                         className="bg-slate-700 text-white px-2 py-0.5 rounded text-sm w-24"
-                                        placeholder="输入昵称"
+                                        placeholder="Enter nickname"
                                         autoFocus
                                     />
                                     <button onClick={handleSaveNickname} className="text-green-400 hover:text-green-300">
@@ -498,7 +498,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                             ) : (
                                 <>
                                     <span className="text-lg font-semibold text-white">
-                                        {avatar.nickname || '未设置昵称'}
+                                        {avatar.nickname || 'Unset'}
                                     </span>
                                     <button
                                         onClick={() => setIsEditingNickname(true)}
@@ -514,15 +514,15 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                         <div className="flex items-center gap-4 text-xs text-slate-300">
                             <span className="flex items-center gap-1">
                                 <Activity size={12} className="text-green-400" />
-                                {avatar.totalInteractions} 次交互
+                                {avatar.totalInteractions} interactions
                             </span>
                             <span className="flex items-center gap-1">
                                 <MessageSquare size={12} className="text-blue-400" />
-                                {avatar.totalMessages} 条消息
+                                {avatar.totalMessages} messages
                             </span>
                             <span className="flex items-center gap-1">
                                 <Wrench size={12} className="text-yellow-400" />
-                                {avatar.totalToolUses} 次工具
+                                {avatar.totalToolUses} tool uses
                             </span>
                         </div>
                     </div>
@@ -532,13 +532,13 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
             {/* Tabs */}
             <div className="flex gap-1 bg-slate-800/50 p-1 rounded-lg">
                 {[
-                    { key: 'overview', label: '概览', icon: <Zap size={14} /> },
-                    { key: 'insights', label: '🔮 洞察', icon: null },
-                    { key: 'trust', label: '🛡️ 信任', icon: null },
-                    { key: 'rules', label: '📋 规则', icon: null },
-                    { key: 'actions', label: '📊 操作', icon: null },
-                    { key: 'memory', label: '🧠 记忆', icon: null },
-                    { key: 'milestones', label: '成就', icon: <Award size={14} /> },
+                    { key: 'overview', label: 'Overview', icon: <Zap size={14} /> },
+                    { key: 'insights', label: '🔮 Insights', icon: null },
+                    { key: 'trust', label: '🛡️ Trust', icon: null },
+                    { key: 'rules', label: '📋 Rules', icon: null },
+                    { key: 'actions', label: '📊 Actions', icon: null },
+                    { key: 'memory', label: '🧠 Memory', icon: null },
+                    { key: 'milestones', label: 'Milestones', icon: <Award size={14} /> },
                 ].map((tab) => (
                     <button
                         key={tab.key}
@@ -568,7 +568,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                                     {avatar.emotionalProfile.currentMood === 'positive' ? '😊' :
                                         avatar.emotionalProfile.currentMood === 'negative' ? '😔' : '😐'}
                                 </div>
-                                <div className="text-xs text-slate-400">当前情绪</div>
+                                <div className="text-xs text-slate-400">Current mood</div>
                             </div>
                             <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 text-center">
                                 <div className="text-2xl mb-1 flex items-center justify-center">
@@ -582,7 +582,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                                 <div className="text-lg font-bold text-purple-400 mb-1">
                                     {formalityDesc[avatar.communicationStyle.formality]}
                                 </div>
-                                <div className="text-xs text-slate-400">沟通风格</div>
+                                <div className="text-xs text-slate-400">Communication style</div>
                             </div>
                         </div>
 
@@ -590,7 +590,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                         <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
                             <div className="flex items-center gap-2 mb-3">
                                 <Clock size={14} className="text-orange-400" />
-                                <span className="text-xs font-medium text-slate-300">活跃时段</span>
+                                <span className="text-xs font-medium text-slate-300">Active periods</span>
                             </div>
                             <ActivityHeatmap
                                 activeHours={avatar.activeHours}
@@ -602,7 +602,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                         <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
                             <div className="flex items-center gap-2 mb-3">
                                 <Tag size={14} className="text-cyan-400" />
-                                <span className="text-xs font-medium text-slate-300">兴趣标签</span>
+                                <span className="text-xs font-medium text-slate-300">Interest tags</span>
                             </div>
                             {avatar.interestTags.length > 0 ? (
                                 <div className="flex flex-wrap gap-1.5">
@@ -619,7 +619,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                                 </div>
                             ) : (
                                 <div className="text-xs text-slate-500 text-center py-2">
-                                    使用工具和发送消息后将自动生成标签
+                                    Tags will be generated after tool usage and messages.
                                 </div>
                             )}
                         </div>
@@ -682,10 +682,10 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                             <div className="flex items-center gap-2 mb-2">
                                 <Brain size={14} className="text-purple-400" />
                                 <span className="text-xs font-medium text-slate-300">
-                                    五维性格 (Big Five)
+                                    Big Five personality
                                 </span>
                                 <span className="text-xs text-slate-500 ml-auto">
-                                    置信度: {avatar.personality.confidence}%
+                                    Confidence: {avatar.personality.confidence}%
                                 </span>
                             </div>
                             <PersonalityRadarChart personality={avatar.personality} size={200} />
@@ -693,13 +693,13 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
 
                         {/* Extended Traits */}
                         <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-                            <div className="text-xs font-medium text-slate-300 mb-3">扩展特征</div>
+                            <div className="text-xs font-medium text-slate-300 mb-3">Extended traits</div>
                             <div className="space-y-2">
-                                {/* 理性 vs 感性 */}
+                                {/* Rational vs emotional */}
                                 <div>
                                     <div className="flex justify-between text-xs mb-1">
-                                        <span className="text-pink-400">感性</span>
-                                        <span className="text-blue-400">理性</span>
+                                        <span className="text-pink-400">Emotional</span>
+                                        <span className="text-blue-400">Rational</span>
                                     </div>
                                     <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
                                         <div
@@ -712,22 +712,22 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                                     </div>
                                 </div>
 
-                                {/* 其他扩展特征 */}
+                                {/* Other extended traits */}
                                 <div className="grid grid-cols-2 gap-2 mt-3">
                                     <div className="text-xs">
-                                        <span className="text-slate-400">风险承受:</span>
+                                        <span className="text-slate-400">Risk tolerance:</span>
                                         <span className="text-white ml-2">{avatar.personality.riskTolerance}%</span>
                                     </div>
                                     <div className="text-xs">
-                                        <span className="text-slate-400">决策速度:</span>
+                                        <span className="text-slate-400">Decision speed:</span>
                                         <span className="text-white ml-2">{avatar.personality.decisionSpeed}%</span>
                                     </div>
                                     <div className="text-xs">
-                                        <span className="text-slate-400">创造力:</span>
+                                        <span className="text-slate-400">Creativity:</span>
                                         <span className="text-white ml-2">{avatar.personality.creativityIndex}%</span>
                                     </div>
                                     <div className="text-xs">
-                                        <span className="text-slate-400">样本数:</span>
+                                        <span className="text-slate-400">Sample size:</span>
                                         <span className="text-white ml-2">{avatar.personality.sampleSize}</span>
                                     </div>
                                 </div>
@@ -738,29 +738,29 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                         <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
                             <div className="flex items-center gap-2 mb-3">
                                 <MessageSquare size={14} className="text-blue-400" />
-                                <span className="text-xs font-medium text-slate-300">沟通风格</span>
+                                <span className="text-xs font-medium text-slate-300">Communication style</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">表达丰富度</div>
+                                    <div className="text-slate-400 mb-1">Expressiveness</div>
                                     <div className="text-white">{avatar.communicationStyle.expressiveness}%</div>
                                 </div>
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">直接程度</div>
+                                    <div className="text-slate-400 mb-1">Directness</div>
                                     <div className="text-white">{avatar.communicationStyle.directness}%</div>
                                 </div>
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">幽默使用</div>
+                                    <div className="text-slate-400 mb-1">Humor usage</div>
                                     <div className="text-white">{avatar.communicationStyle.humorUsage}%</div>
                                 </div>
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">平均字数</div>
-                                    <div className="text-white">{avatar.communicationStyle.avgMessageLength} 字</div>
+                                    <div className="text-slate-400 mb-1">Avg length</div>
+                                    <div className="text-white">{avatar.communicationStyle.avgMessageLength} chars</div>
                                 </div>
                             </div>
                             {avatar.communicationStyle.topEmojis.length > 0 && (
                                 <div className="mt-2 text-xs">
-                                    <span className="text-slate-400">常用 Emoji: </span>
+                                    <span className="text-slate-400">Common emoji: </span>
                                     <span className="text-lg">{avatar.communicationStyle.topEmojis.join(' ')}</span>
                                 </div>
                             )}
@@ -775,26 +775,26 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                         <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
                             <div className="flex items-center gap-2 mb-3">
                                 <TrendingUp size={14} className="text-green-400" />
-                                <span className="text-xs font-medium text-slate-300">行为模式</span>
+                                <span className="text-xs font-medium text-slate-300">Behavior patterns</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">决策风格</div>
+                                    <div className="text-slate-400 mb-1">Decision style</div>
                                     <div className="text-white">
-                                        {avatar.behaviorPatterns.decisionStyle === 'quick' ? '快速决策' :
-                                            avatar.behaviorPatterns.decisionStyle === 'deliberate' ? '深思熟虑' : '混合型'}
+                                        {avatar.behaviorPatterns.decisionStyle === 'quick' ? 'Quick decisions' :
+                                            avatar.behaviorPatterns.decisionStyle === 'deliberate' ? 'Deliberate' : 'Hybrid'}
                                     </div>
                                 </div>
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">多任务倾向</div>
+                                    <div className="text-slate-400 mb-1">Multitasking tendency</div>
                                     <div className="text-white">{avatar.behaviorPatterns.multitaskingTendency}%</div>
                                 </div>
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">任务完成率</div>
+                                    <div className="text-slate-400 mb-1">Task completion</div>
                                     <div className="text-white">{avatar.behaviorPatterns.taskCompletionRate}%</div>
                                 </div>
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">专注度评分</div>
+                                    <div className="text-slate-400 mb-1">Focus score</div>
                                     <div className="text-white">{avatar.behaviorPatterns.focusScore}%</div>
                                 </div>
                             </div>
@@ -805,7 +805,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                             <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Wrench size={14} className="text-yellow-400" />
-                                    <span className="text-xs font-medium text-slate-300">常用工具</span>
+                                    <span className="text-xs font-medium text-slate-300">Frequent tools</span>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
                                     {avatar.behaviorPatterns.preferredTools.map((tool, i) => (
@@ -826,25 +826,25 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                         <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
                             <div className="flex items-center gap-2 mb-3">
                                 <Heart size={14} className="text-pink-400" />
-                                <span className="text-xs font-medium text-slate-300">情绪画像</span>
+                                <span className="text-xs font-medium text-slate-300">Emotional profile</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">基准积极度</div>
+                                    <div className="text-slate-400 mb-1">Baseline positivity</div>
                                     <div className="text-white">{avatar.emotionalProfile.baselinePositivity}%</div>
                                 </div>
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">情绪稳定性</div>
+                                    <div className="text-slate-400 mb-1">Emotional stability</div>
                                     <div className="text-white">{avatar.emotionalProfile.emotionalStability}%</div>
                                 </div>
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">压力指标</div>
+                                    <div className="text-slate-400 mb-1">Stress index</div>
                                     <div className={avatar.emotionalProfile.stressIndicators > 60 ? 'text-red-400' : 'text-white'}>
                                         {avatar.emotionalProfile.stressIndicators}%
                                     </div>
                                 </div>
                                 <div className="bg-slate-700/50 rounded p-2">
-                                    <div className="text-slate-400 mb-1">心理韧性</div>
+                                    <div className="text-slate-400 mb-1">Resilience</div>
                                     <div className="text-white">{avatar.emotionalProfile.resilienceScore}%</div>
                                 </div>
                             </div>
@@ -859,12 +859,12 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                         <div className="bg-gradient-to-r from-orange-900/50 to-amber-900/50 rounded-lg p-4 border border-orange-700/30">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <div className="text-xs text-orange-400 mb-1">连续使用</div>
-                                    <div className="text-2xl font-bold text-white">{avatar.currentStreak} 天</div>
+                                    <div className="text-xs text-orange-400 mb-1">Current streak</div>
+                                    <div className="text-2xl font-bold text-white">{avatar.currentStreak} days</div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-xs text-slate-400 mb-1">最长记录</div>
-                                    <div className="text-lg font-semibold text-orange-400">{avatar.longestStreak} 天</div>
+                                    <div className="text-xs text-slate-400 mb-1">Longest streak</div>
+                                    <div className="text-lg font-semibold text-orange-400">{avatar.longestStreak} days</div>
                                 </div>
                             </div>
                         </div>
@@ -873,7 +873,7 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
                         <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
                             <div className="flex items-center gap-2 mb-3">
                                 <Award size={14} className="text-amber-400" />
-                                <span className="text-xs font-medium text-slate-300">成就里程碑</span>
+                                <span className="text-xs font-medium text-slate-300">Achievement milestones</span>
                             </div>
                             <MilestoneList milestones={avatar.milestones} />
                         </div>
@@ -883,11 +883,11 @@ export const DigitalAvatarPanel: React.FC<DigitalAvatarPanelProps> = ({ onLog })
 
             {/* Footer */}
             <div className="text-center text-xs text-slate-500 pt-2 border-t border-slate-700">
-                <span>🔒 所有数据仅保存在本地</span>
+                <span>🔒 All data is stored locally</span>
                 <span className="mx-2">·</span>
-                <span>创建于 {new Date(avatar.createdAt).toLocaleDateString()}</span>
+                <span>Created {new Date(avatar.createdAt).toLocaleDateString()}</span>
                 <span className="mx-2">·</span>
-                <span>最后分析 {new Date(avatar.lastAnalyzedAt).toLocaleTimeString()}</span>
+                <span>Last analyzed {new Date(avatar.lastAnalyzedAt).toLocaleTimeString()}</span>
             </div>
         </div>
     );

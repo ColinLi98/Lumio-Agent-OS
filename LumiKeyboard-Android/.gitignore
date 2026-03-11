@@ -1,0 +1,27 @@
+.gradle/
+/.gradle-home/
+/.kotlin/
+**/build/
+**/bin/
+local.properties
+*.hprof
+.idea/
+captures/
+*.apk
+*.iml
+**/.cxx/
+**/.externalNativeBuild/
+**/outputs/
+**/test-results/
+
+# Local-only working outputs
+.local-output/
+local-output/
+artifacts/local/
+
+# Temp/cache safety for local Android runs
+/.tmp/
+/.temp/
+/tmp/
+/temp/
+/.cache/

@@ -27,10 +27,11 @@ import { PassiveLearningConsentModal } from './PassiveLearningConsentModal';
 import { SmartChips, ChipAction } from './SmartChips';
 import { getSuperAgent } from '../services/superAgentService';
 import { registerBuiltinSkills } from '../services/builtinSkills';
+import { buildApiUrl } from '../services/apiBaseUrl';
 import { Wifi, Battery, Signal, Sparkles, X, Trash2, ChevronDown, Shield, AlertTriangle, ExternalLink, Bot } from 'lucide-react';
 import { DestinySimulationResult } from '../App';
 
-// 初始化 Super Agent 的内置能力
+// Initialize built-in Super Agent capabilities
 registerBuiltinSkills();
 
 
@@ -49,18 +50,18 @@ interface PhoneSimulatorProps {
   fullscreen?: boolean;
 }
 
-// 时间格式化函数
+// Message timestamp formatter
 const formatMessageTime = (timestamp: number): string => {
   const now = Date.now();
   const diff = now - timestamp;
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
 
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
   if (hours < 24) {
     const date = new Date(timestamp);
-    return `今天 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    return `Today ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   }
   const date = new Date(timestamp);
   return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
@@ -104,6 +105,57 @@ interface ChatMessage {
   from: 'user' | 'me' | 'assistant';
   timestamp: number;
   assistantMeta?: AssistantChatMeta;
+}
+
+interface SuperAgentExecuteResponse {
+  success?: boolean;
+  error?: string;
+  answer?: string;
+  toolsUsed?: string[];
+  toolResults?: Array<{
+    success?: boolean;
+    toolName?: string;
+    output?: any;
+    error?: string;
+    executionTimeMs?: number;
+  }>;
+  confidence?: number;
+  executionTimeMs?: number;
+  runtime_status?: 'RUNNING' | 'WAITING_USER' | 'DONE' | 'FAILED' | 'CANCELLED';
+  current_wait?: {
+    node_id: string;
+    type: 'approval' | 'ask_user';
+    expires_at?: number;
+  };
+  policy_decision_ids?: string[];
+  approval_reason?: string;
+  capsule_approval_token?: string;
+  reasoning?: string;
+  followUpSuggestions?: string[];
+  marketplace_trace_id?: string;
+  policy_sync?: {
+    status: 'matched' | 'missing_client' | 'version_mismatch' | 'fingerprint_mismatch';
+    strict_enforced: boolean;
+    server_policy_version: string;
+    server_policy_fingerprint: string;
+    client_policy_version?: string;
+    client_policy_fingerprint?: string;
+  };
+}
+
+interface PendingCapsuleApproval {
+  token: string;
+  requestBody: Record<string, any>;
+  rawText: string;
+  startedAt: number;
+  reason?: string;
+  policyDecisionIds?: string[];
+  expiresAt?: number;
+}
+
+interface PolicySyncState {
+  policyVersion?: string;
+  policyFingerprint?: string;
 }
 
 const formatDateYMD = (date: Date): string => {
@@ -165,7 +217,7 @@ const buildAssistantMetaFromSolution = (solution: any, query: string): Assistant
       data.results.slice(0, 2).forEach((item: any) => {
         if (typeof item?.title === 'string' && item.title.trim()) highlights.push(item.title.trim());
         if (typeof item?.url === 'string' && item.url.trim()) {
-          links.push({ title: item?.title || '查看结果', url: item.url, caption: item?.source });
+          links.push({ title: item?.title || 'View result', url: item.url, caption: item?.source });
         }
       });
     }
@@ -173,41 +225,41 @@ const buildAssistantMetaFromSolution = (solution: any, query: string): Assistant
       data.evidence.items.slice(0, 2).forEach((item: any) => {
         if (typeof item?.title === 'string' && item.title.trim()) highlights.push(item.title.trim());
         if (typeof item?.url === 'string' && item.url.trim()) {
-          links.push({ title: item?.title || '查看证据', url: item.url, caption: item?.source_name });
+          links.push({ title: item?.title || 'View evidence', url: item.url, caption: item?.source_name });
         }
       });
     }
     if (Array.isArray(data?.action_links)) {
       data.action_links.slice(0, 3).forEach((item: any) => {
         if (typeof item?.url === 'string' && item.url.trim()) {
-          links.push({ title: item?.title || '前往操作', url: item.url, caption: item?.provider });
+          links.push({ title: item?.title || 'Open action', url: item.url, caption: item?.provider });
         }
       });
     }
     const flights = Array.isArray(data?.data?.flights) ? data.data.flights : [];
     if (flights.length > 0) {
       const best = flights[0];
-      const airline = typeof best?.airline === 'string' ? best.airline : '航司';
+      const airline = typeof best?.airline === 'string' ? best.airline : 'Airline';
       const price = Number.isFinite(best?.price) ? `¥${best.price}` : '';
-      highlights.push(`航班推荐：${airline}${price ? ` · ${price}` : ''}`);
+      highlights.push(`Flight recommendation: ${airline}${price ? ` · ${price}` : ''}`);
       if (typeof best?.bookingUrl === 'string' && best.bookingUrl.trim()) {
-        links.push({ title: `${airline} 预订入口`, url: best.bookingUrl });
+        links.push({ title: `${airline} booking`, url: best.bookingUrl });
       }
     }
     const hotels = Array.isArray(data?.data?.hotels) ? data.data.hotels : [];
     if (hotels.length > 0) {
       const best = hotels[0];
-      const name = typeof best?.name === 'string' ? best.name : '酒店';
-      const price = Number.isFinite(best?.pricePerNight) ? `¥${best.pricePerNight}/晚` : '';
-      highlights.push(`酒店推荐：${name}${price ? ` · ${price}` : ''}`);
+      const name = typeof best?.name === 'string' ? best.name : 'Hotel';
+      const price = Number.isFinite(best?.pricePerNight) ? `¥${best.pricePerNight}/night` : '';
+      highlights.push(`Hotel recommendation: ${name}${price ? ` · ${price}` : ''}`);
       if (typeof best?.bookingUrl === 'string' && best.bookingUrl.trim()) {
-        links.push({ title: `${name} 预订入口`, url: best.bookingUrl });
+        links.push({ title: `${name} booking`, url: best.bookingUrl });
       }
     }
     if (data?.data?.comparisonLinks && typeof data.data.comparisonLinks === 'object') {
       Object.values(data.data.comparisonLinks).slice(0, 3).forEach((item: any) => {
         if (typeof item?.url === 'string' && item.url.trim()) {
-          links.push({ title: item?.name || '比价入口', url: item.url, caption: '比价' });
+          links.push({ title: item?.name || 'Comparison link', url: item.url, caption: 'Price compare' });
         }
       });
     }
@@ -255,20 +307,100 @@ const buildAssistantActionQuery = (baseQuery: string, action: AssistantActionId)
   if (!query) return baseQuery;
   switch (action) {
     case 'continue_filter':
-      return /继续筛选/.test(query) ? query : `${query}，继续筛选`;
+      return /\u7ee7\u7eed\u7b5b\u9009|continue filter/i.test(query) ? query : `${query}, continue filtering`;
     case 'direct_only':
-      return /直飞/.test(query) ? query : `${query}，只看直飞`;
+      return /\u76f4\u98de|direct flight|non-stop/i.test(query) ? query : `${query}, direct flights only`;
     case 'budget_800':
-      return /(预算|¥|￥)\s*800|800\s*元/.test(query) ? query : `${query}，预算800元以内`;
+      return /(\u9884\u7b97|budget|¥|￥)\s*800|800\s*(\u5143|rmb|cny)?/i.test(query) ? query : `${query}, budget within 800`;
     case 'add_date':
-      return /\d{4}-\d{2}-\d{2}|今天|明天|后天/.test(query) ? query : `${query}，出发日期${getDefaultTravelDate()}`;
+      return /\d{4}-\d{2}-\d{2}|\u4eca\u5929|\u660e\u5929|\u540e\u5929|today|tomorrow|day after tomorrow/i.test(query)
+        ? query
+        : `${query}, departure date ${getDefaultTravelDate()}`;
     case 'add_budget':
-      return /(预算|¥|￥)\s*\d+|\d+\s*元/.test(query) ? query : `${query}，预算1500元以内`;
+      return /(\u9884\u7b97|budget|¥|￥)\s*\d+|\d+\s*(\u5143|rmb|cny)?/i.test(query) ? query : `${query}, budget within 1500`;
     case 'add_passengers':
-      return /\d+\s*(人|位)/.test(query) ? query : `${query}，1人出行`;
+      return /\d+\s*(\u4eba|\u4f4d|person|people|pax)/i.test(query) ? query : `${query}, 1 traveler`;
     default:
       return query;
   }
+};
+
+const isCapsuleApprovalWaiting = (payload: SuperAgentExecuteResponse): boolean =>
+  payload.success === true
+  && payload.runtime_status === 'WAITING_USER'
+  && payload.current_wait?.node_id === 'capsule_approval'
+  && typeof payload.capsule_approval_token === 'string'
+  && payload.capsule_approval_token.trim().length > 0;
+
+const containsLikelyPII = (text: string): boolean => {
+  const normalized = String(text || '').trim();
+  if (!normalized) return false;
+  const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+  const phonePattern = /(?:\+?\d[\d\s\-()]{7,}\d)/;
+  return emailPattern.test(normalized) || phonePattern.test(normalized);
+};
+
+const isMarketEgressIntent = (text: string): boolean =>
+  /(market|marketplace|publish|公开|市场|发布|上架|披露|post externally)/i.test(String(text || ''));
+
+const buildCapsuleApprovalTask = (
+  rawText: string,
+  token: string,
+  options?: {
+    reason?: string;
+    startedAt?: number;
+    policyDecisionIds?: string[];
+    expiresAt?: number;
+  }
+): TaskPlan => ({
+  id: `capsule_approval_${token.slice(0, 12)}`,
+  goal: `Approve external disclosure: ${rawText.slice(0, 80)}`,
+  steps: [
+    {
+      id: 'capsule_approval_step',
+      description: options?.reason || 'This request requires explicit approval before external disclosure.',
+      status: 'waiting_confirmation',
+      requiresConfirmation: true,
+      maxRetries: 0,
+    },
+  ],
+  currentStepIndex: 0,
+  status: 'waiting_confirmation',
+  summary: options?.reason || 'Awaiting approval for capsule disclosure',
+  startedAt: options?.startedAt || Date.now(),
+  audit: {
+    approval_reason: options?.reason,
+    policy_decision_ids: options?.policyDecisionIds,
+    approval_token: token,
+    approval_expires_at: options?.expiresAt,
+  },
+});
+
+const toLegacySuperAgentSolution = (payload: SuperAgentExecuteResponse) => {
+  const toolsUsed = Array.isArray(payload.toolsUsed) ? payload.toolsUsed : [];
+  const toolResults = Array.isArray(payload.toolResults) ? payload.toolResults : [];
+  return {
+    answer: String(payload.answer || ''),
+    reasoning: typeof payload.reasoning === 'string'
+      ? payload.reasoning
+      : toolsUsed.length > 0
+        ? `Used ${toolsUsed.join(', ')} to answer your request`
+        : 'single_entry_super_agent',
+    skillsUsed: toolsUsed,
+    results: toolResults.map((row) => ({
+      success: row?.success !== false,
+      data: row?.output,
+      confidence: row?.success === false ? 0 : 0.9,
+      error: row?.error,
+      executionTimeMs: Number(row?.executionTimeMs || 0),
+      skillId: row?.toolName || 'tool',
+      skillName: row?.toolName || 'tool',
+    })),
+    confidence: Number.isFinite(payload.confidence) ? Number(payload.confidence) : 0.5,
+    executionTimeMs: Number.isFinite(payload.executionTimeMs) ? Number(payload.executionTimeMs) : 0,
+    followUpSuggestions: Array.isArray(payload.followUpSuggestions) ? payload.followUpSuggestions : [],
+    marketplace_trace_id: payload.marketplace_trace_id,
+  };
 };
 
 export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, apiKey, onAgentLog, onOpenApp, onDecisionUpdate, onSoulUpdate, onDestinyResult, onOpenInMarket, onAgentChatRedirect, fullscreen }) => {
@@ -289,7 +421,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
   const [sentinelOutput, setSentinelOutput] = useState<SentinelOutput | null>(null);
   const sentinelTimerRef = useRef<number | null>(null);
 
-  // Sentinel 分析 - 防抖处理
+  // Sentinel analysis with debounce
   const analyzeSentinel = useCallback((text: string) => {
     if (sentinelTimerRef.current) {
       clearTimeout(sentinelTimerRef.current);
@@ -298,20 +430,20 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
       const result = keyboardSentinel.analyze(text);
       setSentinelOutput(result);
 
-      // 将意图传递给 Soul Architect (Layer 2)
+      // Pass intent to Soul Architect (Layer 2)
       if (result.intent || result.privacy) {
         soulArchitect.onSentinelIntent(result);
       }
 
-      // 记录高价值意图
+      // Log high-value intents
       if (result.intent && result.meta.shouldEscalate) {
-        onAgentLog(`[Sentinel] 检测到意图: ${result.intent.type} (置信度: ${(result.intent.confidence * 100).toFixed(0)}%)`);
+        onAgentLog(`[Sentinel] Intent detected: ${result.intent.type} (confidence: ${(result.intent.confidence * 100).toFixed(0)}%)`);
       }
-      // 记录隐私风险
+      // Log privacy risk
       if (result.privacy) {
-        onAgentLog(`[Sentinel] ⚠️ 隐私风险: ${result.privacy.risk} -> ${result.privacy.action}`);
+        onAgentLog(`[Sentinel] ⚠️ Privacy risk: ${result.privacy.risk} -> ${result.privacy.action}`);
       }
-    }, 200); // 200ms 防抖
+    }, 200); // 200ms debounce
   }, [onAgentLog]);
 
   const [mode, setMode] = useState<InputMode>(() => {
@@ -338,16 +470,18 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
   const [showAppOverlay, setShowAppOverlay] = useState(false);
   const [pendingIntent, setPendingIntent] = useState<PendingIntent | null>(null);
   const [followUpPrompt, setFollowUpPrompt] = useState<string | null>(null);
+  const [pendingCapsuleApproval, setPendingCapsuleApproval] = useState<PendingCapsuleApproval | null>(null);
+  const [policySyncState, setPolicySyncState] = useState<PolicySyncState | null>(null);
   const [showConsentModal, setShowConsentModal] = useState<boolean>(() => {
     // Show consent modal if user hasn't consented yet
     const service = getPassiveLearningService();
     return !service.hasConsent() && !localStorage.getItem('lumi_consent_declined');
   });
 
-  // Super Agent 结果 - 用于在 App 中可视化
+  // Super Agent result for visualization in the app
   const [superAgentResult, setSuperAgentResult] = useState<SuperAgentResult | null>(null);
 
-  // 对话上下文 - 用于多轮对话记忆
+  // Conversation context for multi-turn memory
   const [conversationContext, setConversationContext] = useState<ConversationMessage[]>([]);
 
   const agentRef = useRef<LumiAgent>(new LumiAgent(soul, policy, apiKey));
@@ -395,6 +529,45 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
     }
   }, [mode]);
 
+  const buildSuperAgentExecuteRequest = useCallback((
+    rawText: string,
+    typedInput: string,
+    contextOverride?: ConversationMessage[]
+  ): Record<string, any> => {
+    const marketIntent = isMarketEgressIntent(rawText);
+    const piiDetected = containsLikelyPII(typedInput || rawText);
+    const contextWindow = contextOverride || conversationContext;
+    return {
+      query: rawText,
+      api_key: apiKey,
+      user_id: 'user',
+      current_app: currentScenario.id,
+      recent_queries: contextWindow.slice(-5).map(m => m.content),
+      locale: 'en-GB',
+      preferences: soul,
+      selected_text: typedInput || rawText,
+      data: {
+        egress_target: marketIntent ? 'market' : 'cloud',
+        contains_pii: piiDetected,
+      },
+      client_policy_version: policySyncState?.policyVersion,
+      client_policy_fingerprint: policySyncState?.policyFingerprint,
+    };
+  }, [apiKey, conversationContext, currentScenario.id, soul, policySyncState]);
+
+  const applyPolicySyncFromPayload = useCallback((
+    policySync?: SuperAgentExecuteResponse['policy_sync']
+  ) => {
+    if (!policySync) return;
+    setPolicySyncState({
+      policyVersion: policySync.server_policy_version,
+      policyFingerprint: policySync.server_policy_fingerprint,
+    });
+    if (policySync.status !== 'matched') {
+      onAgentLog(`[Policy Sync] status=${policySync.status} strict=${policySync.strict_enforced}`);
+    }
+  }, [onAgentLog]);
+
   // Auto-collapse keyboard when agent output is shown
   useEffect(() => {
     if (
@@ -408,13 +581,13 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
   }, [agentOutput]);
 
   const isTravelQuery = (text: string) =>
-    /机票|航班|飞机|flight|travel|旅行|旅游|酒店|hotel|接送机|机场|机场接送|to\s+\w+|from\s+\w+|trip/i.test(text);
+    /\u673a\u7968|\u822a\u73ed|\u98de\u673a|flight|travel|\u65c5\u884c|\u65c5\u6e38|\u9152\u5e97|hotel|\u63a5\u9001\u673a|\u673a\u573a|\u673a\u573a\u63a5\u9001|to\s+\w+|from\s+\w+|trip/i.test(text);
 
   const isTravelFollowUp = (text: string) =>
-    /日期|时间|出发|返程|回程|预算|价格|航班|机票|酒店|住宿|餐厅|美食|景点|行程|接送机|天气|签证|transfer|pickup|hotel|restaurant|attraction|itinerary|weather/i.test(text);
+    /\u65e5\u671f|\u65f6\u95f4|\u51fa\u53d1|\u8fd4\u7a0b|\u56de\u7a0b|\u9884\u7b97|\u4ef7\u683c|\u822a\u73ed|\u673a\u7968|\u9152\u5e97|\u4f4f\u5bbf|\u9910\u5385|\u7f8e\u98df|\u666f\u70b9|\u884c\u7a0b|\u63a5\u9001\u673a|\u5929\u6c14|\u7b7e\u8bc1|transfer|pickup|hotel|restaurant|attraction|itinerary|weather/i.test(text);
 
   const isDateFollowUp = (text: string) =>
-    /\d{1,4}[-\/年]\d{1,2}[-\/月]\d{1,2}|下周|明天|后天|周[一二三四五六日末]|月底|月初|next week|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d+号|\d+日/i.test(text);
+    /\d{1,4}[-\/\u5e74]\d{1,2}[-\/\u6708]\d{1,2}|\u4e0b\u5468|\u660e\u5929|\u540e\u5929|\u5468[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u65e5\u672b]|\u6708\u5e95|\u6708\u521d|next week|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d+\u53f7|\d+\u65e5/i.test(text);
 
   const shouldAppendIntent = (pending: PendingIntent | null, text: string) => {
     if (!pending) return false;
@@ -464,7 +637,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
       analyzeSentinel(newValue);
       return newValue;
     });
-    // 被动学习：记录按键
+    // Passive learning: record keystrokes
     const passiveLearning = getPassiveLearningService();
     passiveLearning.onKeystroke(currentScenario.id);
     if (key === ' ' || /[，。！？,.!?]/.test(key)) {
@@ -478,7 +651,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
       analyzeSentinel(newValue);
       return newValue;
     });
-    // 被动学习：记录删除
+    // Passive learning: record deletion
     const passiveLearning = getPassiveLearningService();
     passiveLearning.onDeletion(currentScenario.id);
   };
@@ -489,7 +662,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
     setKeyboardCollapsed(false);
     setInputValue(prev => {
       if (!prev) return clean;
-      const separator = /[，,、；;]\s*$/.test(prev) ? ' ' : '，';
+      const separator = /[，,、；;]\s*$/.test(prev) ? ' ' : ', ';
       return `${prev}${separator}${clean}`;
     });
   };
@@ -501,7 +674,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
     setPendingIntent({ query: meta.query || nextQuery, locked: false, topic: 'travel' });
     setFollowUpPrompt(null);
     setKeyboardCollapsed(false);
-    onAgentLog(`[Assistant] 已填入快捷操作: ${nextQuery}`);
+    onAgentLog(`[Assistant] Quick action filled: ${nextQuery}`);
   };
 
   const handleEnter = async () => {
@@ -541,7 +714,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
         pendingDraftRef.current = null;
       }
     } else {
-      // AGENT MODE: 重定向到 Lumi App Chat
+      // AGENT MODE: redirect to Lumi App chat
       const typedInput = inputValue.trim();
       const builtQuery = buildAgentQuery(inputValue);
       if (!builtQuery) return;
@@ -550,7 +723,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
       // Redirect to Lumi App Chat — do NOT send into third-party chat
       if (onAgentChatRedirect) {
         setInputValue('');
-        onAgentLog(`[Agent Mode] 重定向到 Lumi Chat: "${rawText}"`);
+        onAgentLog(`[Agent Mode] Redirecting to Lumi Chat: "${rawText}"`);
         onAgentChatRedirect(rawText);
         return;
       }
@@ -560,7 +733,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
       setAgentOutput(null);
       const requestTs = Date.now();
 
-      // 在主聊天流中显示用户提问
+      // Show user query in main chat stream
       setMessages(prev => [...prev, {
         id: requestTs,
         text: typedInput || rawText,
@@ -568,47 +741,110 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
         timestamp: requestTs,
       }]);
 
-      // 使用累积的对话上下文（保持多轮对话记忆）
+      // Use accumulated conversation context (multi-turn memory)
       const updatedContext: ConversationMessage[] = [
         ...conversationContext,
         { role: 'user' as const, content: rawText }
       ];
 
-      onAgentLog(`[Super Agent] 接收问题: "${rawText}" (上下文: ${updatedContext.length} 条消息)`);
+      onAgentLog(`[Super Agent] Received query: "${rawText}" (context: ${updatedContext.length} messages)`);
 
       try {
-        // 🧠 使用 Super Agent 处理问题
-        const superAgent = getSuperAgent();
-        superAgent.setApiKey(apiKey);
+        let solution: any | null = null;
+        let executeRequestBody = buildSuperAgentExecuteRequest(rawText, typedInput, updatedContext);
 
-        const solution = await superAgent.solve(rawText, {
-          userId: 'user',
-          preferences: soul,
-          recentQueries: updatedContext.slice(-5).map(m => m.content),  // 增加到5条上下文
-          currentApp: currentScenario.id,
-          conversationHistory: updatedContext  // 传递完整对话历史
-        });
+        // Prefer unified API runtime for policy/capsule gating; fallback to local superAgent.solve.
+        try {
+          const executeResponse = await fetch(buildApiUrl('/api/super-agent/execute'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(executeRequestBody),
+          });
 
-        onAgentLog(`[Super Agent] 完成: ${solution.skillsUsed.length} 个 Skills, 置信度 ${(solution.confidence * 100).toFixed(0)}%, 耗时 ${solution.executionTimeMs}ms`);
+          if (executeResponse.ok) {
+            const executePayload = await executeResponse.json() as SuperAgentExecuteResponse;
+            applyPolicySyncFromPayload(executePayload.policy_sync);
 
-        // 更新对话上下文（添加助手回复）- 用于多轮对话记忆
+            if (isCapsuleApprovalWaiting(executePayload)) {
+              const token = String(executePayload.capsule_approval_token || '').trim();
+              const reason = String(executePayload.approval_reason || 'Approval required before continuing').trim();
+              const policyDecisionIds = Array.isArray(executePayload.policy_decision_ids)
+                ? executePayload.policy_decision_ids
+                : [];
+              const expiresAt = executePayload.current_wait?.expires_at;
+              setPendingCapsuleApproval({
+                token,
+                requestBody: executeRequestBody,
+                rawText,
+                startedAt: Date.now(),
+                reason,
+                policyDecisionIds,
+                expiresAt,
+              });
+              setConversationContext(updatedContext);
+              setSuperAgentResult(null);
+              setAgentOutput({
+                type: 'TASK_PROGRESS',
+                task: buildCapsuleApprovalTask(rawText, token, {
+                  reason,
+                  startedAt: Date.now(),
+                  policyDecisionIds,
+                  expiresAt,
+                }),
+              });
+              setInputValue('');
+              onAgentLog(`[Policy] decision_ids=${policyDecisionIds.join(',') || 'none'}`);
+              onAgentLog(`[Super Agent] Waiting for capsule approval (${token.slice(0, 8)}...)`);
+              return;
+            }
+
+            if (executePayload.success === true && typeof executePayload.answer === 'string') {
+              solution = toLegacySuperAgentSolution(executePayload);
+              onAgentLog('[Super Agent] Completed via /api/super-agent/execute');
+            } else if (executePayload.success === false && executePayload.error) {
+              throw new Error(executePayload.error);
+            }
+          } else {
+            onAgentLog(`[Super Agent API] HTTP ${executeResponse.status}, fallback to local solver`);
+          }
+        } catch (executeError) {
+          onAgentLog(`[Super Agent API] unavailable: ${executeError instanceof Error ? executeError.message : String(executeError)}`);
+        }
+
+        if (!solution) {
+          // 🧠 Fallback local path (direct service invocation)
+          const superAgent = getSuperAgent();
+          superAgent.setApiKey(apiKey);
+          solution = await superAgent.solve(rawText, {
+            userId: 'user',
+            preferences: soul,
+            recentQueries: updatedContext.slice(-5).map(m => m.content),
+            currentApp: currentScenario.id,
+            conversationHistory: updatedContext
+          });
+        }
+        setPendingCapsuleApproval(null);
+
+        onAgentLog(`[Super Agent] Completed: ${solution.skillsUsed.length} skills, confidence ${(solution.confidence * 100).toFixed(0)}%, time ${solution.executionTimeMs}ms`);
+
+        // Update conversation context with assistant response
         const newContext: ConversationMessage[] = [
           ...updatedContext,
           { role: 'assistant' as const, content: solution.answer || '' }
         ];
         setConversationContext(newContext);
 
-        // 将 Super Agent 结果写回主聊天流（替代过去仅在 overlay 展示）
+        // Write Super Agent result back to main chat stream
         const assistantMeta = buildAssistantMetaFromSolution(solution, rawText);
         setMessages(prev => [...prev, {
           id: requestTs + 1,
-          text: solution.answer || '已为你生成可执行建议。',
+          text: solution.answer || 'Generated an executable suggestion for you.',
           from: 'assistant',
           timestamp: Date.now(),
           assistantMeta,
         }]);
 
-        // 🎯 保存结构化结果用于 Lumi App 可视化
+        // 🎯 Save structured result for Lumi App visualization
         setSuperAgentResult({
           question: rawText,
           answer: solution.answer,
@@ -620,10 +856,10 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
           timestamp: Date.now()
         });
 
-        // 保持在聊天流，可按需由用户再打开 Lumi App 详情
-        onAgentLog(`[Super Agent] Agent 模式完成，结果已写入聊天流`);
+        // Keep result in chat stream; user can open full app details on demand
+        onAgentLog(`[Super Agent] Agent mode completed, result written to chat stream`);
 
-        // 如果有后续建议，显示为 drafts
+        // Show follow-up suggestions as drafts if available
         if (solution.followUpSuggestions && solution.followUpSuggestions.length > 0) {
           const drafts = solution.followUpSuggestions.map((suggestion, i) => ({
             id: `followup_${i}`,
@@ -636,20 +872,20 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
             // reasoning is stored in superAgentResult, not in DRAFTS type
           });
         } else {
-          // 推理过程信息保存在 superAgentResult 中，不需要单独的 output
-          // 清除之前的输出
+          // Reasoning is stored in superAgentResult; no separate output needed
+          // Clear previous output
           setAgentOutput(null);
         }
 
         setInputValue('');
-        // ⚡️ 保持 Agent Mode，不切换回 TYPE
-        // setMode(InputMode.TYPE); // 删除这行！保持在 Agent Mode
+        // ⚡️ Keep Agent Mode; do not switch back to TYPE
+        // setMode(InputMode.TYPE); // intentionally disabled to keep Agent Mode
 
       } catch (e) {
-        onAgentLog(`[Super Agent] 错误: ${e}`);
+        onAgentLog(`[Super Agent] Error: ${e}`);
 
-        // 降级到原有的 lumiAgent
-        onAgentLog(`[降级] 使用原有 Agent 处理...`);
+        // Fallback to legacy Lumi agent
+        onAgentLog(`[Fallback] Using legacy agent...`);
         const input: AgentInput = {
           rawText,
           mode: InputMode.AGENT,
@@ -684,7 +920,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
       tone: draft.tone
     }, currentScenario.id);
 
-    // 记录到 Soul Architect (Layer 2)
+    // Record to Soul Architect (Layer 2)
     soulArchitect.onInteraction({
       type: 'draft_accept',
       context: draft.tone,
@@ -697,7 +933,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
   const handleCardClick = (card: ServiceCard) => {
     onAgentLog(`User clicked card: ${card.id} - ${card.actionType}: ${card.actionUri}`);
 
-    // 记录到 Soul Architect (Layer 2)
+    // Record to Soul Architect (Layer 2)
     soulArchitect.onInteraction({
       type: 'card_click',
       context: `${card.title} - ${card.actionType}`,
@@ -738,10 +974,10 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
   const handleTemplateSelect = (template: QuickTemplate) => {
     setInputValue(template.prompt);
     setShowTemplates(false);
-    onAgentLog(`Template selected: ${template.labelZh}`);
+    onAgentLog(`Template selected: ${template.label}`);
   };
 
-  // Handle feature button selection (三大功能快捷入口)
+  // Handle feature button selection (three quick feature entry points)
   const handleFeatureSelect = (feature: 'write' | 'find' | 'remember', prompt: string) => {
     setInputValue(prompt + ' ');
     setShowTemplates(false);
@@ -753,12 +989,137 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
     onAgentLog(`Task action: ${action} for task ${task.id}`);
     setIsLoading(true);
     try {
+      if (pendingCapsuleApproval) {
+        const decision = action === 'confirm' ? 'approve' : 'reject';
+        const approvalResponse = await fetch(buildApiUrl('/api/super-agent/capsule-approval'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: pendingCapsuleApproval.token,
+            decision,
+          }),
+        });
+        const approvalPayload = await approvalResponse.json().catch(() => ({} as Record<string, unknown>));
+        if (!approvalResponse.ok || approvalPayload?.success !== true) {
+          throw new Error(String(approvalPayload?.error || `capsule_approval_${decision}_failed`));
+        }
+
+        if (action === 'cancel') {
+          setPendingCapsuleApproval(null);
+          setAgentOutput({
+            type: 'TASK_PROGRESS',
+            task: {
+              id: task.id,
+              goal: task.goal,
+              steps: task.steps.map((step) => ({
+                ...step,
+                status: step.status === 'waiting_confirmation' ? 'failed' : step.status,
+              })),
+              currentStepIndex: task.currentStepIndex,
+              status: 'failed',
+              summary: 'Capsule approval rejected by user',
+              startedAt: task.startedAt,
+              completedAt: Date.now(),
+              audit: task.audit,
+            },
+          });
+          onAgentLog('[Super Agent] Capsule approval rejected');
+          return;
+        }
+
+        const resumeResponse = await fetch(buildApiUrl('/api/super-agent/execute'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...pendingCapsuleApproval.requestBody,
+            capsule_approval_token: pendingCapsuleApproval.token,
+          }),
+        });
+        const resumePayload = await resumeResponse.json().catch(() => ({} as SuperAgentExecuteResponse));
+        applyPolicySyncFromPayload(resumePayload.policy_sync);
+        if (!resumeResponse.ok || resumePayload?.success !== true) {
+          throw new Error(String((resumePayload as any)?.error || 'capsule_resume_failed'));
+        }
+
+        if (isCapsuleApprovalWaiting(resumePayload)) {
+          const token = String(resumePayload.capsule_approval_token || pendingCapsuleApproval.token).trim();
+          const reason = String(resumePayload.approval_reason || pendingCapsuleApproval.reason || '').trim();
+          const policyDecisionIds = Array.isArray(resumePayload.policy_decision_ids)
+            ? resumePayload.policy_decision_ids
+            : pendingCapsuleApproval.policyDecisionIds || [];
+          const expiresAt = resumePayload.current_wait?.expires_at || pendingCapsuleApproval.expiresAt;
+          setPendingCapsuleApproval({
+            ...pendingCapsuleApproval,
+            token,
+            reason,
+            policyDecisionIds,
+            expiresAt,
+          });
+          setAgentOutput({
+            type: 'TASK_PROGRESS',
+            task: buildCapsuleApprovalTask(pendingCapsuleApproval.rawText, token, {
+              reason,
+              startedAt: pendingCapsuleApproval.startedAt,
+              policyDecisionIds,
+              expiresAt,
+            }),
+          });
+          return;
+        }
+
+        const solution = toLegacySuperAgentSolution(resumePayload);
+        const rawText = pendingCapsuleApproval.rawText;
+        const newContext: ConversationMessage[] = [
+          ...conversationContext,
+          { role: 'assistant' as const, content: solution.answer || '' },
+        ];
+        setConversationContext(newContext);
+
+        const assistantMeta = buildAssistantMetaFromSolution(solution, rawText);
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          text: solution.answer || 'Generated an executable suggestion for you.',
+          from: 'assistant',
+          timestamp: Date.now(),
+          assistantMeta,
+        }]);
+
+        setSuperAgentResult({
+          question: rawText,
+          answer: solution.answer,
+          skillsUsed: solution.skillsUsed,
+          results: solution.results,
+          confidence: solution.confidence,
+          executionTimeMs: solution.executionTimeMs,
+          reasoning: solution.reasoning,
+          timestamp: Date.now(),
+        });
+
+        if (solution.followUpSuggestions && solution.followUpSuggestions.length > 0) {
+          const drafts = solution.followUpSuggestions.map((suggestion, i) => ({
+            id: `followup_${i}`,
+            text: suggestion,
+            tone: 'suggestion',
+          }));
+          setAgentOutput({
+            type: 'DRAFTS',
+            drafts,
+          });
+        } else {
+          setAgentOutput(null);
+        }
+
+        setPendingCapsuleApproval(null);
+        onAgentLog(`[Super Agent] Capsule approval confirmed and execution resumed (${solution.skillsUsed.length} skills)`);
+        return;
+      }
+
       const output = await agentRef.current.handleTaskAction(action);
       onAgentLog(`Task output: ${JSON.stringify(output)}`);
       setAgentOutput(output);
     } catch (e) {
       onAgentLog(`Task error: ${e}`);
-      setAgentOutput({ type: 'ERROR', message: '任务执行失败' });
+      setAgentOutput({ type: 'ERROR', message: 'Task execution failed' });
     } finally {
       setIsLoading(false);
     }
@@ -802,7 +1163,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
     setMessages(buildDefaultScenarioMessages(scenario));
     setShowScenarioPicker(false);
     setAgentOutput(null);
-    onAgentLog(`Switched to ${scenario.nameZh} scenario`);
+    onAgentLog(`Switched to ${scenario.name} scenario`);
 
   };
 
@@ -826,23 +1187,23 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
         }}
         superAgentResult={superAgentResult}
         onFollowUp={async (question) => {
-          // 🚀 直接在 Lumi App 内继续对话，不关闭 App
-          onAgentLog(`[Super Agent] 继续对话: "${question}"`);
+          // Continue the conversation inside Lumi App without closing the overlay
+          onAgentLog(`[Super Agent] Continue conversation: "${question}"`);
           setIsLoading(true);
 
           try {
             const superAgent = getSuperAgent();
             superAgent.setApiKey(apiKey);
 
-            // 添加到对话上下文
+            // Add to conversation context
             const updatedContext: ConversationMessage[] = [
               ...conversationContext,
               { role: 'user' as const, content: question }
             ];
 
-            // 🔍 调试：显示对话上下文
-            console.log(`[Follow-up] 对话上下文 (${updatedContext.length} 条消息):`, updatedContext);
-            onAgentLog(`[Follow-up] 上下文消息数: ${updatedContext.length}`);
+            // Debug: show conversation context
+            console.log(`[Follow-up] Conversation context (${updatedContext.length} messages):`, updatedContext);
+            onAgentLog(`[Follow-up] Context message count: ${updatedContext.length}`);
 
             const solution = await superAgent.solve(question, {
               userId: 'user',
@@ -852,16 +1213,16 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
               conversationHistory: updatedContext
             });
 
-            onAgentLog(`[Super Agent] 继续对话完成: ${solution.skillsUsed.length} 个 Skills`);
+            onAgentLog(`[Super Agent] Follow-up complete: ${solution.skillsUsed.length} skills`);
 
-            // 更新对话上下文
+            // Update conversation context
             const newContext: ConversationMessage[] = [
               ...updatedContext,
               { role: 'assistant' as const, content: solution.answer || '' }
             ];
             setConversationContext(newContext);
 
-            // 更新结果显示（保持在 Lumi App 内）
+            // Update result display (keep inside Lumi App)
             setSuperAgentResult({
               question: question,
               answer: solution.answer,
@@ -873,7 +1234,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
               timestamp: Date.now()
             });
           } catch (e) {
-            onAgentLog(`[Super Agent] 继续对话错误: ${e}`);
+            onAgentLog(`[Super Agent] Follow-up error: ${e}`);
           } finally {
             setIsLoading(false);
           }
@@ -897,7 +1258,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
           className="flex items-center gap-1 hover:opacity-70 transition-opacity"
         >
           <span>{currentScenario.icon}</span>
-          <span>{currentScenario.nameZh}</span>
+          <span>{currentScenario.name}</span>
           <ChevronDown size={12} />
         </button>
         <div className="flex gap-1.5 text-gray-700">
@@ -917,7 +1278,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                   }`}
               >
                 <span>{scenario.icon}</span>
-                <span className="text-sm">{scenario.nameZh}</span>
+                <span className="text-sm">{scenario.name}</span>
               </button>
             ))}
           </div>
@@ -953,7 +1314,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
             title="Clear chat history"
           >
             <Trash2 size={14} />
-            <span>清除 ({messages.length})</span>
+            <span>Clear ({messages.length})</span>
           </button>
         )}
       </div>
@@ -1030,25 +1391,25 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                         onClick={() => handleAssistantQuickAction(meta, 'continue_filter')}
                         className="text-[11px] px-2 py-1 rounded border border-slate-200 bg-white text-slate-600"
                       >
-                        继续筛选
+                        Continue filtering
                       </button>
                       <button
                         onClick={() => handleAssistantQuickAction(meta, 'direct_only')}
                         className="text-[11px] px-2 py-1 rounded border border-slate-200 bg-white text-slate-600"
                       >
-                        只看直飞
+                        Direct flights only
                       </button>
                       <button
                         onClick={() => handleAssistantQuickAction(meta, 'budget_800')}
                         className="text-[11px] px-2 py-1 rounded border border-slate-200 bg-white text-slate-600"
                       >
-                        预算≤800
+                        Budget under 800
                       </button>
                       <button
                         onClick={() => setShowAppOverlay(true)}
                         className="text-[11px] px-2 py-1 rounded border border-indigo-200 bg-indigo-50 text-indigo-600"
                       >
-                        打开详情
+                        Open details
                       </button>
                     </div>
                   )}
@@ -1056,26 +1417,26 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                   {isAssistant && meta?.missingConstraints && meta.missingConstraints.length > 0 && (
                     <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2">
                       <div className="text-[11px] text-amber-700 mb-1">
-                        缺失信息：{meta.missingConstraints.join('、')}
+                        Missing info: {meta.missingConstraints.join(', ')}
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <button
                           onClick={() => handleAssistantQuickAction(meta, 'add_date')}
                           className="text-[11px] px-2 py-1 rounded border border-amber-200 bg-white text-amber-700"
                         >
-                          填日期（{getDefaultTravelDate()}）
+                          Add dates ({getDefaultTravelDate()})
                         </button>
                         <button
                           onClick={() => handleAssistantQuickAction(meta, 'add_budget')}
                           className="text-[11px] px-2 py-1 rounded border border-amber-200 bg-white text-amber-700"
                         >
-                          填预算
+                          Add budget
                         </button>
                         <button
                           onClick={() => handleAssistantQuickAction(meta, 'add_passengers')}
                           className="text-[11px] px-2 py-1 rounded border border-amber-200 bg-white text-amber-700"
                         >
-                          填人数
+                          Add travelers
                         </button>
                       </div>
                     </div>
@@ -1135,31 +1496,31 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
           }}
         />
 
-        {/* Keyboard Sentinel Indicator - 实时意图/隐私检测 */}
+        {/* Keyboard Sentinel Indicator - real-time intent/privacy detection */}
         <SentinelIndicator
           output={sentinelOutput}
           onMaskApply={(maskedText) => {
-            // 用脱敏文本替换当前输入
+            // Replace current input with masked text
             setInputValue(prev => {
-              // 简单替换，实际应用中需要更精确的定位
+              // Simple replacement; production should use stricter position mapping
               if (sentinelOutput?.privacy?.maskedPreview) {
                 return prev.replace(/\d{11,}/, maskedText.replace(/\s/g, ''));
               }
               return prev;
             });
             setSentinelOutput(null);
-            onAgentLog('[Sentinel] 已应用脱敏处理');
+            onAgentLog('[Sentinel] Masking applied');
           }}
           onIntentAction={(intentType) => {
-            // 自动切换到 Agent 模式
+            // Auto-switch to Agent mode
             setMode(InputMode.AGENT);
-            onAgentLog(`[Sentinel] 激活 Agent 模式处理: ${intentType}`);
-            // 可选：自动触发 Agent 处理
+            onAgentLog(`[Sentinel] Activated Agent mode for: ${intentType}`);
+            // Optional: auto-trigger agent handling
             // Note: handleSend is defined in AgentKeyboard component, so we just set mode here
             // The actual processing will happen when user presses enter
           }}
           onDestinySimulate={async (intentType, _params) => {
-            onAgentLog(`[DTOE] 启动策略推演: ${intentType}`);
+            onAgentLog(`[DTOE] Running strategy simulation: ${intentType}`);
 
             try {
               const dtoeEngine = getDestinyEngine();
@@ -1170,7 +1531,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
               });
 
               if (!recommendation.strategy_card || !recommendation.explanation_card) {
-                onAgentLog('[DTOE] 未生成有效策略卡，已跳过展示');
+                onAgentLog('[DTOE] No valid strategy card generated; skipped display');
                 setSentinelOutput(null);
                 return;
               }
@@ -1180,17 +1541,17 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
               const failureProb = strategy.outcomes_distribution?.failure_prob ?? 0.5;
               const successProb = Math.max(0, Math.min(1, 1 - failureProb));
               const utilityMetric = strategy.outcomes_distribution?.metrics?.find(m => m.name === 'utility_score');
-              const primaryReason = explanation.top_reasons?.[0]?.text ?? '基于当前状态的最优策略';
+              const primaryReason = explanation.top_reasons?.[0]?.text ?? 'Best strategy based on the current state';
               const alternativePath =
                 explanation.why_not_explanations?.[0]?.alternative_action ||
                 explanation.alternatives?.[0]?.action_summary ||
-                '暂未发现明显优于当前策略的替代方案';
+                'No clearly better alternative found yet';
 
               onAgentLog(
-                `[DTOE] 推荐=${strategy.next_best_action.summary}, 失败率=${(failureProb * 100).toFixed(0)}%, ` +
-                `缓存=${recommendation.diagnostics.cache_hit ? '命中' : '未命中'}`
+                `[DTOE] Recommended=${strategy.next_best_action.summary}, failureRate=${(failureProb * 100).toFixed(0)}%, ` +
+                `cache=${recommendation.diagnostics.cache_hit ? 'hit' : 'miss'}`
               );
-              onAgentLog('[Personal Navigator] 生成有温度的建议...');
+              onAgentLog('[Personal Navigator] Generating personalized guidance...');
 
               const navigatorResponse = personalNavigator.quickCraft({
                 optimalPath: strategy.next_best_action.summary,
@@ -1200,8 +1561,8 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                 expectedValue: utilityMetric?.p50 ?? 0,
                 jCurve: {
                   dipDepth: intentType === 'career' ? -45 : -28,
-                  dipDuration: intentType === 'career' ? '3-6个月' : '1-3个月',
-                  recoveryPoint: intentType === 'career' ? '12-18个月' : '6个月'
+                  dipDuration: intentType === 'career' ? '3-6 months' : '1-3 months',
+                  recoveryPoint: intentType === 'career' ? '12-18 months' : '6 months'
                 },
                 caveats: [
                   ...explanation.risk_notes.slice(0, 2),
@@ -1210,9 +1571,9 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
               }, inputValue);
 
               const policySection =
-                `\n\n🧭 **DTOE 策略卡摘要**\n` +
+                `\n\n🧭 **DTOE Strategy Card Summary**\n` +
                 `• Next Best Action: ${strategy.next_best_action.summary}\n` +
-                `• 风险 (failure_prob): ${(failureProb * 100).toFixed(1)}%\n` +
+                `• Risk (failure_prob): ${(failureProb * 100).toFixed(1)}%\n` +
                 `• Why: ${primaryReason}`;
 
               const enhancedResponse = {
@@ -1227,10 +1588,10 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                   navigatorOutput: enhancedResponse,
                   timestamp: Date.now()
                 });
-                onAgentLog('[Destiny] DTOE 结果已发送到 Lumi App');
+                onAgentLog('[Destiny] DTOE result sent to Lumi App');
               }
             } catch (error) {
-              onAgentLog(`[DTOE] 推演失败: ${error instanceof Error ? error.message : String(error)}`);
+              onAgentLog(`[DTOE] Simulation failed: ${error instanceof Error ? error.message : String(error)}`);
             } finally {
               setSentinelOutput(null);
               setInputValue('');
@@ -1238,21 +1599,21 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
           }}
         />
 
-        {/* Smart Chips - 意图触发的快捷操作 */}
+        {/* Smart Chips - intent-triggered quick actions */}
         <SmartChips
           sentinelOutput={sentinelOutput}
           visible={mode === InputMode.TYPE && inputValue.length > 5}
           onChipClick={(chip: ChipAction) => {
-            // 记录点击到价值指标
+            // Record click into value metrics
             import('../services/valueMetricsService').then(({ getValueMetricsService }) => {
               getValueMetricsService().recordChipClick(chip.type);
             });
-            // 切换到 Agent 模式并添加动作前缀
+            // Switch to Agent mode and add action prefix
             setMode(InputMode.AGENT);
             if (chip.inputPrepend) {
               setInputValue(chip.inputPrepend + inputValue);
             }
-            onAgentLog(`[SmartChips] 选择快捷操作: ${chip.label}`);
+            onAgentLog(`[SmartChips] Quick action selected: ${chip.label}`);
             setSentinelOutput(null);
           }}
         />
@@ -1333,7 +1694,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
           )}
           {mode === InputMode.AGENT && !followUpPrompt && pendingIntent && !pendingIntent.locked && (
             <div className="mb-2 rounded-lg bg-indigo-800/50 px-3 py-2 text-[11px] text-indigo-200">
-              已保留上次行程意图，可继续补充日期/酒店/接送机等信息。
+              Your last travel intent is saved. You can add dates, hotel, airport transfer, and more.
             </div>
           )}
           <div className="flex items-center gap-2 px-1">
@@ -1364,7 +1725,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                         handleEnter();
                       }
                     }}
-                    placeholder="点击输入中文/English (用电脑键盘)"
+                    placeholder="Type Chinese/English (use your computer keyboard)"
                     className="flex-1 bg-transparent text-white placeholder-indigo-400 outline-none"
                     autoComplete="off"
                     autoCapitalize="off"
@@ -1415,7 +1776,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
                     className="flex items-center gap-2 p-2 rounded-lg bg-indigo-700/50 hover:bg-indigo-600 transition-colors text-left"
                   >
                     <span className="text-lg">{template.icon}</span>
-                    <span className="text-xs text-white font-medium truncate">{template.labelZh}</span>
+                    <span className="text-xs text-white font-medium truncate">{template.label}</span>
                   </button>
                 ))}
               </div>
@@ -1430,7 +1791,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({ soul, policy, ap
             onClick={() => setKeyboardCollapsed(false)}
           >
             <div className="flex items-center justify-center gap-2 text-gray-500">
-              <span className="text-xs">⌨️ 点击展开键盘</span>
+              <span className="text-xs">⌨️ Click to expand keyboard</span>
             </div>
           </div>
         ) : (

@@ -64,14 +64,14 @@ const colors = {
 // ============================================================================
 
 const CATEGORY_CONFIG: Record<DataCategory, { label: string; icon: string; description: string }> = {
-    soul_matrix: { label: 'Soul Matrix', icon: '🧠', description: '你的数字人格特征' },
-    memory_graph: { label: '记忆图谱', icon: '💭', description: '你的对话和交互记录' },
-    tasks: { label: '任务记录', icon: '📋', description: '任务和计划数据' },
-    reminders: { label: '提醒事项', icon: '⏰', description: '设置的提醒' },
-    calendar: { label: '日历事件', icon: '📅', description: '日程安排' },
-    preferences: { label: '偏好设置', icon: '⚙️', description: '应用偏好' },
-    access_log: { label: '访问日志', icon: '📜', description: 'API调用记录' },
-    ai_stats: { label: 'AI统计', icon: '📊', description: 'AI使用统计' },
+    soul_matrix: { label: 'Soul Matrix', icon: '🧠', description: 'Your digital personality profile' },
+    memory_graph: { label: 'Memory Graph', icon: '💭', description: 'Your conversations and interaction records' },
+    tasks: { label: 'Task History', icon: '📋', description: 'Task and planning data' },
+    reminders: { label: 'Reminders', icon: '⏰', description: 'Your configured reminders' },
+    calendar: { label: 'Calendar Events', icon: '📅', description: 'Schedule data' },
+    preferences: { label: 'Preferences', icon: '⚙️', description: 'App preferences' },
+    access_log: { label: 'Access Log', icon: '📜', description: 'API access records' },
+    ai_stats: { label: 'AI Stats', icon: '📊', description: 'AI usage metrics' },
 };
 
 // ============================================================================
@@ -108,7 +108,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
     };
 
     const handleDeleteCategory = (category: DataCategory) => {
-        if (window.confirm(`确定要删除 ${CATEGORY_CONFIG[category].label} 的所有数据吗？`)) {
+        if (window.confirm(`Delete all data in ${CATEGORY_CONFIG[category].label}?`)) {
             deleteDataCategory(category);
             refreshData();
         }
@@ -136,13 +136,13 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
     };
 
     const formatTime = (timestamp: number | null): string => {
-        if (!timestamp) return '无';
+        if (!timestamp) return 'None';
         const now = Date.now();
         const diff = now - timestamp;
-        if (diff < 60000) return '刚刚';
-        if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-        if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-        return new Date(timestamp).toLocaleDateString('zh-CN');
+        if (diff < 60000) return 'Just now';
+        if (diff < 3600000) return `${Math.floor(diff / 60000)} min ago`;
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)} h ago`;
+        return new Date(timestamp).toLocaleDateString('en-US');
     };
 
     const totalDataSize = Object.values(categorySizes).reduce((a, b) => a + b, 0);
@@ -197,10 +197,10 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                         </div>
                         <div>
                             <div style={{ color: colors.text1, fontWeight: 600, fontSize: 16 }}>
-                                隐私控制中心
+                                Privacy Control Center
                             </div>
                             <div style={{ color: colors.text3, fontSize: 12 }}>
-                                管理你的数据和隐私设置
+                                Manage your data and privacy settings
                             </div>
                         </div>
                     </div>
@@ -226,10 +226,10 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                     padding: '0 20px',
                 }}>
                     {[
-                        { id: 'overview' as TabId, label: '概览', icon: Eye },
-                        { id: 'data' as TabId, label: '数据管理', icon: Database },
-                        { id: 'controls' as TabId, label: '隐私控制', icon: Settings },
-                        { id: 'log' as TabId, label: '访问日志', icon: Activity },
+                        { id: 'overview' as TabId, label: 'Overview', icon: Eye },
+                        { id: 'data' as TabId, label: 'Data', icon: Database },
+                        { id: 'controls' as TabId, label: 'Controls', icon: Settings },
+                        { id: 'log' as TabId, label: 'Access Log', icon: Activity },
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -268,24 +268,24 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                                 <div style={{ background: colors.bg2, borderRadius: 12, padding: 16 }}>
                                     <div style={{ color: colors.text3, fontSize: 12, marginBottom: 4 }}>
-                                        本地数据
+                                        Local Data
                                     </div>
                                     <div style={{ color: colors.text1, fontSize: 24, fontWeight: 600 }}>
                                         {formatBytes(totalDataSize)}
                                     </div>
                                     <div style={{ color: colors.primary, fontSize: 11, marginTop: 4 }}>
-                                        🔒 仅存设备
+                                        🔒 Device only
                                     </div>
                                 </div>
                                 <div style={{ background: colors.bg2, borderRadius: 12, padding: 16 }}>
                                     <div style={{ color: colors.text3, fontSize: 12, marginBottom: 4 }}>
-                                        AI 调用
+                                        AI Calls
                                     </div>
                                     <div style={{ color: colors.text1, fontSize: 24, fontWeight: 600 }}>
-                                        {aiStats.totalCalls} 次
+                                        {aiStats.totalCalls}
                                     </div>
                                     <div style={{ color: colors.text3, fontSize: 11, marginTop: 4 }}>
-                                        最近: {formatTime(aiStats.lastCall)}
+                                        Last: {formatTime(aiStats.lastCall)}
                                     </div>
                                 </div>
                             </div>
@@ -293,13 +293,13 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                             {/* Privacy Guarantees */}
                             <div style={{ marginBottom: 20 }}>
                                 <div style={{ color: colors.text2, fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
-                                    隐私保障
+                                    Privacy Guarantees
                                 </div>
                                 {[
-                                    { text: '聊天记录不上传', active: true },
-                                    { text: '仅发送意图，不发送原文', active: true },
-                                    { text: '记忆学习已' + (settings.enableMemoryLearning ? '开启' : '关闭'), active: settings.enableMemoryLearning },
-                                    { text: '特征推断已' + (settings.enableTraitInference ? '开启' : '关闭'), active: settings.enableTraitInference },
+                                    { text: 'Chat history is not uploaded', active: true },
+                                    { text: 'Only intent is sent, not raw text', active: true },
+                                    { text: `Memory learning ${settings.enableMemoryLearning ? 'enabled' : 'disabled'}`, active: settings.enableMemoryLearning },
+                                    { text: `Trait inference ${settings.enableTraitInference ? 'enabled' : 'disabled'}`, active: settings.enableTraitInference },
                                 ].map((item, i) => (
                                     <div key={i} style={{
                                         display: 'flex',
@@ -348,7 +348,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                     }}
                                 >
                                     <Download size={16} />
-                                    导出数据
+                                    Export data
                                 </button>
                                 <button
                                     onClick={refreshData}
@@ -376,7 +376,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                             {/* Category List */}
                             <div style={{ marginBottom: 24 }}>
                                 <div style={{ color: colors.text2, fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
-                                    数据分类
+                                    Data Categories
                                 </div>
                                 {(Object.entries(CATEGORY_CONFIG) as [DataCategory, typeof CATEGORY_CONFIG[DataCategory]][]).map(([category, config]) => (
                                     <div key={category} style={{
@@ -441,7 +441,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                 }}
                             >
                                 <Download size={18} />
-                                导出所有数据 (JSON)
+                                Export all data (JSON)
                             </button>
 
                             {/* Delete All Button */}
@@ -464,7 +464,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                 }}
                             >
                                 <AlertTriangle size={18} />
-                                删除所有数据 (Right to Be Forgotten)
+                                Delete all data (Right to Be Forgotten)
                             </button>
                         </div>
                     )}
@@ -475,26 +475,26 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                             {/* Learning Toggles */}
                             <div style={{ marginBottom: 24 }}>
                                 <div style={{ color: colors.text2, fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
-                                    学习功能
+                                    Learning Features
                                 </div>
 
                                 <ToggleSetting
-                                    label="记忆学习"
-                                    description="从对话中学习你的偏好"
+                                    label="Memory learning"
+                                    description="Learn your preferences from conversations"
                                     value={settings.enableMemoryLearning}
                                     onChange={(v) => handleSettingChange('enableMemoryLearning', v)}
                                 />
 
                                 <ToggleSetting
-                                    label="特征推断"
-                                    description="自动推断你的性格特征"
+                                    label="Trait inference"
+                                    description="Infer personality traits automatically"
                                     value={settings.enableTraitInference}
                                     onChange={(v) => handleSettingChange('enableTraitInference', v)}
                                 />
 
                                 <ToggleSetting
-                                    label="使用分析"
-                                    description="记录使用模式以改进服务"
+                                    label="Usage analytics"
+                                    description="Record usage patterns to improve service"
                                     value={settings.enableUsageAnalytics}
                                     onChange={(v) => handleSettingChange('enableUsageAnalytics', v)}
                                 />
@@ -503,7 +503,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                             {/* Anonymization Level */}
                             <div style={{ marginBottom: 24 }}>
                                 <div style={{ color: colors.text2, fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
-                                    匿名化级别
+                                    Anonymization Level
                                 </div>
                                 <div style={{ display: 'flex', gap: 8 }}>
                                     {(['full', 'partial', 'minimal'] as const).map(level => (
@@ -522,23 +522,23 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                                 fontWeight: 500,
                                             }}
                                         >
-                                            {level === 'full' ? '完全' : level === 'partial' ? '部分' : '最小'}
+                                            {level === 'full' ? 'Full' : level === 'partial' ? 'Partial' : 'Minimal'}
                                         </button>
                                     ))}
                                 </div>
                                 <div style={{ color: colors.text3, fontSize: 11, marginTop: 8 }}>
                                     {settings.anonymizationLevel === 'full'
-                                        ? '所有发送的数据都会被完全匿名化处理'
+                                        ? 'All outgoing data is fully anonymized'
                                         : settings.anonymizationLevel === 'partial'
-                                            ? '敏感信息会被脱敏处理'
-                                            : '仅基础匿名化处理'}
+                                            ? 'Sensitive information is masked'
+                                            : 'Only basic anonymization is applied'}
                                 </div>
                             </div>
 
                             {/* Retention Period */}
                             <div>
                                 <div style={{ color: colors.text2, fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
-                                    数据保留期限
+                                    Data Retention
                                 </div>
                                 <select
                                     value={settings.retentionDays || 'forever'}
@@ -556,14 +556,14 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                         fontSize: 13,
                                     }}
                                 >
-                                    <option value="forever">永久保留</option>
-                                    <option value="7">7 天</option>
-                                    <option value="30">30 天</option>
-                                    <option value="90">90 天</option>
-                                    <option value="180">180 天</option>
+                                    <option value="forever">Keep forever</option>
+                                    <option value="7">7 days</option>
+                                    <option value="30">30 days</option>
+                                    <option value="90">90 days</option>
+                                    <option value="180">180 days</option>
                                 </select>
                                 <div style={{ color: colors.text3, fontSize: 11, marginTop: 8 }}>
-                                    超过保留期限的数据会被自动删除
+                                    Data older than this is deleted automatically
                                 </div>
                             </div>
                         </div>
@@ -579,11 +579,11 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                 marginBottom: 16
                             }}>
                                 <div style={{ color: colors.text2, fontSize: 13, fontWeight: 500 }}>
-                                    最近访问记录
+                                    Recent access records
                                 </div>
                                 <button
                                     onClick={() => {
-                                        if (window.confirm('确定要清除所有访问日志吗？')) {
+                                        if (window.confirm('Clear all access logs?')) {
                                             clearAccessLog();
                                             refreshData();
                                         }
@@ -600,7 +600,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                     }}
                                 >
                                     <Trash2 size={12} />
-                                    清除
+                                    Clear
                                 </button>
                             </div>
 
@@ -611,7 +611,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                     color: colors.text3,
                                 }}>
                                     <FileText size={32} style={{ marginBottom: 12, opacity: 0.5 }} />
-                                    <div>暂无访问记录</div>
+                                    <div>No access records</div>
                                 </div>
                             ) : (
                                 <div style={{ maxHeight: 400, overflow: 'auto' }}>
@@ -633,8 +633,8 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                                 }}>
                                                     {entry.type === 'ai_call' ? 'AI' :
                                                         entry.type === 'provider_fetch' ? 'LIX' :
-                                                            entry.type === 'data_write' ? '写入' :
-                                                                entry.type === 'data_read' ? '读取' : '删除'}
+                                                            entry.type === 'data_write' ? 'WRITE' :
+                                                                entry.type === 'data_read' ? 'READ' : 'DELETE'}
                                                 </span>
                                                 <span style={{ color: colors.text3, fontSize: 11 }}>
                                                     {formatTime(entry.timestamp)}
@@ -669,16 +669,16 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                     <div style={{ textAlign: 'center', marginBottom: 20 }}>
                         <AlertTriangle size={48} color={colors.danger} />
                         <div style={{ color: colors.text1, fontSize: 18, fontWeight: 600, marginTop: 12 }}>
-                            删除所有数据
+                            Delete all data
                         </div>
                         <div style={{ color: colors.text3, fontSize: 13, marginTop: 8 }}>
-                            此操作不可撤销，所有数据将被永久删除
+                            This action cannot be undone. All data will be permanently deleted.
                         </div>
                     </div>
 
                     <div style={{ marginBottom: 16 }}>
                         <div style={{ color: colors.text2, fontSize: 12, marginBottom: 8 }}>
-                            请输入 <span style={{ color: colors.danger, fontWeight: 600 }}>DELETE</span> 确认
+                            Type <span style={{ color: colors.danger, fontWeight: 600 }}>DELETE</span> to confirm
                         </div>
                         <input
                             type="text"
@@ -716,7 +716,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                 fontSize: 14,
                             }}
                         >
-                            取消
+                            Cancel
                         </button>
                         <button
                             onClick={handleDeleteAll}
@@ -734,7 +734,7 @@ export const PrivacyDashboard: React.FC<PrivacyDashboardProps> = ({ isOpen, onCl
                                 opacity: deleteConfirmText === 'DELETE' ? 1 : 0.5,
                             }}
                         >
-                            {isDeleting ? '删除中...' : '确认删除'}
+                            {isDeleting ? 'Deleting...' : 'Confirm delete'}
                         </button>
                     </div>
                 </div>

@@ -9,34 +9,34 @@ interface SceneHintProps {
 }
 
 /**
- * 场景感知提示组件
- * 根据当前 App 场景显示智能建议
+ * Scene-aware hint component
+ * Show smart suggestions based on current app scenario
  */
 export const SceneHint: React.FC<SceneHintProps> = ({ scenario, visible, onSuggestionClick }) => {
     if (!visible) return null;
 
-    // 场景特定快捷建议
+    // Scenario-specific quick suggestions
     const scenarioSuggestions: Record<string, string[]> = {
-        wechat: ['委婉拒绝', '改约时间', '表达感谢'],
-        email: ['礼貌回复', '请假申请', '会议确认'],
-        weibo: ['表示共情', '幽默评论', '鼓励打气'],
-        sms: ['简短回复', '拒绝推销', '确认收到'],
-        dingtalk: ['确认收到', '汇报进展', '请假说明']
+        wechat: ['Politely decline', 'Reschedule', 'Express thanks'],
+        email: ['Polite reply', 'Leave request', 'Meeting confirmation'],
+        weibo: ['Show empathy', 'Humorous comment', 'Offer encouragement'],
+        sms: ['Short reply', 'Decline promotion', 'Confirm receipt'],
+        dingtalk: ['Acknowledge receipt', 'Progress update', 'Leave explanation']
     };
 
-    const suggestions = scenarioSuggestions[scenario.id] || ['快速回复', '表达感谢'];
+    const suggestions = scenarioSuggestions[scenario.id] || ['Quick reply', 'Express thanks'];
 
     return (
         <div className="scene-hint-container">
             <div className="scene-hint-header">
                 <Lightbulb size={12} className="text-amber-400" />
-                <span>{scenario.nameZh}场景建议</span>
+                <span>{scenario.name} suggestions</span>
             </div>
             <div className="scene-hint-suggestions">
                 {suggestions.map((suggestion, idx) => (
                     <button
                         key={idx}
-                        onClick={() => onSuggestionClick?.(`帮我写 ${suggestion}`)}
+                        onClick={() => onSuggestionClick?.(`Help me write ${suggestion}`)}
                         className="scene-hint-chip"
                     >
                         <Sparkles size={10} />

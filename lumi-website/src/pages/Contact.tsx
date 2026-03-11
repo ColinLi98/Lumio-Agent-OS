@@ -3,7 +3,6 @@ import {
     Sparkles,
     Mail,
     MapPin,
-    Phone,
     Send,
     MessageCircle,
     Clock,
@@ -55,37 +54,37 @@ const Contact = () => {
             description: 'University College London Area'
         },
         {
-            icon: <Phone size={24} />,
-            title: 'Call Us',
-            detail: '+44 20 1234 5678',
-            description: 'Mon-Fri, 9am-6pm GMT'
+            icon: <MessageCircle size={24} />,
+            title: 'Pilot & Partnerships',
+            detail: 'Request via form',
+            description: 'Tell us your use case and timeline'
         }
     ];
 
     const faqs = [
         {
-            question: 'Is Lumi.AI available in my country?',
-            answer: 'Lumi.AI is available worldwide on both iOS and Android devices. Our keyboard supports 50+ languages and works in any app where you can type.'
+            question: 'Where can I try Lumi today?',
+            answer: 'You can try the live web demo now at lumi-agent-simulator.vercel.app. Mobile pilot access is provided by invitation while we validate module-level workflows.'
         },
         {
-            question: 'How does Lumi.AI protect my privacy?',
-            answer: 'All personalization happens on-device. Your typing data, preferences, and personal information never leave your phone. We use end-to-end encryption for any necessary cloud communications.'
+            question: 'Why is Digital Twin important in Lumi?',
+            answer: 'We found the key gap between people and AI is emotion. Lumi builds a Digital Twin that captures user preferences and current state, then connects this context to LLM reasoning for more targeted suggestions.'
         },
         {
-            question: 'Can I use Lumi.AI offline?',
-            answer: 'Yes! Basic keyboard functionality, personalization, and many features work offline. Some advanced features like web search and multi-agent orchestration require an internet connection.'
+            question: 'How does Lumi protect user privacy?',
+            answer: 'Lumi uses a local-first architecture. Sensitive fields are masked before telemetry, and cloud sync is optional behind explicit user consent.'
         },
         {
-            question: 'How do I cancel my subscription?',
-            answer: 'You can cancel your subscription anytime through the App Store (iOS) or Google Play Store (Android). Your access continues until the end of the billing period.'
+            question: 'What is Agent Mode in practice?',
+            answer: 'Agent Mode is triggered by long-pressing Space in the keyboard. Super Agent then routes tasks through single-agent or multi-agent execution and returns explainable results.'
         },
         {
-            question: 'Is there a free trial for Pro features?',
-            answer: 'Yes! All new users get a 14-day free trial of Pro features. No credit card required to start the trial.'
+            question: 'Do you support LIX and Agent Marketplace flows?',
+            answer: 'Yes. Lumi includes intent-to-delivery workflows through LIX, plus discover-and-execute workflows in Agent Marketplace, with status and outcome tracking.'
         },
         {
             question: 'How can I delete my data?',
-            answer: 'Go to Settings > Privacy > Delete All Data in the Lumi app. This will permanently remove all your personalization data from your device.'
+            answer: 'In Lumi settings, users can export or delete profile data at any time. Deletion removes local personalization artifacts and related local records.'
         }
     ];
 
@@ -287,7 +286,7 @@ const Contact = () => {
                                 </div>
                                 <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
                                     We typically respond within 24 hours during business days.
-                                    For urgent technical issues, Pro users get priority support.
+                                    For pilot and partnership requests, include your team size and timeline.
                                 </p>
                             </div>
 

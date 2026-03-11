@@ -1,0 +1,554 @@
+Lumi Agent OS PRD - Detailed Current Implementation Snapshot
+Date: 2026-03-03
+Version: detailed-v1
+Scope: Android local deployment + cloud contract adapter + in-app orchestration loop
+
+============================================================
+0) WHAT THIS FILE ANSWERS
+============================================================
+This file answers one question in a concrete way:
+"What has already been implemented in the current Agent OS PRD?"
+
+It is not a future plan document.
+It is an implementation status snapshot with verification context.
+
+============================================================
+1) PRODUCT POSITIONING (CURRENT STATE)
+============================================================
+1.1 Product type
+- This product is not "a single chat app."
+- It is a dual-entry Agent OS:
+  a) IME entry (outside apps)
+  b) App entry (inside Lumi main app)
+
+1.2 Core objective
+- Solve real user tasks end-to-end first.
+- Then continuously improve personalization via digital twin and policy optimization.
+
+1.3 Current delivery style
+- Local-first execution with optional cloud enhancement.
+- Structured task execution and status tracking, not only free-form chat.
+
+============================================================
+2) IMPLEMENTED ARCHITECTURE BASELINE
+============================================================
+2.1 Android module baseline (implemented)
+- :app
+- :ime-frontend
+- :app-backend-host
+- :core-agent
+- :core-domain
+- :cloud-adapters
+
+2.2 Main execution backbone (implemented)
+- App frontend trigger -> BackendHostClient -> LumiAgentBackendService -> AgentOrchestrator
+- App response carries:
+  - routingDecision
+  - taskGraph
+  - skillInvocations
+  - skillGap
+  - module payload
+
+2.3 State machine (implemented)
+- PROCESSING
+- RUNNING
+- WAITING_USER
+- SUCCESS
+- PARTIAL
+- ERROR
+- CANCELLED
+
+============================================================
+3) END-TO-END USER LOOP (IMPLEMENTED)
+============================================================
+3.1 Outside app entry path (IME path)
+1. User types in any app.
+2. User enters Agent Mode.
+3. On-device triage computes:
+   - requiresCloud
+   - score
+   - reasonCodes
+   - stateVector
+4. System decides local vs handoff policy.
+5. Complex/high-risk tasks route into Lumi app module flow.
+
+3.2 In-app orchestration path
+1. Backend service accepts prompt.
+2. Request enters state machine.
+3. Orchestrator produces routing + task graph + skills + payload.
+4. UI renders module-specific execution cards.
+5. User can continue by:
+   - follow-up answer
+   - context supplement
+   - next-action clicks
+   - outcome feedback
+
+3.3 Backflow behavior
+- Results can flow back to IME candidate area.
+- No auto-commit to target input field.
+- "Tap to commit" remains enforced.
+
+============================================================
+4) MODULE IMPLEMENTATION STATUS (7 SURFACES)
+============================================================
+4.1 HOME (implemented)
+- 24h metrics summary
+- API status aggregation
+- quick route and snapshot indicators
+
+4.2 CHAT (implemented)
+- Result output card and structured sections
+- reasoning/routing/task graph/evidence (developer mode)
+- follow-up and supplement controls
+
+4.3 LIX (implemented)
+- Intent publish flow
+- Offer compare and accept path
+- Delivery/review style loop
+- timeline and stage visibility
+
+4.4 AGENT MARKET (implemented)
+- discovery
+- execute
+- GitHub connect/import
+- market metrics surface
+
+4.5 AVATAR (implemented)
+- readable twin profile
+- consensus state
+- trajectory visibility
+- suggestions view
+
+4.6 DESTINY (implemented)
+- strategy output
+- risk labels
+- action suggestions
+
+4.7 SETTINGS (implemented)
+- endpoint/API health panel
+- feature switch visibility
+- observation indicators
+
+============================================================
+5) DIGITAL TWIN + BELLMAN POLICY BASELINE
+============================================================
+5.1 Implemented digital twin baseline
+- On-device state vector ingestion
+- state consensus
+- trajectory tracking
+- module-aware context usage
+
+5.2 Implemented policy principle
+- Digital twin is personalization context.
+- It does not fabricate user requirements.
+- Missing constraints should be requested from user.
+
+5.3 Current Bellman-related output layer
+- Destiny module provides strategy/risk/action suggestion views.
+- Baseline optimization logic exists; deeper policy card mapping is partial.
+
+============================================================
+6) SAFETY, GATES, AND CONTROL LAYER
+============================================================
+6.1 Gate framework (implemented baseline)
+- Constraint and confirmation style gates are present in response flow.
+- WAITING_USER status is used when user input is required.
+
+6.2 High-level risk handling (implemented baseline)
+- Cloud fallback path is enabled.
+- Sensitive scenarios have policy controls.
+- If execution cannot safely continue, system requests explicit user input.
+
+============================================================
+7) UX CHANGES IMPLEMENTED IN THIS ROUND (2026-03-03)
+============================================================
+7.1 Unified user interaction entry (implemented)
+- Added a unified Interaction Hub to Work surface.
+- It supports two submission semantics:
+  a) Pending question reply
+  b) Context update supplement
+- It logs source-specific interaction metadata.
+
+7.2 Step-based information architecture (implemented)
+- Goals surface:
+  Step 1 Define Goal -> Step 2 Execution Handoff
+- Work surface:
+  Step 1 Choose Workspace
+  Step 2 User-Agent Interaction
+  Step 3 Execution Workspace
+  Step 4 Result Review
+  Step 5 Run History
+- Activity surface:
+  Audit-oriented execution review section
+
+7.3 Why this matters
+- Clearer reading order
+- lower cognitive load
+- more explicit "what user should do next"
+
+============================================================
+8) VERIFIED TEST EVIDENCE (CURRENT ROUND)
+============================================================
+8.1 Build and unit tests
+- app-backend-host assemble debug: PASS
+- prompt builder unit test: PASS
+
+8.2 Instrumentation tests on device
+- UserInteractionHubCardUiTest: PASS
+- ModuleFeaturePanelSupplementUiTest: PASS
+- GoalWorkFlowUiTest: PASS
+- Combined run count in latest pass: 8/8
+
+8.3 Device installation status
+- Debug package installed: PASS
+- Release package installed: PASS
+
+============================================================
+9) KNOWN GAPS (NOT YET FULLY CLOSED)
+============================================================
+9.1 DTOE advanced policy card mapping
+- Full Android mapping for advanced action/alternatives/audit fields is not complete.
+
+9.2 Twin persistence continuity
+- Dynamic twin continuity after process restart still needs stronger persistence recovery.
+
+9.3 Cloud sync full loop
+- Cross-device digital twin sync + conflict strategy is not fully closed.
+
+9.4 Config display consistency
+- Some settings/build config display paths still need final alignment.
+
+============================================================
+10) PRACTICAL STATUS JUDGMENT
+============================================================
+10.1 What is already true
+- Product is beyond prototype shell.
+- Core execution loop is working.
+- Multi-surface capability is implemented.
+- Real-device test path is operational.
+
+10.2 What should be the next engineering focus
+- Increase quality of completion, not number of entry points.
+- Strengthen persistence/sync/advanced policy explainability.
+- Keep interaction clarity and execution reliability as top metrics.
+
+============================================================
+11) RECOMMENDED SINGLE READING ORDER
+============================================================
+If reading only one file now:
+- Read this file first: docs/PRD_CURRENT_VISIBLE.txt
+
+Then:
+- docs/lumi-prd-current-implementation-2026-03-03.md
+- docs/lumi-prd-v1.md
+- docs/lumi-prd-v1-engineering-plan.md
+
+============================================================
+12) CODE-ALIGNED DETAILED ADDENDUM
+============================================================
+12.1 Runtime entry and control surfaces
+- App runtime has 3 control surfaces in MainActivity:
+  - GOALS
+  - WORK
+  - ACTIVITY
+- Source of truth:
+  - LumiKeyboard-Android/app-backend-host/src/main/java/com/lumi/keyboard/MainActivity.kt
+- Surface responsibilities:
+  - GOALS: define outcome and constraints
+  - WORK: execute with user-agent collaboration
+  - ACTIVITY: audit and replay historical runs
+
+12.2 Work surface step order (implemented)
+- Step 1: Choose Workspace
+  - WorkModuleSwitcherCard shows Chat/LIX/Agent/Avatar/Navigation/Home
+- Step 2: User-Agent Interaction
+  - UserInteractionHubCard handles pending question replies and optional context updates
+- Step 3: Execution Workspace
+  - ModuleFeaturePanel runs module actions and shows execution panel
+- Step 4: Result Review
+  - ResponseDetailCard for outputs/actions/verification before decisions
+- Step 5: Run History
+  - ResponseHistoryCard for replay, export summary, clear history
+
+12.3 Current module routing baseline
+- App module enum and bootstrap prompts:
+  - LumiKeyboard-Android/app-backend-host/src/main/java/com/lumi/keyboard/ui/model/AppModule.kt
+- Network policy defaults by module:
+  - AVATAR -> LOCAL_ONLY
+  - SETTINGS/HOME -> LOCAL_FIRST
+  - others -> CLOUD_PREFERRED
+- Source:
+  - LumiKeyboard-Android/app-backend-host/src/main/java/com/lumi/keyboard/ui/model/ModuleUiSupport.kt
+
+============================================================
+13) USER CLARIFICATION AND SUPPLEMENT LOOP (DETAILED)
+============================================================
+13.1 Trigger condition for user follow-up
+- When response status is WAITING_USER, Interaction Hub enters pending-question mode.
+- Pending question can come from:
+  - clarificationQuestions[0].prompt
+  - unresolved gate nextAction
+  - response.nextAction/summary fallback in WAITING_USER status
+- Source:
+  - app-backend-host/ui/components/UserInteractionHubCard.kt
+
+13.2 Two submission semantics in one entry
+- Pending question path:
+  - source tag: interaction_hub_pending_question
+  - prompt shape: "User response for pending question ... Continue execution ..."
+- Context supplement path:
+  - source tag: interaction_hub_context_update
+  - prompt shape: "User context update ... Re-plan with this update ..."
+- This is the explicit implementation of "second-round user input" during execution.
+
+13.3 Additional in-process supplement paths
+- Module-level supplement card still exists in ModuleFeaturePanel (global supplement card).
+- Chat execution path has InProcessSupplementCard for multi-round supplement submissions.
+- Source:
+  - app-backend-host/ui/components/ModuleFeaturePanel.kt
+  - app-backend-host/ui/screens/ChatScreen.kt
+
+13.4 Evidence from UI tests
+- UserInteractionHubCardUiTest validates:
+  - pending question render
+  - source = interaction_hub_pending_question
+- GoalWorkFlowUiTest validates:
+  - second-round follow-up replies
+  - multiple supplement rounds
+- ModuleFeaturePanelSupplementUiTest validates:
+  - global supplement submit path
+
+============================================================
+14) TRUSTED CATALOG TRANSPARENCY (DETAILED)
+============================================================
+14.1 Skill source normalization from cloud payload
+- Cloud adapter maps these source tags into TRUSTED_CATALOG:
+  - trusted_catalog
+  - anthropic_trusted_skill
+  - anthropic_skills
+- Source:
+  - cloud-adapters/VercelCloudGateway.kt (parseSkillInvocations)
+
+14.2 UI attribution and badge behavior
+- Trusted skills display source as trusted_catalog.
+- Inline suffix/badge:
+  - Anthropic Trusted Skill
+- Trust match condition:
+  - skill.source == TRUSTED_CATALOG
+  - OR skillId starts with trusted:
+- Sources:
+  - app-backend-host/ui/screens/ChatScreen.kt
+  - app-backend-host/ui/components/ResponseCards.kt
+
+14.3 Verification link generation
+- For skill IDs in format trusted:{owner/repo}:{path}:
+  - verification URL = https://github.com/{owner/repo}/tree/main/{path}/SKILL.md
+  - if path already ends with SKILL.md, it is preserved
+- Fallback verification URL:
+  - https://github.com/anthropics/anthropic-cookbook/tree/main/skills
+- This is the implemented "trusted source visible and verifiable" mechanism on Android UI.
+
+============================================================
+15) DIGITAL TWIN PIPELINE (DETAILED)
+============================================================
+15.1 IME-side triage and state-vector extraction
+- OnDeviceTriageEngine computes:
+  - requiresCloud
+  - score
+  - reasonCodes
+  - highRisk
+  - stateVector (L1/L2/L3)
+- Config source:
+  - ime-frontend/src/main/assets/triage_weights.json
+- Current thresholds:
+  - cloud_handoff_threshold = 0.58
+  - high_risk_handoff_threshold = 0.72
+- Password fields remain local-only.
+
+15.2 App-side dynamic signal synthesis
+- MainActivity synthesizes additional twin signals from:
+  - urgency/planning/constraint patterns
+  - positive/negative markers
+  - punctuation pressure
+  - numeric density and pause pattern
+- Produces:
+  - DynamicHumanStatePayload
+  - KeystrokeDynamicsPayload
+- Source:
+  - MainActivity.synthesizeTwinSignal(...)
+
+15.3 Twin store and persistence
+- In-memory twin store:
+  - core-agent/soul/InMemoryDigitalSoulStore.kt
+- Dynamic state persistence adapter:
+  - app-backend-host/state/SharedPrefsDynamicStateStore.kt
+- Persisted content:
+  - dynamic_state:{userId}
+  - dynamic_trajectory:{userId}
+- Trajectory retention cap:
+  - MAX_TRAJECTORY_POINTS = 240
+
+15.4 Optional cloud sync status channel
+- TwinCloudSyncCoordinator tracks:
+  - success count
+  - conflict count
+  - fallback count
+- Feature exposed in settings payload and UI flags panel.
+- Build flag:
+  - DIGITAL_TWIN_CLOUD_SYNC_ENABLED
+
+============================================================
+16) BELLMAN PERSONALIZATION BASELINE (DETAILED)
+============================================================
+16.1 Solver characteristics
+- Bellman solver uses Monte Carlo MPC approximation.
+- Full solve default:
+  - nScenarios = 500
+  - horizon = 4
+- Quick solve default:
+  - nScenarios = 100
+  - horizon = 2
+- Source:
+  - core-agent/bellman/BellmanSolver.kt
+
+16.2 Bridge into Destiny payload
+- BellmanBridge flow:
+  - Digital Soul traits -> TwinState -> solve -> DestinyPayload
+- Output fields populated:
+  - strategyLabel
+  - riskLevel
+  - nextBestAction
+  - alternatives
+  - constraintNotes
+  - auditTrail
+  - evidenceItems
+- Source:
+  - core-agent/bellman/BellmanBridge.kt
+
+16.3 Test coverage for Bellman layer
+- BellmanSolverTest covers:
+  - deterministic seed behavior
+  - quick solve scenario count
+  - confidence/failureProb/CVaR bounds
+- BellmanBridgeTest covers:
+  - non-empty strategy output
+  - deep contract fields populated
+  - fallback behavior for low-signal user
+
+============================================================
+17) LIX + DIGITAL TWIN COUPLING (DETAILED)
+============================================================
+17.1 LIX intent extraction baseline
+- LIX publish context parser extracts:
+  - need/request
+  - goal
+  - budget
+  - deadline
+  - domain
+- Builds capability requirements from intent + inferred domain.
+- Source:
+  - core-agent/orchestrator/AgentOrchestrator.kt (parseLixPublishContext)
+
+17.2 Twin-informed personalization in fallback and planning layers
+- Twin directives are injected as personalization basis during fallback plans.
+- Explicit non-fabrication policy in prompts:
+  - if constraints are missing, ask user directly
+  - do not infer missing requirements
+- This aligns with:
+  - LIX realizes user intent
+  - Digital twin improves ranking/order/risk tradeoff
+  - Twin does not replace explicit user constraints
+
+17.3 Known domain-specific residue
+- There are still travel-specific helper paths in orchestrator utility sections.
+- Product direction is generic Agent OS, so these domain-specific defaults should be continuously reduced or isolated behind strict intent gates.
+
+============================================================
+18) GATES, SAFETY, AND EXECUTABLE-OUTPUT GUARANTEE
+============================================================
+18.1 Response status and terminal handling
+- Status enum includes:
+  - PROCESSING
+  - RUNNING
+  - WAITING_USER
+  - SUCCESS
+  - PARTIAL
+  - CANCELLED
+  - ERROR
+- Terminal checks treat SUCCESS/PARTIAL/WAITING_USER/ERROR/CANCELLED as final for a request cycle.
+
+18.2 Gate visibility and review
+- Chat/response views show gate and execution progress context.
+- Gate R4 evidence requirement is surfaced in contracts and readable UI labels.
+- Source:
+  - core-domain/contract/AgentContracts.kt
+  - app-backend-host/ui/screens/ChatScreen.kt
+
+18.3 Non-empty executable output fallback
+- Orchestrator fallback prompts enforce:
+  - reason first
+  - decomposed task steps
+  - action links
+  - evidence
+  - risks
+  - fallback and next action
+  - "Never return empty output"
+- This is the current baseline for "solution must be executable, not only runnable code path."
+
+============================================================
+19) CURRENT CONFIG REALITY CHECK
+============================================================
+19.1 Build-time defaults in app-backend-host (current repo)
+- IME_BACKEND_V2_ENABLED = true
+- APP_FULL_FEATURE_PARITY_ENABLED = true
+- DIGITAL_TWIN_CLOUD_SYNC_ENABLED = true (if no override)
+- DIGITAL_TWIN_EDGE_MODEL_MODE = heuristic
+- CLOUD_ADAPTER_FALLBACK_ENABLED = true
+- Source:
+  - app-backend-host/build.gradle.kts
+
+19.2 Why this section exists
+- Earlier PRD snapshots may mention different defaults for some flags.
+- Current implementation truth should always follow repository build config plus runtime settings payload.
+
+============================================================
+20) ACCEPTANCE CRITERIA FOR "REAL EXECUTABLE SOLUTION"
+============================================================
+20.1 Minimum acceptance criteria per run
+- A run is accepted as executable only if:
+  - output includes concrete next actions
+  - constraints are explicit (or pending questions are explicit)
+  - evidence references are present for success claims
+  - rollback/fallback path is present for risky actions
+  - user can continue in-app through Interaction Hub or supplement cards
+
+20.2 Validation checklist for product QA
+- Verify WAITING_USER produces visible pending question and submit path.
+- Verify user reply changes next orchestration step.
+- Verify trusted_catalog skill renders "Anthropic Trusted Skill" and opens verification link.
+- Verify Destiny payload includes nextBestAction + alternatives + auditTrail.
+- Verify LIX path includes user constraints and does not fabricate missing constraints.
+- Verify run history can replay and export module summary.
+
+20.3 Suggested command set for engineering verification
+- Unit:
+  - ./gradlew :core-agent:testDebugUnitTest --tests com.lumi.coreagent.bellman.BellmanSolverTest
+  - ./gradlew :core-agent:testDebugUnitTest --tests com.lumi.coreagent.bellman.BellmanBridgeTest
+  - ./gradlew :app-backend-host:testDebugUnitTest --tests com.lumi.keyboard.ui.components.UserInteractionHubPromptBuilderTest
+- Instrumentation:
+  - ./gradlew :app-backend-host:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.lumi.keyboard.ui.components.UserInteractionHubCardUiTest,com.lumi.keyboard.ui.components.ModuleFeaturePanelSupplementUiTest,com.lumi.keyboard.ui.screens.GoalWorkFlowUiTest
+
+============================================================
+21) DETAILED SNAPSHOT CONCLUSION
+============================================================
+21.1 What is solid now
+- Generic Agent OS execution loop is implemented and testable.
+- User clarification/supplement channels are explicitly implemented in-workflow.
+- Trusted skill attribution and verification-link display are implemented.
+- Digital twin and Bellman personalization are integrated into execution outputs.
+
+21.2 What still needs optimization next
+- Continue removing domain-biased fallback defaults from generic paths.
+- Raise strictness for evidence-backed completion in high-risk tasks.
+- Tighten cross-device twin sync and conflict resolution behavior.
+

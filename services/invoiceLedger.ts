@@ -67,10 +67,11 @@ export const FEE_CONFIG = {
     CONVERSION_FEE_MIN: 1,      // ¥1 minimum
     CONVERSION_FEE_MAX: 500,    // ¥500 maximum
 
-    // Accept fee: flat fee for 7-day fallback
-    ACCEPT_FEE_RATE: 0.005,    // 0.5% of offer price
-    ACCEPT_FEE_MIN: 0.5,       // ¥0.5 minimum
-    ACCEPT_FEE_MAX: 50,        // ¥50 maximum
+    // Accept fee: LIX 1.5 tiered take rate
+    TAKE_RATE_FIRST: 0.30,     // first trade
+    TAKE_RATE_REPEAT: 0.10,    // repeat trade
+    ACCEPT_FEE_MIN: 0.01,      // ¥0.01 minimum
+    ACCEPT_FEE_MAX: 5000,      // ¥5000 maximum
 
     // Penalty fees
     PENALTY_FRAUD: 100,        // Fraud detection penalty
@@ -190,8 +191,12 @@ class InvoiceLedger {
     /**
      * Calculate accept fee (7-day fallback)
      */
-    calculateAcceptFee(offerPrice: number): number {
-        let fee = offerPrice * FEE_CONFIG.ACCEPT_FEE_RATE;
+    calculateAcceptFee(
+        offerPrice: number,
+        tier: 'first_trade' | 'repeat_trade' = 'first_trade'
+    ): number {
+        const rate = tier === 'repeat_trade' ? FEE_CONFIG.TAKE_RATE_REPEAT : FEE_CONFIG.TAKE_RATE_FIRST;
+        let fee = offerPrice * rate;
         fee = Math.max(FEE_CONFIG.ACCEPT_FEE_MIN, fee);
         fee = Math.min(FEE_CONFIG.ACCEPT_FEE_MAX, fee);
         return Math.round(fee * 100) / 100;
@@ -307,7 +312,11 @@ export function createAcceptFeeInvoice(
     token_id: string,
     intent_id: string,
     offer_id: string,
-    offerPrice: number
+    offerPrice: number,
+    options?: {
+        take_rate_tier?: 'first_trade' | 'repeat_trade';
+        order_sequence?: number;
+    }
 ): Invoice {
     // Check idempotency
     const existing = invoiceLedger.hasInvoiceForToken(token_id, 'accept_fee');
@@ -316,7 +325,8 @@ export function createAcceptFeeInvoice(
         return existing;
     }
 
-    const feeAmount = invoiceLedger.calculateAcceptFee(offerPrice);
+    const tier = options?.take_rate_tier || 'first_trade';
+    const feeAmount = invoiceLedger.calculateAcceptFee(offerPrice, tier);
     return invoiceLedger.createInvoice({
         provider_id,
         token_id,
@@ -325,7 +335,12 @@ export function createAcceptFeeInvoice(
         fee_type: 'accept_fee',
         fee_amount: feeAmount,
         description: '接受费 - 7日内未完成转化',
-        metadata: { offer_price: offerPrice, reason: '7_day_fallback' }
+        metadata: {
+            offer_price: offerPrice,
+            reason: '7_day_fallback',
+            take_rate_tier: tier,
+            order_sequence: options?.order_sequence ?? 1,
+        }
     });
 }
 

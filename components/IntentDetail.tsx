@@ -40,7 +40,7 @@ const colors = {
 // Ticketing Detection Helper
 // ============================================================================
 
-const TICKETING_KEYWORDS = ['车票', '火车票', '机票', '高铁票', '飞机票', '门票', '入场券'];
+const TICKETING_KEYWORDS = ['ticket', 'train ticket', 'flight ticket', 'plane ticket', 'admission', 'entry pass'];
 
 function isTicketingIntent(itemName: string): boolean {
     return TICKETING_KEYWORDS.some(kw => itemName.includes(kw));
@@ -76,11 +76,11 @@ const TicketingEmptyState: React.FC<TicketingEmptyStateProps> = ({ itemName }) =
         </div>
 
         <h3 style={{ color: colors.text1, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-            暂无票务服务商
+            No ticketing providers available yet
         </h3>
         <p style={{ color: colors.text3, fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
-            「{itemName}」属于票务类需求，目前平台暂未接入票务服务商。
-            <br />您可以设置提醒，待服务商上线后第一时间通知您。
+            "{itemName}" is a ticketing request and the platform has not connected ticketing providers yet.
+            <br />You can set a reminder and we will notify you as soon as providers are available.
         </p>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -98,7 +98,7 @@ const TicketingEmptyState: React.FC<TicketingEmptyStateProps> = ({ itemName }) =
                 gap: 6
             }}>
                 <Bell size={16} />
-                设置提醒
+                Set reminder
             </button>
             <button style={{
                 padding: '10px 20px',
@@ -114,7 +114,7 @@ const TicketingEmptyState: React.FC<TicketingEmptyStateProps> = ({ itemName }) =
                 gap: 6
             }}>
                 <Calendar size={16} />
-                完善信息
+                Add details
             </button>
         </div>
     </div>
@@ -195,7 +195,7 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                             <>
                                 <Clock size={12} color={colors.text3} />
                                 <span style={{ fontSize: 12, color: colors.text3 }}>
-                                    {new Date(offer.fulfillment.delivery_eta).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                                    {new Date(offer.fulfillment.delivery_eta).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </span>
                             </>
                         )}
@@ -206,7 +206,7 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                         ¥{offer.price.amount.toLocaleString()}
                     </div>
                     <div style={{ fontSize: 11, color: colors.text3 }}>
-                        匹配度 {Math.floor(total_score * 100)}%
+                        Match {Math.floor(total_score * 100)}%
                     </div>
                 </div>
             </div>
@@ -240,7 +240,7 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                 }}
             >
                 <HelpCircle size={14} />
-                为什么推荐这个报价
+                Why this offer
                 {showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
 
@@ -253,25 +253,25 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
                         <div>
-                            <span style={{ color: colors.text3 }}>价格得分</span>
+                            <span style={{ color: colors.text3 }}>Price score</span>
                             <div style={{ color: colors.text1, fontWeight: 500 }}>
                                 {(score_breakdown.price_score * 100).toFixed(0)}%
                             </div>
                         </div>
                         <div>
-                            <span style={{ color: colors.text3 }}>信誉得分</span>
+                            <span style={{ color: colors.text3 }}>Reputation score</span>
                             <div style={{ color: colors.text1, fontWeight: 500 }}>
                                 {(score_breakdown.reputation_score * 100).toFixed(0)}%
                             </div>
                         </div>
                         <div>
-                            <span style={{ color: colors.text3 }}>配送得分</span>
+                            <span style={{ color: colors.text3 }}>Delivery score</span>
                             <div style={{ color: colors.text1, fontWeight: 500 }}>
                                 {(score_breakdown.delivery_score * 100).toFixed(0)}%
                             </div>
                         </div>
                         <div>
-                            <span style={{ color: colors.text3 }}>SKU匹配</span>
+                            <span style={{ color: colors.text3 }}>SKU match</span>
                             <div style={{ color: colors.text1, fontWeight: 500 }}>
                                 {(score_breakdown.sku_match_score * 100).toFixed(0)}%
                             </div>
@@ -279,7 +279,7 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                         {score_breakdown.validation_penalty > 0 && (
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <span style={{ color: colors.warning }}>
-                                    ⚠️ 验证惩罚: -{(score_breakdown.validation_penalty * 100).toFixed(0)}%
+                                    ⚠️ Validation penalty: -{(score_breakdown.validation_penalty * 100).toFixed(0)}%
                                 </span>
                             </div>
                         )}
@@ -304,7 +304,7 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                                 fontWeight: 600
                             }}>
                                 <AlertTriangle size={12} />
-                                <span>验证警告 ({rankedOffer.validation_result.action})</span>
+                                <span>Validation warnings ({rankedOffer.validation_result.action})</span>
                             </div>
                             <ul style={{
                                 margin: 0,
@@ -346,10 +346,10 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                     {isAccepted ? (
                         <>
                             <CheckCircle size={16} />
-                            已接受
+                            Accepted
                         </>
                     ) : (
-                        '接受报价'
+                        'Accept offer'
                     )}
                 </button>
                 <a
@@ -371,7 +371,7 @@ const OfferCard: React.FC<OfferCardProps> = ({ rankedOffer, isTop, onAccept, isA
                     }}
                 >
                     <ExternalLink size={14} />
-                    查看
+                    View
                 </a>
             </div>
         </div>
@@ -399,12 +399,12 @@ const AgentCollabMeta: React.FC<AgentCollabMetaProps> = ({ offer }) => {
         >
             {collaborators.length > 0 && (
                 <div style={{ color: colors.text3, fontSize: 11, marginBottom: 4 }}>
-                    协同 Agent: {collaborators.slice(0, 4).join(' / ')}
+                    Collaborating agents: {collaborators.slice(0, 4).join(' / ')}
                 </div>
             )}
             {offer.orchestration_strategy && (
                 <div style={{ color: colors.text3, fontSize: 11 }}>
-                    编排策略: {offer.orchestration_strategy}
+                    Orchestration: {offer.orchestration_strategy}
                 </div>
             )}
         </div>
@@ -432,38 +432,38 @@ const CustomRequirementMeta: React.FC<CustomRequirementMetaProps> = ({ customReq
             }}
         >
             <div style={{ color: colors.text1, fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-                定制化需求
+                Custom requirements
             </div>
             {customRequirements.objective && (
                 <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
-                    目标: {customRequirements.objective}
+                    Goal: {customRequirements.objective}
                 </div>
             )}
             {mustHave.length > 0 && (
                 <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
-                    必须能力: {mustHave.join(' / ')}
+                    Must-have capabilities: {mustHave.join(' / ')}
                 </div>
             )}
             {exclusions.length > 0 && (
                 <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
-                    排除条件: {exclusions.join(' / ')}
+                    Exclusions: {exclusions.join(' / ')}
                 </div>
             )}
             {(typeof customRequirements.budget_max_cny === 'number' || typeof customRequirements.expected_delivery_hours === 'number') && (
                 <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
-                    {typeof customRequirements.budget_max_cny === 'number' ? `预算上限: ¥${customRequirements.budget_max_cny}` : '预算上限: 未设置'}
+                    {typeof customRequirements.budget_max_cny === 'number' ? `Budget ceiling: ¥${customRequirements.budget_max_cny}` : 'Budget ceiling: Not set'}
                     {' · '}
-                    {typeof customRequirements.expected_delivery_hours === 'number' ? `期望交付: ${customRequirements.expected_delivery_hours}h` : '期望交付: 未设置'}
+                    {typeof customRequirements.expected_delivery_hours === 'number' ? `Expected delivery: ${customRequirements.expected_delivery_hours}h` : 'Expected delivery: Not set'}
                 </div>
             )}
             {successCriteria.length > 0 && (
                 <div style={{ color: colors.text2, fontSize: 11, marginBottom: 4 }}>
-                    验收标准: {successCriteria.join(' / ')}
+                    Acceptance criteria: {successCriteria.join(' / ')}
                 </div>
             )}
             {customRequirements.notes && (
                 <div style={{ color: colors.text3, fontSize: 11 }}>
-                    备注: {customRequirements.notes}
+                    Notes: {customRequirements.notes}
                 </div>
             )}
         </div>
@@ -525,7 +525,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
     if (!intent && !solutionIntent) {
         return (
             <div style={{ padding: 20, textAlign: 'center', color: colors.text3 }}>
-                意图不存在
+                Intent not found
             </div>
         );
     }
@@ -588,7 +588,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                     owner_id: solutionIntent.requester_id || currentUserId,
                     submitted_by: 'expert_mock',
                     name: `LIX Agent · ${solutionIntent.title.slice(0, 20)}`,
-                    description: `由 LIX 专家交付：${solutionIntent.query}`,
+                    description: `Delivered by LIX expert: ${solutionIntent.query}`,
                     execute_ref: executorUrl,
                     domains: [solutionIntent.domain],
                     capabilities: solutionIntent.required_capabilities,
@@ -624,7 +624,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                     intent_id: solutionIntent.intent_id,
                     decision,
                     reviewer_id: 'reviewer_admin',
-                    reason: decision === 'approved' ? '自动审核通过（演示）' : '未通过审核（演示）',
+                    reason: decision === 'approved' ? 'Auto-approved (demo)' : 'Rejected in review (demo)',
                 }),
             });
             const payload = await resp.json().catch(() => null);
@@ -679,7 +679,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                     </button>
                     <div style={{ flex: 1 }}>
                         <h1 style={{ color: colors.text1, fontSize: 18, fontWeight: 600, margin: 0 }}>
-                            🤖 专家 / Agent 协同交付
+                            🤖 Expert / Agent collaborative delivery
                         </h1>
                         <p style={{ color: colors.text3, fontSize: 12, margin: '4px 0 0' }}>
                             {solutionIntent.title}
@@ -729,7 +729,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                         }}
                     >
                         <div style={{ color: colors.text1, fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                            已附带数字分身画像
+                            Digital twin profile attached
                         </div>
                         <div style={{ color: colors.text2, fontSize: 12, marginBottom: 4 }}>
                             user: {solutionIntent.digital_twin_snapshot.user_id}
@@ -781,7 +781,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                                             fontWeight: 700,
                                         }}
                                     >
-                                        {offer.offer_type === 'agent_collab' ? 'Agent 协同' : '人工专家'}
+                                        {offer.offer_type === 'agent_collab' ? 'Agent collaboration' : 'Human expert'}
                                     </span>
                                 </div>
                                 <div style={{ color: colors.positive, fontSize: 13, fontWeight: 600 }}>
@@ -794,7 +794,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                             )}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ color: colors.text3, fontSize: 11 }}>
-                                    预计交付 {offer.estimated_delivery_hours} 小时
+                                    ETA {offer.estimated_delivery_hours} hours
                                 </div>
                                 <button
                                     onClick={() => handleAcceptSolution(offer.offer_id)}
@@ -812,8 +812,8 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                                     }}
                                 >
                                     {solutionIntent.accepted_offer_id === offer.offer_id
-                                        ? '已接受'
-                                        : (offer.offer_type === 'agent_collab' ? '接受并自动交付' : '接受方案')}
+                                        ? 'Accepted'
+                                        : (offer.offer_type === 'agent_collab' ? 'Accept & auto-deliver' : 'Accept solution')}
                                 </button>
                             </div>
                         </div>
@@ -836,7 +836,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                             fontWeight: 600,
                         }}
                     >
-                        {submittingDelivery ? '提交交付中...' : '提交交付（模拟专家）'}
+                        {submittingDelivery ? 'Submitting delivery...' : 'Submit delivery (mock expert)'}
                     </button>
                 )}
 
@@ -849,17 +849,17 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                         backgroundColor: colors.bg2
                     }}>
                         <div style={{ color: colors.text1, fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
-                            交付物：{solutionIntent.delivery_manifest.name}
+                            Delivery asset: {solutionIntent.delivery_manifest.name}
                         </div>
                         <div style={{ color: colors.text3, fontSize: 11, marginBottom: 8, wordBreak: 'break-all' }}>
                             execute_ref: {solutionIntent.delivery_manifest.execute_ref}
                         </div>
                         <div style={{ color: colors.text3, fontSize: 11, marginBottom: 8 }}>
-                            市场发布: {solutionIntent.delivery_manifest.market_visibility === 'private' ? '私有' : '公开'}
+                            Marketplace visibility: {solutionIntent.delivery_manifest.market_visibility === 'private' ? 'Private' : 'Public'}
                             {' · '}
-                            收益模式: {solutionIntent.delivery_manifest.pricing_model === 'free'
-                                ? '免费'
-                                : `按次 ¥${solutionIntent.delivery_manifest.price_per_use_cny || 0}`}
+                            Monetization: {solutionIntent.delivery_manifest.pricing_model === 'free'
+                                ? 'Free'
+                                : `Per use ¥${solutionIntent.delivery_manifest.price_per_use_cny || 0}`}
                         </div>
                         {(solutionIntent.status === 'delivery_submitted' || solutionIntent.status === 'rejected') && (
                             <div style={{ display: 'flex', gap: 8 }}>
@@ -877,7 +877,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                                         fontWeight: 600,
                                     }}
                                 >
-                                    审核通过并上架
+                                    Approve and publish
                                 </button>
                                 <button
                                     onClick={() => handleReviewSolutionDelivery('rejected')}
@@ -893,15 +893,15 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                                         fontWeight: 600,
                                     }}
                                 >
-                                    驳回
+                                    Reject
                                 </button>
                             </div>
                         )}
                         {solutionIntent.status === 'approved' && (
                             <div style={{ color: colors.positive, fontSize: 12, marginTop: 6 }}>
                                 {solutionIntent.review?.reviewer_id === 'system_auto'
-                                    ? 'Agent 协同方案已自动交付并通过系统审核，已进入 Agent Marketplace。'
-                                    : '已审核通过并进入 Agent Marketplace，可返回市场页执行。'}
+                                    ? 'Agent collaborative solution auto-delivered and system-approved. It is now in Agent Marketplace.'
+                                    : 'Approved and published to Agent Marketplace. You can return to the market page to run it.'}
                             </div>
                         )}
                     </div>
@@ -956,7 +956,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                         {intent.item_name}
                     </h1>
                     <p style={{ color: colors.text3, fontSize: 12, margin: '4px 0 0' }}>
-                        {intent.status === 'accepted' ? '已接受报价' : `${intent.offers.length} 个报价`}
+                        {intent.status === 'accepted' ? 'Offer accepted' : `${intent.offers.length} offers`}
                     </p>
                 </div>
             </div>
@@ -973,21 +973,21 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
             }}>
                 {intent.budget_max && (
                     <div style={{ textAlign: 'center' }}>
-                        <div style={{ color: colors.text3, fontSize: 11 }}>预算</div>
+                        <div style={{ color: colors.text3, fontSize: 11 }}>Budget</div>
                         <div style={{ color: colors.text1, fontSize: 14, fontWeight: 600 }}>
                             ¥{intent.budget_max}
                         </div>
                     </div>
                 )}
                 <div style={{ textAlign: 'center' }}>
-                    <div style={{ color: colors.text3, fontSize: 11 }}>报价数</div>
+                    <div style={{ color: colors.text3, fontSize: 11 }}>Offers</div>
                     <div style={{ color: colors.text1, fontSize: 14, fontWeight: 600 }}>
                         {intent.total_offers_received}
                     </div>
                 </div>
                 {intent.best_price && (
                     <div style={{ textAlign: 'center' }}>
-                        <div style={{ color: colors.text3, fontSize: 11 }}>最低价</div>
+                        <div style={{ color: colors.text3, fontSize: 11 }}>Best price</div>
                         <div style={{ color: colors.positive, fontSize: 14, fontWeight: 600 }}>
                             ¥{intent.best_price}
                         </div>
@@ -1016,7 +1016,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Shield size={14} color={colors.positive} />
                     <span style={{ fontSize: 12, color: colors.positive }}>
-                        意图已签名验证
+                        Intent signature verified
                     </span>
                 </div>
                 {intent.trace_id && (
@@ -1033,7 +1033,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                             cursor: 'pointer',
                             fontFamily: 'monospace'
                         }}
-                        title="复制 trace_id"
+                        title="Copy trace_id"
                     >
                         <Copy size={10} />
                         {intent.trace_id.slice(0, 12)}...
@@ -1050,7 +1050,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                     textTransform: 'uppercase',
                     marginBottom: 12
                 }}>
-                    排名报价
+                    Ranked offers
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1085,7 +1085,7 @@ export const IntentDetail: React.FC<IntentDetailProps> = ({ intentId, onBack }) 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                         <CheckCircle size={16} color={colors.positive} />
                         <span style={{ color: colors.positive, fontSize: 14, fontWeight: 600 }}>
-                            已生成接受令牌
+                            Accept token generated
                         </span>
                     </div>
                     <div style={{

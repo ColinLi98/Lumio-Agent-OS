@@ -9,10 +9,10 @@ interface DigitalSoulPanelProps {
 }
 
 const STYLE_LABELS: Record<SoulMatrix['communicationStyle'], string> = {
-    Professional: '专业',
-    Friendly: '亲切',
-    Casual: '轻松',
-    Concise: '简洁'
+    Professional: 'Professional',
+    Friendly: 'Friendly',
+    Casual: 'Casual',
+    Concise: 'Concise'
 };
 
 const STYLE_COLORS: Record<SoulMatrix['communicationStyle'], string> = {
@@ -23,15 +23,15 @@ const STYLE_COLORS: Record<SoulMatrix['communicationStyle'], string> = {
 };
 
 const RISK_LABELS: Record<SoulMatrix['riskTolerance'], string> = {
-    Low: '稳健',
-    Medium: '平衡',
-    High: '探索'
+    Low: 'Conservative',
+    Medium: 'Balanced',
+    High: 'Exploratory'
 };
 
 const SPENDING_LABELS: Record<SoulMatrix['spendingPreference'], string> = {
-    PriceFirst: '价格优先',
-    Balanced: '均衡',
-    QualityFirst: '品质优先'
+    PriceFirst: 'Price First',
+    Balanced: 'Balanced',
+    QualityFirst: 'Quality First'
 };
 
 const SPENDING_COLORS: Record<SoulMatrix['spendingPreference'], string> = {
@@ -47,15 +47,15 @@ const SPENDING_EMOJIS: Record<SoulMatrix['spendingPreference'], string> = {
 };
 
 function formatRelativeTime(timestamp?: number): string {
-    if (!timestamp) return '尚未更新';
+    if (!timestamp) return 'Not updated yet';
     const diffMs = Date.now() - timestamp;
-    if (diffMs < 60000) return '刚刚更新';
+    if (diffMs < 60000) return 'Updated just now';
     const minutes = Math.floor(diffMs / 60000);
-    if (minutes < 60) return `${minutes} 分钟前`;
+    if (minutes < 60) return `${minutes} min ago`;
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} 小时前`;
+    if (hours < 24) return `${hours} hr ago`;
     const days = Math.floor(hours / 24);
-    return `${days} 天前`;
+    return `${days} day${days > 1 ? 's' : ''} ago`;
 }
 
 function riskScoreFallback(risk: SoulMatrix['riskTolerance']): number {
@@ -101,7 +101,7 @@ export const DigitalSoulPanel: React.FC<DigitalSoulPanelProps> = ({ soul, isDark
                 <div className="flex items-center gap-2">
                     <Sparkles size={18} className="text-indigo-500" />
                     <div>
-                        <div className="text-sm font-semibold">Digital Soul 动态画像</div>
+                        <div className="text-sm font-semibold">Digital Soul Dynamic Profile</div>
                         <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                             {formatRelativeTime(stats.lastUpdatedAt)}
                         </div>
@@ -112,20 +112,20 @@ export const DigitalSoulPanel: React.FC<DigitalSoulPanelProps> = ({ soul, isDark
                     className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border ${isDark ? 'border-gray-600 text-gray-300 hover:text-white' : 'border-gray-200 text-gray-500 hover:text-gray-800'}`}
                 >
                     <RefreshCw size={12} />
-                    刷新
+                    Refresh
                 </button>
             </div>
 
             <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className={`rounded-xl p-3 ${isDark ? 'bg-gray-900/40' : 'bg-gray-50'}`}>
-                    <div className="text-xs text-gray-500">沟通风格</div>
+                    <div className="text-xs text-gray-500">Communication Style</div>
                     <div className="mt-1 flex items-center gap-1 text-sm font-semibold">
                         {STYLE_LABELS[soul.communicationStyle]}
                         {styleChanged && <TrendingUp size={12} className="text-emerald-400" />}
                     </div>
                 </div>
                 <div className={`rounded-xl p-3 ${isDark ? 'bg-gray-900/40' : 'bg-gray-50'}`}>
-                    <div className="text-xs text-gray-500">消费偏好</div>
+                    <div className="text-xs text-gray-500">Spending Preference</div>
                     <div className={`mt-1 flex items-center gap-1 text-sm font-semibold ${SPENDING_COLORS[soul.spendingPreference || 'Balanced']}`}>
                         <span>{SPENDING_EMOJIS[soul.spendingPreference || 'Balanced']}</span>
                         {SPENDING_LABELS[soul.spendingPreference || 'Balanced']}
@@ -133,7 +133,7 @@ export const DigitalSoulPanel: React.FC<DigitalSoulPanelProps> = ({ soul, isDark
                     </div>
                 </div>
                 <div className={`rounded-xl p-3 ${isDark ? 'bg-gray-900/40' : 'bg-gray-50'}`}>
-                    <div className="text-xs text-gray-500">风险倾向</div>
+                    <div className="text-xs text-gray-500">Risk Profile</div>
                     <div className="mt-1 flex items-center gap-1 text-sm font-semibold">
                         {RISK_LABELS[soul.riskTolerance]}
                         {riskChanged && <TrendingDown size={12} className="text-amber-400" />}
@@ -163,7 +163,7 @@ export const DigitalSoulPanel: React.FC<DigitalSoulPanelProps> = ({ soul, isDark
 
             <div className="space-y-2">
                 <div className="flex justify-between text-xs">
-                    <span className={`${isDark ? 'text-gray-300' : 'text-gray-600'}`}>探索指数</span>
+                    <span className={`${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Exploration Index</span>
                     <span className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{riskPercent}%</span>
                 </div>
                 <div className={`h-2 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
@@ -173,7 +173,7 @@ export const DigitalSoulPanel: React.FC<DigitalSoulPanelProps> = ({ soul, isDark
                     />
                 </div>
                 <div className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    接受 {stats.draftsAccepted} · 调整 {stats.draftsEdited}
+                    Accepted {stats.draftsAccepted} · Edited {stats.draftsEdited}
                 </div>
             </div>
         </div>

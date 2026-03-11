@@ -38,7 +38,7 @@ const Footer = () => {
                             <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer">
                                 <Linkedin size={18} />
                             </a>
-                            <a href="mailto:contact@lumi-ai.com">
+                            <a href="mailto:hello@lumi.ai">
                                 <Mail size={18} />
                             </a>
                         </div>
@@ -47,8 +47,8 @@ const Footer = () => {
                     <div className="footer-column">
                         <h4>Product</h4>
                         <Link to="/product">Features</Link>
-                        <Link to="/product">Digital Avatar</Link>
-                        <Link to="/product">Multi-Agent</Link>
+                        <Link to="/product">Digital Twin</Link>
+                        <Link to="/product">LIX & Agent Market</Link>
                         <a href="https://lumi-agent-simulator.vercel.app" target="_blank" rel="noopener noreferrer">
                             Try Demo
                         </a>

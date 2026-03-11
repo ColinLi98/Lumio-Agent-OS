@@ -49,20 +49,20 @@ export interface OutboundLinkClickPayload {
 export type OutboundLinkClickHandler = (payload: OutboundLinkClickPayload) => void;
 
 export const AGENT_TYPE_META: Record<string, AgentTypeMeta> = {
-    flight_booking: { icon: '✈️', label: '航班', gradient: 'linear-gradient(135deg, #0EA5E915, #06B6D410)', LucideIcon: Plane },
-    hotel_booking: { icon: '🏨', label: '酒店', gradient: 'linear-gradient(135deg, #2563EB15, #7C3AED10)', LucideIcon: Hotel },
-    live_search: { icon: '📡', label: '实时搜索', gradient: 'linear-gradient(135deg, #0EA5E915, #10B98110)', LucideIcon: Globe },
-    web_search: { icon: '🔎', label: '网页搜索', gradient: 'linear-gradient(135deg, #60A5FA15, #0EA5E910)', LucideIcon: Globe },
-    price_compare: { icon: '💹', label: '比价', gradient: 'linear-gradient(135deg, #A78BFA15, #F472B610)', LucideIcon: ShoppingBag },
-    transportation: { icon: '🚗', label: '交通', gradient: 'linear-gradient(135deg, #F59E0B15, #EF444410)', LucideIcon: Car },
-    restaurant: { icon: '🍽️', label: '美食', gradient: 'linear-gradient(135deg, #EF444415, #F97316 10)', LucideIcon: Utensils },
-    attraction: { icon: '📍', label: '景点', gradient: 'linear-gradient(135deg, #10B98115, #06B6D410)', LucideIcon: MapPin },
-    weather: { icon: '🌤️', label: '天气', gradient: 'linear-gradient(135deg, #60A5FA15, #818CF810)', LucideIcon: Cloud },
-    shopping: { icon: '🛍️', label: '购物', gradient: 'linear-gradient(135deg, #A78BFA15, #EC489910)', LucideIcon: ShoppingBag },
-    local_service: { icon: '📍', label: '本地生活', gradient: 'linear-gradient(135deg, #10B98115, #06B6D410)', LucideIcon: MapPin },
-    social_search: { icon: '📱', label: '攻略', gradient: 'linear-gradient(135deg, #F472B615, #EC489910)', LucideIcon: Globe },
-    translation: { icon: '🌐', label: '翻译', gradient: 'linear-gradient(135deg, #34D39915, #10B98110)', LucideIcon: Globe },
-    itinerary: { icon: '📋', label: '行程', gradient: 'linear-gradient(135deg, #818CF815, #6366F110)', LucideIcon: FileText },
+    flight_booking: { icon: '✈️', label: 'Flight', gradient: 'linear-gradient(135deg, #0EA5E915, #06B6D410)', LucideIcon: Plane },
+    hotel_booking: { icon: '🏨', label: 'Hotel', gradient: 'linear-gradient(135deg, #2563EB15, #7C3AED10)', LucideIcon: Hotel },
+    live_search: { icon: '📡', label: 'Live Search', gradient: 'linear-gradient(135deg, #0EA5E915, #10B98110)', LucideIcon: Globe },
+    web_search: { icon: '🔎', label: 'Web Search', gradient: 'linear-gradient(135deg, #60A5FA15, #0EA5E910)', LucideIcon: Globe },
+    price_compare: { icon: '💹', label: 'Price Compare', gradient: 'linear-gradient(135deg, #A78BFA15, #F472B610)', LucideIcon: ShoppingBag },
+    transportation: { icon: '🚗', label: 'Transport', gradient: 'linear-gradient(135deg, #F59E0B15, #EF444410)', LucideIcon: Car },
+    restaurant: { icon: '🍽️', label: 'Food', gradient: 'linear-gradient(135deg, #EF444415, #F97316 10)', LucideIcon: Utensils },
+    attraction: { icon: '📍', label: 'Attractions', gradient: 'linear-gradient(135deg, #10B98115, #06B6D410)', LucideIcon: MapPin },
+    weather: { icon: '🌤️', label: 'Weather', gradient: 'linear-gradient(135deg, #60A5FA15, #818CF810)', LucideIcon: Cloud },
+    shopping: { icon: '🛍️', label: 'Shopping', gradient: 'linear-gradient(135deg, #A78BFA15, #EC489910)', LucideIcon: ShoppingBag },
+    local_service: { icon: '📍', label: 'Local Services', gradient: 'linear-gradient(135deg, #10B98115, #06B6D410)', LucideIcon: MapPin },
+    social_search: { icon: '📱', label: 'Guides', gradient: 'linear-gradient(135deg, #F472B615, #EC489910)', LucideIcon: Globe },
+    translation: { icon: '🌐', label: 'Translation', gradient: 'linear-gradient(135deg, #34D39915, #10B98110)', LucideIcon: Globe },
+    itinerary: { icon: '📋', label: 'Itinerary', gradient: 'linear-gradient(135deg, #818CF815, #6366F110)', LucideIcon: FileText },
 };
 
 export function getAgentMeta(agentType: string): AgentTypeMeta {
@@ -118,7 +118,7 @@ function buildFallbackShoppingUrl(item: any): string | undefined {
 function buildWeatherSearchUrl(location?: string): string | undefined {
     const loc = String(location || '').trim();
     if (!loc) return undefined;
-    return `https://www.google.com/search?q=${encodeURIComponent(`${loc} 天气`)}`;
+    return `https://www.google.com/search?q=${encodeURIComponent(`${loc} weather`)}`;
 }
 
 function buildWindyUrl(lat?: number, lon?: number): string | undefined {
@@ -193,7 +193,7 @@ export const MarketplaceHeader: React.FC<{
                 borderRadius: '50%',
                 background: successCount === totalCount ? mktColors.positive : mktColors.warning,
             }} />
-            {successCount}/{totalCount} 成功
+            {successCount}/{totalCount} Success
         </div>
     </div>
 );
@@ -298,7 +298,7 @@ export const HotelResultCard: React.FC<{
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 18 }}>🏨</span>
                     <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 14 }}>
-                        {destination ? `${destination} 酒店推荐` : '酒店推荐'}
+                        {destination ? `${destination} Hotel recommendations` : 'Hotel recommendations'}
                     </span>
                     <span style={{
                         background: mktColors.positiveMuted,
@@ -308,11 +308,11 @@ export const HotelResultCard: React.FC<{
                         fontSize: 11,
                         fontWeight: 500,
                     }}>
-                        实时数据
+                        Live data
                     </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{hotels.length} 家</span>
+                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{hotels.length} hotels</span>
                     {latencyMs && (
                         <span style={{ color: mktColors.text3, fontSize: 11 }}>{latencyMs}ms</span>
                     )}
@@ -381,7 +381,7 @@ export const HotelResultCard: React.FC<{
                                 </span>
                                 <span style={{ color: mktColors.positive, fontWeight: 700, fontSize: 14 }}>
                                     ¥{hotel.pricePerNight || hotel.price || '—'}
-                                    <span style={{ fontSize: 11, fontWeight: 400 }}>/晚</span>
+                                    <span style={{ fontSize: 11, fontWeight: 400 }}>/night</span>
                                 </span>
                             </div>
                         </div>
@@ -392,7 +392,7 @@ export const HotelResultCard: React.FC<{
             {/* Comparison Links */}
             {comparisonLinks.length > 0 && (
                 <div style={{ padding: '6px 12px 10px', borderTop: `1px solid ${mktColors.border}` }}>
-                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>对比预订 →</div>
+                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>Compare bookings →</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {comparisonLinks.slice(0, 4).map((link: any, i: number) => (
                             <a
@@ -403,7 +403,7 @@ export const HotelResultCard: React.FC<{
                                 onClick={() =>
                                     trackOutboundLink(onOutboundLinkClick, {
                                         agentType: 'hotel_booking',
-                                        title: String(link?.provider || link?.title || '酒店比价入口'),
+                                        title: String(link?.provider || link?.title || 'Hotel comparison link'),
                                         url: String(link?.url || ''),
                                     })
                                 }
@@ -481,7 +481,7 @@ export const FlightResultCard: React.FC<{
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 18 }}>✈️</span>
-                    <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 14 }}>航班推荐</span>
+                    <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 14 }}>Flight recommendations</span>
                     <span style={{
                         background: mktColors.positiveMuted,
                         color: mktColors.positive,
@@ -490,11 +490,11 @@ export const FlightResultCard: React.FC<{
                         fontSize: 11,
                         fontWeight: 500,
                     }}>
-                        实时数据
+                        Live data
                     </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{flights.length} 个航班</span>
+                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{flights.length} flights</span>
                     {latencyMs && (
                         <span style={{ color: mktColors.text3, fontSize: 11 }}>{latencyMs}ms</span>
                     )}
@@ -512,7 +512,7 @@ export const FlightResultCard: React.FC<{
                         color: mktColors.text2,
                         fontSize: 12,
                     }}>
-                        暂未返回可展示的航班详情，请使用下方比价入口继续查看。
+                        No displayable flight details returned yet. Use the comparison links below to continue.
                     </div>
                 )}
                 {flights.slice(0, 4).map((flight: any, i: number) => (
@@ -525,7 +525,7 @@ export const FlightResultCard: React.FC<{
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 13 }}>
-                                    {flight.airline || flight.carrier || '航班'}
+                                    {flight.airline || flight.carrier || 'Flight'}
                                 </span>
                                 {(flight.flightNumber || flight.flightNo) && (
                                     <span style={{ color: mktColors.text3, fontSize: 11 }}>
@@ -538,9 +538,9 @@ export const FlightResultCard: React.FC<{
                             </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: mktColors.text2, fontSize: 12 }}>
-                            <span>{flight.departure_time || flight.departureTime || flight.departure || '时刻待确认'}</span>
+                            <span>{flight.departure_time || flight.departureTime || flight.departure || 'Time pending'}</span>
                             <span style={{ color: mktColors.text3 }}>→</span>
-                            <span>{flight.arrival_time || flight.arrivalTime || flight.arrival || '时刻待确认'}</span>
+                            <span>{flight.arrival_time || flight.arrivalTime || flight.arrival || 'Time pending'}</span>
                             {flight.duration && (
                                 <span style={{ color: mktColors.text3, marginLeft: 'auto', fontSize: 11 }}>
                                     {flight.duration}
@@ -549,7 +549,7 @@ export const FlightResultCard: React.FC<{
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 7 }}>
                             <span style={{ color: mktColors.text3, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>
-                                {flight.source || '实时来源'}
+                                {flight.source || 'Live source'}
                             </span>
                             {flight.bookingUrl && (
                                 <a
@@ -559,7 +559,7 @@ export const FlightResultCard: React.FC<{
                                     onClick={() =>
                                         trackOutboundLink(onOutboundLinkClick, {
                                             agentType: 'flight_booking',
-                                            title: `${flight.airline || flight.carrier || '航班'} 预订入口`,
+                                            title: `${flight.airline || flight.carrier || 'Flight'} Booking link`,
                                             url: String(flight.bookingUrl || ''),
                                         })
                                     }
@@ -576,7 +576,7 @@ export const FlightResultCard: React.FC<{
                                         background: mktColors.primaryMuted,
                                     }}
                                 >
-                                    去预订
+                                    Book now
                                     <ExternalLink size={10} />
                                 </a>
                             )}
@@ -588,7 +588,7 @@ export const FlightResultCard: React.FC<{
             {/* Comparison Links */}
             {comparisonLinks.length > 0 && (
                 <div style={{ padding: '6px 12px 10px', borderTop: `1px solid ${mktColors.border}` }}>
-                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>对比预订 →</div>
+                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>Compare bookings →</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {comparisonLinks.slice(0, 4).map((link: any, i: number) => (
                             <a
@@ -599,7 +599,7 @@ export const FlightResultCard: React.FC<{
                                 onClick={() =>
                                     trackOutboundLink(onOutboundLinkClick, {
                                         agentType: 'flight_booking',
-                                        title: String(link?.provider || link?.name || link?.title || '航班比价入口'),
+                                        title: String(link?.provider || link?.name || link?.title || 'Flight comparison link'),
                                         url: String(link?.url || ''),
                                     })
                                 }
@@ -616,7 +616,7 @@ export const FlightResultCard: React.FC<{
                                     gap: 4,
                                 }}
                             >
-                                {link.provider || link.name || link.title || '比价入口'}
+                                {link.provider || link.name || link.title || 'Comparison link'}
                                 <ExternalLink size={10} />
                             </a>
                         ))}
@@ -672,7 +672,7 @@ export const LocalResultCard: React.FC<{
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 18 }}>📍</span>
-                    <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 14 }}>本地服务推荐</span>
+                    <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 14 }}>Local service recommendations</span>
                     <span style={{
                         background: mktColors.positiveMuted,
                         color: mktColors.positive,
@@ -681,11 +681,11 @@ export const LocalResultCard: React.FC<{
                         fontSize: 11,
                         fontWeight: 500,
                     }}>
-                        实时数据
+                        Live data
                     </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{localResults.length} 条</span>
+                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{localResults.length} results</span>
                     {latencyMs && (
                         <span style={{ color: mktColors.text3, fontSize: 11 }}>{latencyMs}ms</span>
                     )}
@@ -703,7 +703,7 @@ export const LocalResultCard: React.FC<{
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                             <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 13 }}>
-                                {item.name || '商家'}
+                                {item.name || 'Place'}
                             </span>
                             {Number.isFinite(item.rating) && (
                                 <span style={{
@@ -725,7 +725,7 @@ export const LocalResultCard: React.FC<{
                         )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                             <span style={{ color: mktColors.text3, fontSize: 11 }}>
-                                {item.status || item.category || '信息待补充'}
+                                {item.status || item.category || 'Info pending'}
                             </span>
                             {navUrl && (
                                 <a
@@ -735,7 +735,7 @@ export const LocalResultCard: React.FC<{
                                     onClick={() =>
                                         trackOutboundLink(onOutboundLinkClick, {
                                             agentType: 'local_service',
-                                            title: `${item?.name || '商家'} 导航`,
+                                            title: `${item?.name || 'Place'} Directions`,
                                             url: String(navUrl || ''),
                                         })
                                     }
@@ -752,7 +752,7 @@ export const LocalResultCard: React.FC<{
                                         background: mktColors.primaryMuted,
                                     }}
                                 >
-                                    去导航
+                                    Open directions
                                     <ExternalLink size={10} />
                                 </a>
                             )}
@@ -763,7 +763,7 @@ export const LocalResultCard: React.FC<{
 
             {safeLinks.length > 0 && (
                 <div style={{ padding: '6px 12px 10px', borderTop: `1px solid ${mktColors.border}` }}>
-                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>快捷入口 →</div>
+                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>Quick links →</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {safeLinks.slice(0, 4).map((link: any, i: number) => (
                             <a
@@ -774,7 +774,7 @@ export const LocalResultCard: React.FC<{
                                 onClick={() =>
                                     trackOutboundLink(onOutboundLinkClick, {
                                         agentType: 'local_service',
-                                        title: String(link?.title || link?.provider || '本地服务详情'),
+                                        title: String(link?.title || link?.provider || 'Local service details'),
                                         url: String(link?.url || ''),
                                     })
                                 }
@@ -791,7 +791,7 @@ export const LocalResultCard: React.FC<{
                                     gap: 4,
                                 }}
                             >
-                                {link.title || link.provider || '查看详情'}
+                                {link.title || link.provider || 'View details'}
                                 <ExternalLink size={10} />
                             </a>
                         ))}
@@ -841,7 +841,7 @@ export const ShoppingResultCard: React.FC<{
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 18 }}>🛍️</span>
-                    <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 14 }}>商品比价</span>
+                    <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 14 }}>Product comparison</span>
                     <span style={{
                         background: mktColors.positiveMuted,
                         color: mktColors.positive,
@@ -850,11 +850,11 @@ export const ShoppingResultCard: React.FC<{
                         fontSize: 11,
                         fontWeight: 500,
                     }}>
-                        实时数据
+                        Live data
                     </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{shoppingResults.length} 条</span>
+                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{shoppingResults.length} results</span>
                     {latencyMs && (
                         <span style={{ color: mktColors.text3, fontSize: 11 }}>{latencyMs}ms</span>
                     )}
@@ -871,14 +871,14 @@ export const ShoppingResultCard: React.FC<{
                         border: `1px solid ${mktColors.border}`,
                     }}>
                         <div style={{ color: mktColors.text1, fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
-                            {item.title || '商品'}
+                            {item.title || 'Product'}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                             <span style={{ color: mktColors.text2, fontSize: 12 }}>
-                                {item.source || item.merchant || '平台待确认'}
+                                {item.source || item.merchant || 'Platform pending'}
                             </span>
                             <span style={{ color: mktColors.positive, fontWeight: 700, fontSize: 14 }}>
-                                {item.price_text || (Number.isFinite(item.price) ? `¥${item.price}` : '价格待确认')}
+                                {item.price_text || (Number.isFinite(item.price) ? `¥${item.price}` : 'Price pending')}
                             </span>
                         </div>
                         {itemUrl && (
@@ -890,7 +890,7 @@ export const ShoppingResultCard: React.FC<{
                                     onClick={() =>
                                         trackOutboundLink(onOutboundLinkClick, {
                                             agentType: 'shopping',
-                                            title: String(item?.title || '商品详情'),
+                                            title: String(item?.title || 'Product details'),
                                             url: String(itemUrl || ''),
                                         })
                                     }
@@ -907,7 +907,7 @@ export const ShoppingResultCard: React.FC<{
                                         background: mktColors.primaryMuted,
                                     }}
                                 >
-                                    查看商品
+                                    View product
                                     <ExternalLink size={10} />
                                 </a>
                             </div>
@@ -918,7 +918,7 @@ export const ShoppingResultCard: React.FC<{
 
             {safeLinks.length > 0 && (
                 <div style={{ padding: '6px 12px 10px', borderTop: `1px solid ${mktColors.border}` }}>
-                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>快速跳转 →</div>
+                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>Quick jump →</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {safeLinks.slice(0, 5).map((link: any, i: number) => (
                             <a
@@ -929,7 +929,7 @@ export const ShoppingResultCard: React.FC<{
                                 onClick={() =>
                                     trackOutboundLink(onOutboundLinkClick, {
                                         agentType: 'shopping',
-                                        title: String(link?.title || link?.provider || '商品报价'),
+                                        title: String(link?.title || link?.provider || 'Product quote'),
                                         url: String(link?.url || ''),
                                     })
                                 }
@@ -946,7 +946,7 @@ export const ShoppingResultCard: React.FC<{
                                     gap: 4,
                                 }}
                             >
-                                {link.title || link.provider || '查看报价'}
+                                {link.title || link.provider || 'View quote'}
                                 <ExternalLink size={10} />
                             </a>
                         ))}
@@ -968,7 +968,7 @@ export const WeatherResultCard: React.FC<{
     const weatherData = data?.data || data || {};
     const forecast = Array.isArray(weatherData?.forecast) ? weatherData.forecast : [];
     const tips = Array.isArray(weatherData?.tips) ? weatherData.tips : [];
-    const location = String(weatherData?.locationCN || weatherData?.location || '').trim() || '目的地';
+    const location = String(weatherData?.locationCN || weatherData?.location || '').trim() || 'Destination';
     const coords = weatherData?.coordinates || {};
     const lat = Number(coords?.lat);
     const lon = Number(coords?.lon);
@@ -977,11 +977,11 @@ export const WeatherResultCard: React.FC<{
     const rawLinks = Array.isArray(weatherData?.action_links) ? weatherData.action_links : [];
     const links = [
         ...rawLinks,
-        { title: `${location} 天气搜索`, url: buildWeatherSearchUrl(location) },
-        { title: '天气雷达 (Windy)', url: buildWindyUrl(lat, lon) },
+        { title: `${location} Weather search`, url: buildWeatherSearchUrl(location) },
+        { title: 'Weather Radar (Windy)', url: buildWindyUrl(lat, lon) },
     ]
         .map((item: any) => ({
-            title: item?.title || item?.provider || '查看天气',
+            title: item?.title || item?.provider || 'View weather',
             url: String(item?.url || '').trim(),
         }))
         .filter((item: any) => isSafePublicUrl(item.url));
@@ -1009,7 +1009,7 @@ export const WeatherResultCard: React.FC<{
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 18 }}>🌤️</span>
                     <span style={{ color: mktColors.text1, fontWeight: 600, fontSize: 14 }}>
-                        {location} 天气
+                        {location} Weather
                     </span>
                     <span style={{
                         background: mktColors.positiveMuted,
@@ -1019,11 +1019,11 @@ export const WeatherResultCard: React.FC<{
                         fontSize: 11,
                         fontWeight: 500,
                     }}>
-                        实时数据
+                        Live data
                     </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{forecast.length} 天</span>
+                    <span style={{ color: mktColors.text3, fontSize: 12 }}>{forecast.length} days</span>
                     {latencyMs && (
                         <span style={{ color: mktColors.text3, fontSize: 11 }}>{latencyMs}ms</span>
                     )}
@@ -1040,7 +1040,7 @@ export const WeatherResultCard: React.FC<{
                         color: mktColors.text2,
                         fontSize: 12,
                     }}>
-                        暂无可展示天气详情，可通过下方来源链接继续查看。
+                        No displayable weather details yet. Use the source links below to continue.
                     </div>
                 )}
                 {forecast.slice(0, 5).map((day: any, i: number) => (
@@ -1057,10 +1057,10 @@ export const WeatherResultCard: React.FC<{
                             <span style={{ fontSize: 20 }}>{day?.icon || '🌤️'}</span>
                             <div>
                                 <div style={{ color: mktColors.text1, fontWeight: 600, fontSize: 13 }}>
-                                    {day?.day || day?.date || `第 ${i + 1} 天`}
+                                    {day?.day || day?.date || `Day ${i + 1}`}
                                 </div>
                                 <div style={{ color: mktColors.text2, fontSize: 12 }}>
-                                    {day?.condition || '天气信息待补充'}
+                                    {day?.condition || 'Weather info pending'}
                                 </div>
                             </div>
                         </div>
@@ -1077,7 +1077,7 @@ export const WeatherResultCard: React.FC<{
 
             {tips.length > 0 && (
                 <div style={{ padding: '0 12px 10px' }}>
-                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>出行建议</div>
+                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>Travel tips</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {tips.slice(0, 2).map((tip: any, i: number) => (
                             <div key={i} style={{ color: mktColors.text2, fontSize: 12 }}>
@@ -1090,7 +1090,7 @@ export const WeatherResultCard: React.FC<{
 
             {dedupedLinks.length > 0 && (
                 <div style={{ padding: '6px 12px 10px', borderTop: `1px solid ${mktColors.border}` }}>
-                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>查看详情 →</div>
+                    <div style={{ color: mktColors.text3, fontSize: 11, marginBottom: 6 }}>View details →</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {dedupedLinks.map((link, i) => (
                             <a
@@ -1101,7 +1101,7 @@ export const WeatherResultCard: React.FC<{
                                 onClick={() =>
                                     trackOutboundLink(onOutboundLinkClick, {
                                         agentType: 'weather',
-                                        title: String(link?.title || '天气详情'),
+                                        title: String(link?.title || 'Weather details'),
                                         url: String(link?.url || ''),
                                     })
                                 }
@@ -1169,15 +1169,15 @@ export const GenericAgentResultCard: React.FC<{
             ...(Array.isArray(data?.data?.action_links) ? data.data.action_links : []),
         ];
         actionLinks.slice(0, 4).forEach((l: any) => {
-            if (isSafePublicUrl(l?.url)) links.push({ title: l.title || l.provider || '查看详情', url: l.url });
+            if (isSafePublicUrl(l?.url)) links.push({ title: l.title || l.provider || 'View details', url: l.url });
         });
         const evidenceItems = Array.isArray(data?.evidence?.items) ? data.evidence.items : [];
         evidenceItems.slice(0, 3).forEach((item: any) => {
-            if (isSafePublicUrl(item?.url)) links.push({ title: item?.title || '查看证据', url: item.url });
+            if (isSafePublicUrl(item?.url)) links.push({ title: item?.title || 'View evidence', url: item.url });
         });
         const sourceItems = Array.isArray(data?.sources) ? data.sources : [];
         sourceItems.slice(0, 3).forEach((item: any) => {
-            if (isSafePublicUrl(item?.url)) links.push({ title: item?.title || item?.source_name || '查看来源', url: item.url });
+            if (isSafePublicUrl(item?.url)) links.push({ title: item?.title || item?.source_name || 'View source', url: item.url });
         });
     }
 
@@ -1232,7 +1232,7 @@ export const GenericAgentResultCard: React.FC<{
                                 onClick={() =>
                                     trackOutboundLink(onOutboundLinkClick, {
                                         agentType,
-                                        title: String(link?.title || '查看详情'),
+                                        title: String(link?.title || 'View details'),
                                         url: String(link?.url || ''),
                                     })
                                 }
@@ -1335,7 +1335,7 @@ export const ChatPreviewCard: React.FC<{
             letterSpacing: '0.5px',
             marginBottom: 10,
         }}>
-            对话预览
+            Chat preview
         </div>
 
         {/* User Bubble */}
@@ -1365,7 +1365,7 @@ export const ChatPreviewCard: React.FC<{
                 {assistantLines.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <div style={{ color: mktColors.text2, fontSize: 12, marginBottom: 2 }}>
-                            已为你汇总可用信息：
+                            I have summarized the available information for you:
                         </div>
                         {assistantLines.map((line, i) => (
                             <div key={i} style={{ color: mktColors.text1, fontSize: 12 }}>
@@ -1375,7 +1375,7 @@ export const ChatPreviewCard: React.FC<{
                     </div>
                 ) : (
                     <div style={{ color: '#FCA5A5', fontSize: 12 }}>
-                        暂无可用结果，请补充更多约束后重试。
+                        No usable results yet. Add more constraints and retry.
                     </div>
                 )}
 

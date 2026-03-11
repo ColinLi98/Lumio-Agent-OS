@@ -391,7 +391,9 @@ function improveSocial(current: SocialConnectedness): SocialConnectedness {
 // ============================================================================
 
 /**
- * 从人格特征推断 Gamma 值
+ * 从人格特征推断 Gamma 值 (δ — 长期指数折扣因子)
+ *
+ * 基于: Sutton & Barto (2018), Reinforcement Learning, Ch.3
  */
 export function inferGamma(personality?: PersonalityTraits): number {
     if (!personality) return 0.7;  // 默认值
@@ -405,24 +407,138 @@ export function inferGamma(personality?: PersonalityTraits): number {
     // 开放性 → 更愿意尝试长期投资
     const openness = personality.openness / 100;
 
-    // 综合计算 gamma
+    // 综合计算 gamma (δ)
     const gamma = 0.5 + 0.45 * (conscientiousness * 0.4 + rationality * 0.4 + openness * 0.2);
 
     return Math.min(0.95, Math.max(0.3, gamma));
 }
 
 /**
- * Bellman 人生优化器
+ * 从人格特征推断现时偏见系数 β (Present Bias)
+ *
+ * β ∈ (0, 1] 表示对「现在」的额外偏好：
+ *   β = 1  → 标准指数折扣（无现时偏见）
+ *   β < 1  → 当前奖励被赋予比未来奖励更高的额外权重
+ *
+ * 准双曲折扣模型: U = R₀ + β·(δ·R₁ + δ²·R₂ + ...)
+ *
+ * 参考文献:
+ *   Laibson, D. (1997). Golden Eggs and Hyperbolic Discounting.
+ *     Quarterly Journal of Economics, 112(2), 443–478.
+ *   O'Donoghue, T. & Rabin, M. (1999). Doing It Now or Later.
+ *     American Economic Review, 89(1), 103–124.
+ */
+export function inferPresentBias(personality?: PersonalityTraits): number {
+    if (!personality) return 0.8;  // 默认现时偏见
+
+    // 冲动性高 → 更偏好当下 → β 更小
+    const impulsiveness = (100 - (personality.conscientiousness ?? 50)) / 100;
+
+    // 情绪化 → 对当下感受权重更高
+    const emotionalWeight = (100 - ((personality.rationalVsEmotional ?? 0) + 100) / 2) / 100;
+
+    // β 接近 1 表示更理性；接近 0.5 表示强烈现时偏见
+    const beta = 1.0 - 0.5 * (impulsiveness * 0.6 + emotionalWeight * 0.4);
+
+    return Math.min(1.0, Math.max(0.5, beta));
+}
+
+// ============================================================================
+// Habit Memory Stock (Backward-Looking Influence)
+// ============================================================================
+
+/**
+ * 记忆轨迹条目 — 记录过去状态的奖励及其时间戳
+ *
+ * 参考文献:
+ *   Ryder, H. E. & Heal, G. M. (1973). Optimal Growth with
+ *     Intertemporally Dependent Preferences.
+ *     Review of Economic Studies, 40(1), 1–31.
+ */
+export interface MemoryTrace {
+    reward: number;      // 过去行动获得的即时奖励
+    timestamp: number;   // 发生时间 (ms)
+}
+
+/**
+ * 计算习惯存量 (Habit Stock)
+ *
+ * h_t = Σᵢ αⁱ · R_{t-i}   (指数衰减的历史奖励加权和)
+ *
+ * 这将过去所有状态的影响压缩为单个标量，维持马尔可夫性质。
+ *
+ * @param traces  历史记忆轨迹 (从最新到最旧)
+ * @param alpha   历史衰减因子 ∈ (0,1)，默认 0.6
+ * @returns       习惯存量 h (正值=良好习惯，负值=不良积累)
+ */
+export function computeHabitStock(
+    traces: MemoryTrace[],
+    alpha: number = 0.6
+): number {
+    let habitStock = 0;
+    let weight = 1.0;
+    const now = Date.now();
+
+    for (const trace of traces) {
+        // 时间衰减：越久远的记忆权重越低（毫秒转换为「步"）
+        const ageSteps = (now - trace.timestamp) / (1000 * 60 * 60);  // 小时为单位
+        const timeDecay = Math.pow(alpha, ageSteps);
+        habitStock += timeDecay * trace.reward;
+        weight *= alpha;
+    }
+
+    return habitStock;
+}
+
+/**
+ * Bellman 人生优化器 — 准双曲折扣版
+ *
+ * 折扣模型 (Quasi-Hyperbolic β-δ):
+ *   Q(s,a) = h(past) + R(s,a) + β·δ·Σ P(s'|s,a)·V(s')
+ *
+ * 其中:
+ *   δ (gamma)  = 长期指数折扣因子  [Sutton & Barto 2018]
+ *   β (beta)   = 现时偏见系数      [Laibson 1997; O'Donoghue & Rabin 1999]
+ *   h (habit)  = 历史习惯存量      [Ryder & Heal 1973]
+ *
+ * β=1 退化为标准 Bellman；β<1 使当前奖励相对于未来更有价值。
  */
 export class BellmanLifeOptimizer {
-    private gamma: number;
+    private gamma: number;          // δ — 长期折扣因子
+    private beta: number;           // β — 现时偏见系数 ∈ (0.5, 1]
+    private habitAlpha: number;     // α — 习惯存量衰减率
     private userValues?: ValuesProfile;
     private V: Map<string, number> = new Map();
     private policy: Map<string, LifeAction> = new Map();
+    private memoryTraces: MemoryTrace[] = [];  // 历史奖励记忆
 
-    constructor(gamma: number = 0.7, userValues?: ValuesProfile) {
+    constructor(
+        gamma: number = 0.7,
+        userValues?: ValuesProfile,
+        beta: number = 0.8,
+        habitAlpha: number = 0.6
+    ) {
         this.gamma = gamma;
+        this.beta = beta;
+        this.habitAlpha = habitAlpha;
         this.userValues = userValues;
+    }
+
+    /** 记录一次行动的结果到记忆轨迹 */
+    recordOutcome(reward: number): void {
+        this.memoryTraces.unshift({ reward, timestamp: Date.now() });
+        // 最多保留 10 条记忆
+        if (this.memoryTraces.length > 10) {
+            this.memoryTraces = this.memoryTraces.slice(0, 10);
+        }
+    }
+
+    /**
+     * 获取习惯存量（过去的加权影响）
+     * 正值 = 良好习惯积累，负值 = 不良积累
+     */
+    getHabitStock(): number {
+        return computeHabitStock(this.memoryTraces, this.habitAlpha);
     }
 
     /**
@@ -448,17 +564,30 @@ export class BellmanLifeOptimizer {
     }
 
     /**
-     * 计算行动的 Q 值
+     * 计算行动的 Q 值 — 准双曲折扣公式
+     *
+     * Q(s,a) = habitBonus + R(s,a) + β·δ·Σ P(s'|s,a)·V(s')
+     *
+     * 对比标准 Bellman (β=1):
+     *   - 未来价值乘以额外系数 β，体现「现在感觉更重要」
+     *   - 习惯存量 h 作为来自过去状态的奖励基础
+     *
+     * 参考: Laibson (1997), Phelps & Pollak (1968)
      */
     getQValue(state: LifeState, action: LifeAction): number {
-        // Q(s,a) = R(s,a) + γ * Σ P(s'|s,a) * V(s')
+        // 1. 过去的影响：习惯存量（后向加权求和）
+        //    正习惯 → 有利行动有加成；负习惯 → 自我放纵行为受惩罚
+        const habitStock = this.getHabitStock();
+        const habitBonus = habitStock * 0.1;  // 缩放至奖励量纲
+
+        // 2. 即时奖励 R(s,a)
         const immediateReward = getActionReward(state, action, this.userValues);
 
+        // 3. 准双曲折扣的未来价值: β·δ·Σ P(s'|s,a)·V(s')
         let expectedFutureValue = 0;
         const transitions = getTransitions(state, action);
 
         for (const { probability, nextState } of transitions) {
-            // 合并状态
             const fullNextState: LifeState = {
                 ...state,
                 ...nextState,
@@ -469,7 +598,8 @@ export class BellmanLifeOptimizer {
             expectedFutureValue += probability * nextValue;
         }
 
-        return immediateReward + this.gamma * expectedFutureValue;
+        // 准双曲: β·δ 替代标准 δ (当 β<1 时未来被额外打折)
+        return habitBonus + immediateReward + this.beta * this.gamma * expectedFutureValue;
     }
 
     /**
@@ -515,6 +645,9 @@ export class BellmanLifeOptimizer {
             confidence = Math.min(95, 60 + gap * 5);
         }
 
+        // 现时偏见说明
+        const presentBiasExplain = this.generatePresentBiasExplain();
+
         return {
             action: best.action,
             qValue: best.qValue,
@@ -526,7 +659,15 @@ export class BellmanLifeOptimizer {
                 qValue: a.qValue,
                 tradeoff: this.generateTradeoff(best.action, a.action)
             })),
-            anxietyRelief
+            anxietyRelief,
+            // Present-bias metadata
+            discountParams: {
+                beta: this.beta,
+                gamma: this.gamma,
+                effectiveDiscount: this.beta * this.gamma,
+                habitStock: this.getHabitStock()
+            },
+            presentBiasExplain
         };
     }
 
@@ -632,6 +773,27 @@ export class BellmanLifeOptimizer {
 
         return '不同的侧重点';
     }
+
+    /**
+     * 生成现时偏见说明
+     */
+    private generatePresentBiasExplain(): string {
+        const betaPct = Math.round((1 - this.beta) * 100);
+        const habitStock = this.getHabitStock();
+        const habitDesc = habitStock > 1
+            ? `你最近的行为累积了正向习惯存量 (+${habitStock.toFixed(1)})，这在为你「加分」。`
+            : habitStock < -1
+                ? `你最近的行为留下了负向习惯存量 (${habitStock.toFixed(1)})，你需要打破这个惯性。`
+                : '你的习惯存量目前接近中性。';
+
+        if (betaPct <= 5) {
+            return `你的现时偏见极低 (β=${this.beta.toFixed(2)})，你能够充分权衡未来。${habitDesc}`;
+        } else if (betaPct <= 20) {
+            return `检测到轻度现时偏见 (β=${this.beta.toFixed(2)}, 未来额外打折 ${betaPct}%)。长期行动的真实价值比你直觉中的更高。${habitDesc}`;
+        } else {
+            return `检测到显著现时偏见 (β=${this.beta.toFixed(2)}, 未来额外打折 ${betaPct}%)。注意：你可能在低估长期投资的价值！${habitDesc}`;
+        }
+    }
 }
 
 /**
@@ -649,6 +811,15 @@ export interface ActionRecommendation {
         tradeoff: string;
     }>;
     anxietyRelief: string;
+    /** 准双曲折扣参数 */
+    discountParams?: {
+        beta: number;             // 现时偏见系数
+        gamma: number;            // 长期折扣因子 δ
+        effectiveDiscount: number; // 综合有效折扣 β·δ
+        habitStock: number;       // 过去习惯存量
+    };
+    /** 现时偏见解释文本 */
+    presentBiasExplain?: string;
 }
 
 // ============================================================================
@@ -663,7 +834,8 @@ export function getNextBestAction(state?: LifeState): ActionRecommendation {
     const currentState = state || extractCurrentState(avatar, undefined);
 
     const gamma = inferGamma(avatar?.personality);
-    const optimizer = new BellmanLifeOptimizer(gamma, avatar?.valuesProfile);
+    const beta = inferPresentBias(avatar?.personality);
+    const optimizer = new BellmanLifeOptimizer(gamma, avatar?.valuesProfile, beta);
 
     return optimizer.getNextBestAction(currentState);
 }
@@ -686,7 +858,8 @@ export function getRecommendationForQuery(query: string, appContext?: any): Acti
     const context = detectQueryContext(query, appContext);
 
     const gamma = inferGamma(avatar?.personality);
-    const optimizer = new BellmanLifeOptimizer(gamma, avatar?.valuesProfile);
+    const beta = inferPresentBias(avatar?.personality);
+    const optimizer = new BellmanLifeOptimizer(gamma, avatar?.valuesProfile, beta);
 
     // 获取基础推荐
     let recommendation = optimizer.getNextBestAction(state);

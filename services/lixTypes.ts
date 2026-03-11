@@ -259,6 +259,10 @@ export interface ScoreBreakdown {
     delivery_score: number;
     sku_match_score: number;
     validation_penalty: number;
+    capability_match_score?: number;
+    risk_coverage_score?: number;
+    capacity_score?: number;
+    cost_score?: number;
 }
 
 export interface RankedOffer {
@@ -295,6 +299,12 @@ export interface MarketResponse {
     vertical?: string;
     /** Suggested next action for UI (e.g., 'collect_slots' for ticketing) */
     next_action_suggestion?: 'collect_slots' | 'set_reminder' | 'retry';
+    dispatch_mode?: LixDispatchMode;
+    dispatch_decision?: DispatchDecision;
+    auction_policy_applied?: IntentAuctionPolicy;
+    retry_trace?: string;
+    route_result?: import('./intentRouterTypes.js').RouteResult;
+    fallback_response?: import('./intentRouterTypes.js').FallbackResponse;
 }
 
 // ============================================================================
@@ -415,10 +425,77 @@ export type SolutionIntentStatus =
     | 'broadcasting'
     | 'offers_received'
     | 'offer_accepted'
+    | 'bond_pending'
+    | 'bond_locked'
+    | 'insured'
+    | 'compensated'
     | 'delivery_submitted'
     | 'approved'
     | 'rejected'
     | 'cancelled';
+
+export type LixDispatchMode = 'lumi_primary' | 'capability_auction';
+export type LixTakeRateTier = 'first_trade' | 'repeat_trade';
+export type LixInsuranceStatus = 'inactive' | 'insured' | 'claim_pending' | 'compensated' | 'claim_rejected';
+export type LixSlaState = 'on_track' | 'at_risk' | 'breach';
+
+export interface IntentAuctionPolicy {
+    policy_version: string;
+    dispatch_mode: LixDispatchMode;
+    fail_closed: boolean;
+    exploration_quota: number; // 0.0 - 1.0
+    domains_enforced: SolutionIntentDomain[];
+}
+
+export interface TakeRatePolicy {
+    policy_version: string;
+    first_trade_rate: number;
+    repeat_trade_rate: number;
+}
+
+export interface BondPolicy {
+    policy_version: string;
+    enabled: boolean;
+    min_bond_cny: number;
+    slash_order: Array<'escrow_refund' | 'bond_slash'>;
+}
+
+export interface EscrowClaim {
+    claim_id: string;
+    intent_id: string;
+    offer_id: string;
+    provider_id: string;
+    reason: string;
+    amount_cny: number;
+    status: 'opened' | 'approved' | 'rejected' | 'paid';
+    created_at: string;
+    updated_at: string;
+}
+
+export interface OverflowDecision {
+    mode: LixDispatchMode;
+    overflow_reason?: string;
+    complexity?: number;
+    risk?: number;
+    required_capabilities?: number;
+    super_agent_queue_depth?: number;
+}
+
+export interface ProviderCapacitySnapshot {
+    provider_id: string;
+    capacity_available: boolean;
+    capacity_score: number; // 0.0 - 1.0
+    expected_completion_minutes: number;
+    sampled_at: string;
+}
+
+export interface DispatchDecision {
+    mode: LixDispatchMode;
+    reason_codes: string[];
+    overflow_reason?: string;
+    policy_version: string;
+    retry_trace?: string;
+}
 
 export interface SolutionFailureContext {
     candidate_count?: number;
@@ -458,8 +535,19 @@ export interface AgentSolutionOffer {
     collaborator_agents?: string[];
     orchestration_strategy?: string;
     estimated_delivery_hours: number;
+    expected_completion_minutes?: number;
     quote_amount: number;
     currency: string;
+    capacity_available?: boolean;
+    capacity_score?: number;
+    risk_score?: number;
+    bond_coverage?: boolean;
+    effective_take_rate?: number;
+    take_rate_tier?: LixTakeRateTier;
+    execution_score?: number;
+    twin_fit_score?: number;
+    composite_score?: number;
+    ranking_rationale?: string;
     status: 'open' | 'accepted' | 'rejected';
     created_at: string;
 }
@@ -517,6 +605,14 @@ export interface AgentSolutionIntent {
     profile_share_consent?: ProfileShareConsentState;
     digital_twin_snapshot?: LixDigitalTwinSnapshot;
     status: SolutionIntentStatus;
+    dispatch_mode?: LixDispatchMode;
+    overflow_reason?: string;
+    take_rate_tier?: LixTakeRateTier;
+    bond_required?: boolean;
+    bond_lock_id?: string;
+    insurance_status?: LixInsuranceStatus;
+    eta_minutes?: number;
+    sla_state?: LixSlaState;
     created_at: string;
     updated_at: string;
     offers: AgentSolutionOffer[];

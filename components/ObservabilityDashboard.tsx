@@ -72,9 +72,9 @@ const ProviderRow: React.FC<ProviderRowProps> = ({ provider }) => {
     };
 
     const circuitLabels = {
-        closed: '正常',
-        open: '断开',
-        half_open: '恢复中'
+        closed: 'Normal',
+        open: 'Open',
+        half_open: 'Recovering'
     };
 
     return (
@@ -100,7 +100,7 @@ const ProviderRow: React.FC<ProviderRowProps> = ({ provider }) => {
                     </div>
                     <div style={{ fontSize: 11, color: colors.text3 }}>
                         {circuitLabels[provider.circuit_status]}
-                        {provider.is_banned && ' · 已封禁'}
+                        {provider.is_banned && ' · Banned'}
                     </div>
                 </div>
             </div>
@@ -111,7 +111,7 @@ const ProviderRow: React.FC<ProviderRowProps> = ({ provider }) => {
                 </div>
                 {provider.total_penalties > 0 && (
                     <div style={{ fontSize: 10, color: colors.warning }}>
-                        {provider.total_penalties} 惩罚
+                        {provider.total_penalties} penalties
                     </div>
                 )}
             </div>
@@ -157,7 +157,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
         return (
             <div style={{ padding: 20, textAlign: 'center', color: colors.text3 }}>
                 <RefreshCw size={24} style={{ animation: 'spin 1s linear infinite' }} />
-                <p>加载监控数据...</p>
+                <p>Loading monitoring data...</p>
             </div>
         );
     }
@@ -166,7 +166,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
         return (
             <div style={{ padding: 20, textAlign: 'center', color: colors.error }}>
                 <AlertTriangle size={24} />
-                <p>无法加载监控数据</p>
+                <p>Unable to load monitoring data</p>
             </div>
         );
     }
@@ -181,9 +181,9 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
     };
 
     const healthLabels = {
-        healthy: '系统正常',
-        degraded: '部分降级',
-        unhealthy: '系统异常'
+        healthy: 'Healthy',
+        degraded: 'Degraded',
+        unhealthy: 'Unhealthy'
     };
 
     return (
@@ -198,7 +198,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Activity size={20} color={colors.primary} />
                     <h2 style={{ color: colors.text1, fontSize: 16, fontWeight: 600, margin: 0 }}>
-                        LIX 监控面板
+                        LIX Monitoring Dashboard
                     </h2>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -236,31 +236,64 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                 <MetricCard
                     icon={<Wifi size={16} />}
-                    label="活跃提供商"
+                    label="Active providers"
                     value={`${metrics.circuit_summary.closed}/${metrics.circuit_summary.total}`}
-                    subtitle={`${metrics.circuit_summary.open} 断路器打开`}
+                    subtitle={`${metrics.circuit_summary.open} circuits open`}
                     color={metrics.circuit_summary.open > 0 ? colors.warning : colors.positive}
                 />
                 <MetricCard
                     icon={<DollarSign size={16} />}
                     label="Accept Fee"
                     value={`¥${metrics.fee_summary.total_collected.toFixed(0)}`}
-                    subtitle={`${metrics.fee_summary.count} 笔交易`}
+                    subtitle={`${metrics.fee_summary.count} transactions`}
                     color={colors.positive}
                 />
                 <MetricCard
                     icon={<Shield size={16} />}
-                    label="争议处理"
+                    label="Disputes"
                     value={metrics.dispute_summary.open}
-                    subtitle={`总 ${metrics.dispute_summary.total} | 退款率 ${(metrics.dispute_summary.refund_rate * 100).toFixed(0)}%`}
+                    subtitle={`Total ${metrics.dispute_summary.total} | Refund rate ${(metrics.dispute_summary.refund_rate * 100).toFixed(0)}%`}
                     color={metrics.dispute_summary.open > 2 ? colors.warning : colors.positive}
                 />
                 <MetricCard
                     icon={metrics.proxy_status.enabled ? <Wifi size={16} /> : <WifiOff size={16} />}
-                    label="代理状态"
-                    value={metrics.proxy_status.enabled ? `${metrics.proxy_status.healthy}/${metrics.proxy_status.total}` : '禁用'}
-                    subtitle={metrics.proxy_status.enabled ? '代理健康' : '直连模式'}
+                    label="Proxy status"
+                    value={metrics.proxy_status.enabled ? `${metrics.proxy_status.healthy}/${metrics.proxy_status.total}` : 'Disabled'}
+                    subtitle={metrics.proxy_status.enabled ? 'Proxy healthy' : 'Direct mode'}
                     color={metrics.proxy_status.enabled ? colors.positive : colors.text3}
+                />
+                <MetricCard
+                    icon={<Activity size={16} />}
+                    label="Agent kernel tasks"
+                    value={metrics.agent_kernel_summary.tasks_done}
+                    subtitle={`Failed ${metrics.agent_kernel_summary.tasks_failed} | Waiting ${metrics.agent_kernel_summary.tasks_waiting_user}`}
+                    color={metrics.agent_kernel_summary.tasks_failed > 0 ? colors.warning : colors.positive}
+                />
+                <MetricCard
+                    icon={<AlertTriangle size={16} />}
+                    label="Compensations"
+                    value={metrics.agent_kernel_summary.compensation_applied}
+                    subtitle={`Irreversible ${metrics.agent_kernel_summary.compensation_irreversible} | Needs user ${metrics.agent_kernel_summary.compensation_requires_user}`}
+                    color={metrics.agent_kernel_summary.compensation_irreversible > 0 ? colors.warning : colors.positive}
+                />
+                <MetricCard
+                    icon={<TrendingUp size={16} />}
+                    label="Kernel rollout"
+                    value={`${(metrics.agent_kernel_summary.rollout_enabled_rate * 100).toFixed(1)}%`}
+                    subtitle={`${metrics.agent_kernel_summary.rollout_enabled_total}/${metrics.agent_kernel_summary.rollout_routed_total} | target ${metrics.agent_kernel_summary.rollout_target_percent}%`}
+                    color={metrics.agent_kernel_summary.rollout_enabled_rate > 0 ? colors.primary : colors.text3}
+                />
+                <MetricCard
+                    icon={<Clock size={16} />}
+                    label="Policy sync / runtime"
+                    value={metrics.agent_kernel_summary.policy_sync_mismatch}
+                    subtitle={`Missing client ${metrics.agent_kernel_summary.policy_sync_missing_client} | runtime fail ${(metrics.agent_kernel_summary.runtime_failure_rate * 100).toFixed(1)}%`}
+                    color={
+                        metrics.agent_kernel_summary.policy_sync_mismatch > 0
+                            || metrics.agent_kernel_summary.runtime_failure_rate > 0.05
+                            ? colors.warning
+                            : colors.positive
+                    }
                 />
             </div>
 
@@ -287,7 +320,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
                         cursor: 'pointer'
                     }}
                 >
-                    <span>提供商状态</span>
+                    <span>Provider status</span>
                     {showProviders ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
 
@@ -309,7 +342,7 @@ export const ObservabilityDashboard: React.FC<ObservabilityDashboardProps> = ({ 
                     textAlign: 'center'
                 }}>
                     <Clock size={10} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                    最后更新: {lastUpdated.toLocaleTimeString('zh-CN')}
+                    Last updated: {lastUpdated.toLocaleTimeString('en-US')}
                 </div>
             )}
         </div>

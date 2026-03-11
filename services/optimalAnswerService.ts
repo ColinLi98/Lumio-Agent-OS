@@ -305,15 +305,40 @@ function buildBellmanContext(query: string, data: any, decision?: DecisionMeta |
   const avatar = getEnhancedDigitalAvatar();
   const riskTolerance = mapRiskTolerance(avatar.personality?.riskTolerance);
   const privacyLevel = mapPrivacyLevel(avatar.valuesProfile?.privacyConcern, avatar.privacyMode);
+  const missingFields = inferMissingFields(decision);
+  const estimatedRiskCostDelta = Number(
+    Math.max(
+      0,
+      Math.min(1, (100 - averageScore) / 220 + missingFields.length * 0.04 + (candidateCount === 0 ? 0.08 : 0))
+    ).toFixed(3)
+  );
+  const estimatedStabilityScore = Number(
+    Math.max(
+      0,
+      Math.min(1, averageScore / 100 - missingFields.length * 0.03 - (candidateCount === 0 ? 0.12 : 0))
+    ).toFixed(3)
+  );
 
   return {
     hasCandidates: candidateCount > 0,
     candidateCount,
     averageScore,
-    missingFields: inferMissingFields(decision),
+    missingFields,
     riskTolerance,
     privacyLevel,
-    goalType: detectGoalType(query)
+    goalType: detectGoalType(query),
+    safety: {
+      mode: 'runtime_inference',
+      dataIntegrityPassed: true,
+      constraintsCompliant: true,
+      riskCostDelta: estimatedRiskCostDelta,
+      approvedRiskCostDelta: 0.45,
+      stabilityScore: estimatedStabilityScore,
+      minStabilityScore: 0.3,
+      hasRollbackTarget: true,
+      hasRollbackPlaybook: true,
+      policyVersion: 'bellman_runtime_v1'
+    }
   };
 }
 

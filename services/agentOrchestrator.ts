@@ -20,7 +20,7 @@ import {
 import { getUserPreferences } from './personalizationService.js';
 import { getEnhancedDigitalAvatar } from './localStorageService.js';
 import { executeSpecializedAgent, SPECIALIZED_AGENTS } from './specializedAgents.js';
-import { getAgentMarketplace, detectDomain } from './agentMarketplaceService.js';
+import { getAgentMarketplace, detectCapabilities, detectDomain } from './agentMarketplaceService.js';
 import type { AgentDomain } from './agentMarketplaceTypes.js';
 
 /**
@@ -136,10 +136,13 @@ export class AgentOrchestrator {
             tasks.push(this.createAgentTask(mappedType, intent, preferences, priority++));
         }
 
-        // Safety fallback: if discovery produced no executable specialized tasks.
+        // Fallback only when we can infer a concrete capability from the query.
         if (tasks.length === 0) {
-            const fallbackType = intent.category === 'travel' ? 'flight_booking' : 'shopping';
-            tasks.push(this.createAgentTask(fallbackType, intent, preferences, priority));
+            const inferredCapabilities = detectCapabilities(intent.primaryIntent);
+            const inferredType = this.mapCapabilitiesToSpecializedType(inferredCapabilities);
+            if (inferredType && !dedup.has(inferredType)) {
+                tasks.push(this.createAgentTask(inferredType, intent, preferences, priority));
+            }
         }
 
         if (plan.trace_id) {

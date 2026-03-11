@@ -7,8 +7,8 @@ interface FeatureButtonsProps {
 }
 
 /**
- * 三大核心功能快捷入口
- * 在 Agent Mode 下显示，点击自动填充对应意图
+ * Three core feature quick entries
+ * Shown in Agent mode, click to auto-fill corresponding intent
  */
 export const FeatureButtons: React.FC<FeatureButtonsProps> = ({
   onFeatureSelect,
@@ -19,30 +19,30 @@ export const FeatureButtons: React.FC<FeatureButtonsProps> = ({
   const features = [
     {
       id: 'write' as const,
-      label: '帮我写',
+      label: 'Write',
       icon: PenLine,
-      prompt: '帮我写',
-      description: '快速生成回复',
+      prompt: 'Help me write',
+      description: 'Generate a reply quickly',
       color: 'from-blue-500 to-indigo-600',
       bgColor: 'bg-blue-500/10',
       borderColor: 'border-blue-500/30'
     },
     {
       id: 'find' as const,
-      label: '帮我找',
+      label: 'Find',
       icon: Search,
-      prompt: '帮我找',
-      description: '比价/搜索/导航',
+      prompt: 'Help me find',
+      description: 'Compare/search/navigate',
       color: 'from-emerald-500 to-teal-600',
       bgColor: 'bg-emerald-500/10',
       borderColor: 'border-emerald-500/30'
     },
     {
       id: 'remember' as const,
-      label: '帮我记',
+      label: 'Remember',
       icon: Bookmark,
-      prompt: '帮我记',
-      description: '保存重要信息',
+      prompt: 'Help me remember',
+      description: 'Save important info',
       color: 'from-amber-500 to-orange-600',
       bgColor: 'bg-amber-500/10',
       borderColor: 'border-amber-500/30'
@@ -52,7 +52,7 @@ export const FeatureButtons: React.FC<FeatureButtonsProps> = ({
   return (
     <div className="feature-buttons-container">
       <div className="feature-buttons-header">
-        <span className="text-xs text-indigo-300 font-medium">选择功能或直接输入</span>
+        <span className="text-xs text-indigo-300 font-medium">Choose a feature or type directly</span>
       </div>
       <div className="feature-buttons-grid">
         {features.map((feature) => (

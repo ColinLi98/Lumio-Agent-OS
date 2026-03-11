@@ -1,0 +1,48 @@
+Title,Description,Priority,Labels,Project,Epic,Estimate
+EPIC-M1 双入口主链路稳定化,"目标: IME 外部输入 + App 内部主脑稳定可用; 验收: No Mis-send, 自动拉起 App, 结果回流",1,"android,ime,app",Lumi Android v1,EPIC-M1 双入口主链路稳定化,0
+IME Agent Mode 云端判定与自动拉起 App,"实现 local/cloud 路由与 deep link 跳转; 复杂任务自动进入 App 模块页面",1,"ime,handoff",Lumi Android v1,EPIC-M1 双入口主链路稳定化,5
+IME 候选回流不自动提交,"回流草稿仅展示在候选区; 仅用户点击才 commit 到宿主输入框",1,"ime,no-mis-send",Lumi Android v1,EPIC-M1 双入口主链路稳定化,3
+IME 与 App Binder 重连恢复,"服务被系统回收后 3 秒内重连; pending request 可恢复查询",2,"binder,reliability",Lumi Android v1,EPIC-M1 双入口主链路稳定化,5
+App 深链路由统一,"统一支持 lumi://chat/lix/agent-market/avatar/destiny/settings",2,"deeplink,android",Lumi Android v1,EPIC-M1 双入口主链路稳定化,3
+中文输入默认词库内置,"默认加载 fcitx_gboard_seed.tsv; 首次可用无需下载",2,"ime,cn-lexicon",Lumi Android v1,EPIC-M1 双入口主链路稳定化,2
+双入口真机 E2E 回归,"微信/短信/浏览器输入框切换 Lumi IME; 自动拉起 App; 回流候选可提交",1,"e2e,android",Lumi Android v1,EPIC-M1 双入口主链路稳定化,5
+
+EPIC-M1 七Tab功能闭环,"目标: 首页/对话/LIX/Agent/画像/导航/设置均为页面级能力而非入口壳",1,"android,ui,compose",Lumi Android v1,EPIC-M1 七Tab功能闭环,0
+首页状态与指标聚合,"首页展示画像摘要、24h任务质量、快捷入口与系统状态",2,"home,dashboard",Lumi Android v1,EPIC-M1 七Tab功能闭环,5
+对话页任务轨/证据轨/技能轨,"展示 routing reasons、task graph、skills、evidence; 支持细化与管理",1,"chat,orchestration",Lumi Android v1,EPIC-M1 七Tab功能闭环,8
+LIX 意图交易闭环,"发布意图 -> 报价 -> 接受 -> 交付 -> 复核状态可追踪",1,"lix,workflow",Lumi Android v1,EPIC-M1 七Tab功能闭环,8
+Agent 市场执行闭环,"发现 Agent、执行任务、趋势榜、GitHub 导入入口可用",1,"agent-market,execution",Lumi Android v1,EPIC-M1 七Tab功能闭环,8
+画像页三层可读视图,"概览/认知/编辑三层结构; 标签和特征进度可读",2,"avatar,ux",Lumi Android v1,EPIC-M1 七Tab功能闭环,5
+导航页策略路径可视化,"显示风险级别、下一步策略、路径步骤与证据",2,"destiny,planning",Lumi Android v1,EPIC-M1 七Tab功能闭环,5
+设置页观测面板完成,"显示 API 状态、功能开关、任务确认率与模块级确认率",2,"settings,observability",Lumi Android v1,EPIC-M1 七Tab功能闭环,5
+
+EPIC-M2 Super Agent 路由与任务图,"目标: 单入口调度 + 三档阈值路由 + 可解释执行",1,"core-agent,orchestration",Lumi Android v1,EPIC-M2 Super Agent 路由与任务图,0
+统一 SuperAgentKernel 单入口,"清理并收敛历史并行编排入口; 所有请求经过同一路径",1,"super-agent,architecture",Lumi Android v1,EPIC-M2 Super Agent 路由与任务图,8
+三档阈值路由决策器,"实现 single/multi 路由规则与 reason codes 输出",1,"routing,policy",Lumi Android v1,EPIC-M2 Super Agent 路由与任务图,8
+任务图构建与关键路径,"输出 tasks/edges/criticalPath/parallelGroups",2,"task-graph",Lumi Android v1,EPIC-M2 Super Agent 路由与任务图,5
+技能调用轨生成,"输出 1主skill+2fallback 执行轨; 标记 source/status/sandbox",2,"skills,trace",Lumi Android v1,EPIC-M2 Super Agent 路由与任务图,5
+路由解释 UI chips,"前端显示为何单 Agent/多 Agent, 并支持失败节点折叠",2,"ui,explainability",Lumi Android v1,EPIC-M2 Super Agent 路由与任务图,5
+路由决策单测集扩展,"覆盖单Agent/多Agent/高风险证据/显式并行请求",1,"test,core-agent",Lumi Android v1,EPIC-M2 Super Agent 路由与任务图,5
+
+EPIC-M2 Skills 发现与治理,"目标: 本地索引 + GitHub find-skills + 沙箱准入",1,"skills,github,sandbox",Lumi Android v1,EPIC-M2 Skills 发现与治理,0
+skillsDiscoveryAdapter 本地优先检索,"先查本地索引 capabilities/domain/success_rate/latency_p95",2,"skills,local-index",Lumi Android v1,EPIC-M2 Skills 发现与治理,5
+GitHub find-skills 补全检索,"调用 GitHub Search API 拉取候选仓库与 manifest",1,"skills,github",Lumi Android v1,EPIC-M2 Skills 发现与治理,8
+技能沙箱试跑框架,"新增 sandbox 试跑与审计日志; 支持 20 次准入评估",1,"sandbox,security",Lumi Android v1,EPIC-M2 Skills 发现与治理,8
+准入与隔离池治理,"达标进入 approved_skills; 未达标进入 quarantine_skills",2,"governance,skills",Lumi Android v1,EPIC-M2 Skills 发现与治理,5
+技能回退顺序强约束,"固定 local -> approved_github -> local_template",2,"fallback,skills",Lumi Android v1,EPIC-M2 Skills 发现与治理,3
+技能发现/准入测试集,"覆盖本地命中/GitHub命中/准入通过/准入拒绝",2,"test,skills",Lumi Android v1,EPIC-M2 Skills 发现与治理,5
+
+EPIC-M3 数字分身与隐私基座,"目标: 先解题后沉淀分身; 全链路脱敏",1,"digital-twin,privacy",Lumi Android v1,EPIC-M3 数字分身与隐私基座,0
+事件脱敏统一入口,"recordInteraction 过滤 rawText/text/message 等明文字段",1,"privacy,telemetry",Lumi Android v1,EPIC-M3 数字分身与隐私基座,5
+分身权重更新策略,"基于 task_confirm/task_cancel/draft_accept/card_click 更新画像参数",2,"digital-twin,model",Lumi Android v1,EPIC-M3 数字分身与隐私基座,8
+本地优先与云同步开关,"默认本地; 用户授权后仅上传脱敏特征",2,"sync,privacy",Lumi Android v1,EPIC-M3 数字分身与隐私基座,5
+画像可读性优化,"特征中文化、等级可视化、可读标签重构",2,"avatar,ux",Lumi Android v1,EPIC-M3 数字分身与隐私基座,5
+隐私合规回归测试,"验证日志/遥测/崩溃上报不含 rawText",1,"privacy,test",Lumi Android v1,EPIC-M3 数字分身与隐私基座,5
+
+EPIC-M4 观测、质量与发布切流,"目标: 可灰度、可观测、可回滚",1,"release,observability",Lumi Android v1,EPIC-M4 观测、质量与发布切流,0
+关键指标面板统一,"请求成功率、P50/P95、采纳率、完成率、崩溃率、深链转化",2,"metrics,ops",Lumi Android v1,EPIC-M4 观测、质量与发布切流,8
+模块级任务确认率榜,"设置页显示模块维度 confirm/cancel/confirm rate",2,"settings,metrics",Lumi Android v1,EPIC-M4 观测、质量与发布切流,3
+首页 24h 质量指标卡,"首页展示 24h 确认/取消/确认率/主模块",2,"home,metrics",Lumi Android v1,EPIC-M4 观测、质量与发布切流,3
+发布开关接入与演练,"ime_backend_v2_enabled 等开关接入 + 回滚演练",1,"feature-flag,rollback",Lumi Android v1,EPIC-M4 观测、质量与发布切流,5
+灰度发布流程固化,"10% 灰度 -> 指标门槛 -> 全量",1,"release,rollout",Lumi Android v1,EPIC-M4 观测、质量与发布切流,3
+发布阻断检查脚本,"API 健康与核心链路失败即阻断发布",2,"ci,release-gate",Lumi Android v1,EPIC-M4 观测、质量与发布切流,5

@@ -53,48 +53,48 @@ interface WeightDimension {
 const weightDimensions: WeightDimension[] = [
     {
         key: 'time',
-        label: '时间',
-        labelLow: '不急，可以慢慢来',
-        labelHigh: '越快越好',
+        label: 'Time',
+        labelLow: 'Not urgent, can take it slow',
+        labelHigh: 'As fast as possible',
         icon: <Clock size={18} />,
         color: colors.time,
-        description: '时间效率优先级',
+        description: 'Time efficiency priority',
     },
     {
         key: 'money',
-        label: '成本',
-        labelLow: '愿意为质量付费',
-        labelHigh: '尽量省钱',
+        label: 'Cost',
+        labelLow: 'Willing to pay for quality',
+        labelHigh: 'Save as much money as possible',
         icon: <DollarSign size={18} />,
         color: colors.money,
-        description: '成本节约优先级',
+        description: 'Cost-saving priority',
     },
     {
         key: 'risk',
-        label: '冒险',
-        labelLow: '稳妥方案',
-        labelHigh: '愿意尝试新事物',
+        label: 'Risk',
+        labelLow: 'Prefer safer options',
+        labelHigh: 'Willing to try new things',
         icon: <AlertTriangle size={18} />,
         color: colors.risk,
-        description: '风险承受能力',
+        description: 'Risk tolerance',
     },
     {
         key: 'energy',
-        label: '精力',
-        labelLow: '愿意投入精力',
-        labelHigh: '希望省心省力',
+        label: 'Energy',
+        labelLow: 'Willing to invest effort',
+        labelHigh: 'Prefer low effort',
         icon: <Zap size={18} />,
         color: colors.energy,
-        description: '精力消耗偏好',
+        description: 'Effort preference',
     },
     {
         key: 'growth',
-        label: '成长',
-        labelLow: '偏好熟悉的方式',
-        labelHigh: '重视学习机会',
+        label: 'Growth',
+        labelLow: 'Prefer familiar approaches',
+        labelHigh: 'Value learning opportunities',
         icon: <TrendingUp size={18} />,
         color: colors.growth,
-        description: '学习成长优先级',
+        description: 'Learning and growth priority',
     },
 ];
 
@@ -159,14 +159,14 @@ export const ObjectiveWeightsPanel: React.FC<ObjectiveWeightsPanelProps> = ({
                         fontWeight: 600,
                         margin: 0,
                     }}>
-                        生活目标权重
+                        Life Objective Weights
                     </h3>
                     <p style={{
                         color: colors.text3,
                         fontSize: 12,
                         margin: '4px 0 0 0',
                     }}>
-                        调整这些偏好来个性化你的计划建议
+                        Adjust these preferences to personalize your plan recommendations
                     </p>
                 </div>
                 <button
@@ -194,7 +194,7 @@ export const ObjectiveWeightsPanel: React.FC<ObjectiveWeightsPanelProps> = ({
                     }}
                 >
                     <RotateCcw size={14} />
-                    重置
+                    Reset
                 </button>
             </div>
 
@@ -225,7 +225,7 @@ export const ObjectiveWeightsPanel: React.FC<ObjectiveWeightsPanelProps> = ({
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
                 }}>
-                    当前偏好总结
+                    Current preference summary
                 </div>
                 <div style={{
                     color: colors.text2,

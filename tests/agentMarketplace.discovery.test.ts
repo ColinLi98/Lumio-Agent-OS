@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
     AgentMarketplaceService,
+    decomposeTasks,
     detectDomain,
     detectCapabilities,
     ensureMarketplaceCatalogReady,
@@ -116,6 +117,10 @@ describe('Agent Marketplace Discovery', () => {
             expect(detectDomain('帮我买一个iPhone')).toBe('shopping');
         });
 
+        it('should detect productivity domain', () => {
+            expect(detectDomain('帮我规划下周项目排期和待办优先级')).toBe('productivity');
+        });
+
         it('should fall back to general', () => {
             expect(detectDomain('abc xyz')).toBe('general');
         });
@@ -137,6 +142,22 @@ describe('Agent Marketplace Discovery', () => {
         it('should fall back to general for unknown queries', () => {
             const caps = detectCapabilities('abc xyz 123');
             expect(caps).toEqual(['general']);
+        });
+
+        it('should detect productivity capabilities', () => {
+            const caps = detectCapabilities('请帮我做项目任务拆解和日程安排提醒');
+            expect(caps).toContain('task_planning');
+            expect(caps).toContain('time_blocking');
+        });
+    });
+
+    describe('Task Decomposition', () => {
+        it('should build multi-step tasks for productivity domain', () => {
+            const tasks = decomposeTasks('帮我做项目排期和提醒', 'productivity');
+            expect(tasks.length).toBeGreaterThanOrEqual(3);
+            expect(tasks.some((task) => task.required_capabilities.includes('task_planning'))).toBe(true);
+            expect(tasks.some((task) => task.required_capabilities.includes('time_blocking'))).toBe(true);
+            expect(tasks.some((task) => task.required_capabilities.includes('reminder_management'))).toBe(true);
         });
     });
 

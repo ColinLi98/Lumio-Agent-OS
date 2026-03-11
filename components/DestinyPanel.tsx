@@ -38,7 +38,7 @@ const LiveStatusBadge: React.FC<{
         return (
             <span className="flex items-center gap-1 text-xs text-slate-400">
                 <span className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
-                计算中
+                Computing
             </span>
         );
     }
@@ -46,7 +46,7 @@ const LiveStatusBadge: React.FC<{
     return (
         <span className={`flex items-center gap-1 text-xs ${isFresh ? 'text-emerald-400' : 'text-amber-400'}`}>
             <span className={`w-2 h-2 rounded-full ${isFresh ? 'bg-emerald-400' : 'bg-amber-400'} ${isFresh ? 'animate-pulse' : ''}`} />
-            {isFresh ? '实时' : '数据过期'}
+            {isFresh ? 'Live' : 'Stale Data'}
         </span>
     );
 };
@@ -126,7 +126,7 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
             >
                 <div className="flex items-center gap-2">
                     <Target size={16} className="text-purple-400" />
-                    <span className="text-sm font-medium text-slate-200">命运引擎</span>
+                    <span className="text-sm font-medium text-slate-200">Destiny Engine</span>
                     {stateSummary && (
                         <span className="text-xs text-slate-500">
                             ESS: {stateSummary.belief_ess.toFixed(0)}
@@ -158,7 +158,7 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
                 <div className="px-3 pb-3 border-t border-slate-700/30">
                     {loading ? (
                         <div className="py-4 text-center text-slate-500 text-sm">
-                            分析中...
+                            Analyzing...
                         </div>
                     ) : recommendation?.success ? (
                         <>
@@ -167,7 +167,7 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
                                 <div className="flex items-center gap-2 py-2 px-3 my-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
                                     <Clock size={14} className="text-amber-400" />
                                     <span className="text-xs text-amber-300">
-                                        证据已过期，建议刷新获取最新数据
+                                        Evidence is stale. Refresh for the latest data.
                                     </span>
                                 </div>
                             )}
@@ -176,18 +176,18 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
                             {stateSummary && (
                                 <div className="grid grid-cols-3 gap-2 py-3">
                                     <StatItem
-                                        label="置信度"
+                                        label="Confidence"
                                         value={`${Math.round(recommendation.diagnostics.explanation_valid ? 85 : 60)}%`}
                                         color="#22c55e"
                                     />
                                     <StatItem
-                                        label="风险"
+                                        label="Risk"
                                         value={`${(failureProb * 100).toFixed(0)}%`}
                                         color={failureProb > 0.2 ? "#ef4444" : "#22c55e"}
                                     />
                                     <StatItem
-                                        label="证据"
-                                        value={`${evidencePack?.items?.length ?? 0}条`}
+                                        label="Evidence"
+                                        value={`${evidencePack?.items?.length ?? 0} items`}
                                         color="#3b82f6"
                                     />
                                 </div>
@@ -197,10 +197,10 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
                             {bestAction && (
                                 <div className="bg-slate-700/30 rounded-lg p-3 mb-3">
                                     <div className="text-sm font-medium text-slate-200 mb-1">
-                                        推荐: {bestAction.summary}
+                                        Recommended: {bestAction.summary}
                                     </div>
                                     <div className="text-xs text-slate-400 line-clamp-2">
-                                        {topReasons[0]?.text ?? '基于当前状态的最优建议'}
+                                        {topReasons[0]?.text ?? 'Best recommendation based on current state'}
                                     </div>
                                     <div className="flex items-center gap-3 mt-2 text-xs">
                                         <span className={`px-2 py-0.5 rounded ${bestAction.action_type === 'do'
@@ -209,12 +209,12 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
                                                     ? 'bg-amber-500/20 text-amber-300'
                                                     : 'bg-purple-500/20 text-purple-300'
                                             }`}>
-                                            {bestAction.action_type === 'do' ? '执行' :
-                                                bestAction.action_type === 'wait' ? '等待' :
-                                                    bestAction.action_type === 'ask' ? '询问' : '确认'}
+                                            {bestAction.action_type === 'do' ? 'Execute' :
+                                                bestAction.action_type === 'wait' ? 'Wait' :
+                                                    bestAction.action_type === 'ask' ? 'Ask' : 'Confirm'}
                                         </span>
                                         {bestAction.requires_confirmation && (
-                                            <span className="text-amber-400">需确认</span>
+                                            <span className="text-amber-400">Requires confirmation</span>
                                         )}
                                     </div>
                                 </div>
@@ -225,7 +225,7 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
                                 <div className="bg-slate-700/20 rounded-lg p-3 mb-3 border border-slate-600/30">
                                     {topWhyNot && (
                                         <>
-                                            <div className="text-xs text-slate-400 mb-1">备选方案</div>
+                                            <div className="text-xs text-slate-400 mb-1">Alternative</div>
                                             <div className="text-sm text-slate-200">
                                                 {topWhyNot.alternative_action}
                                             </div>
@@ -236,7 +236,7 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
                                     )}
                                     {topSensitivity && (
                                         <div className={`${topWhyNot ? 'mt-2 pt-2 border-t border-slate-600/30' : ''}`}>
-                                            <div className="text-xs text-slate-400">切换阈值</div>
+                                            <div className="text-xs text-slate-400">Switch Threshold</div>
                                             <div className="text-sm text-slate-200">
                                                 {topSensitivity.parameter}: {topSensitivity.threshold_to_switch.toFixed(2)}
                                             </div>
@@ -251,13 +251,13 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
                                 className="w-full py-2 text-sm text-purple-400 hover:text-purple-300 
                                          hover:bg-purple-500/10 rounded-lg transition-colors"
                             >
-                                查看详情 →
+                                View Details →
                             </button>
 
                             {/* Last Updated */}
                             {lastUpdated && (
                                 <div className="text-xs text-slate-600 text-center mt-2">
-                                    更新于 {lastUpdated.toLocaleTimeString()}
+                                    Updated at {lastUpdated.toLocaleTimeString('en-GB')}
                                 </div>
                             )}
                         </>
@@ -265,7 +265,7 @@ export const DestinyPanel: React.FC<DestinyPanelProps> = ({
                         <div className="py-4 text-center">
                             <AlertCircle size={20} className="mx-auto text-amber-400 mb-2" />
                             <div className="text-slate-400 text-sm">
-                                {recommendation?.diagnostics?.errors?.[0] ?? '暂无数据'}
+                                {recommendation?.diagnostics?.errors?.[0] ?? 'No data available'}
                             </div>
                         </div>
                     )}
