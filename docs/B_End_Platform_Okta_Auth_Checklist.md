@@ -1,13 +1,13 @@
-# B-End Platform Okta Auth Checklist
+# Lumio Okta OIDC Checklist
 
 Date: 2026-03-10
 Owner: Codex
-Scope: B-end platform only
+Scope: Lumio enterprise workspace platform preview
 
 Product name: `Lumio`
 
 ## Objective
-Validate that the B-end platform’s Okta OIDC path behaves correctly under a real enterprise tenant.
+Validate that Lumio’s Okta OIDC path behaves correctly under a real enterprise tenant.
 
 ## Required tenant inputs
 - Okta issuer
@@ -17,7 +17,7 @@ Validate that the B-end platform’s Okta OIDC path behaves correctly under a re
 - group-role mapping set
 
 ## Required smoke flow
-1. Open the canonical B-end platform URL.
+1. Open the canonical Lumio enterprise workspace preview URL.
 2. Trigger `Sign in with Okta`.
 3. Complete redirect and callback.
 4. Confirm a durable enterprise session appears in the platform.

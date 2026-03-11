@@ -36,10 +36,16 @@ run_step \
   "B-end unit tests" \
   npm --prefix "$REPO_ROOT" run test:unit -- \
   tests/services/surfaceBranding.test.ts \
+  tests/currentWorkspaceReliability.test.ts \
   tests/components/EnterprisePlatformView.test.ts \
   tests/components/StandaloneTrialJoinView.test.ts \
   tests/components/EnterpriseShellPanels.test.ts \
   tests/platformContract.test.ts
+
+run_step \
+  "Current-workspace browser smoke" \
+  bash -lc \
+  "cd \"$REPO_ROOT\" && node scripts/with-dev-server.mjs -- npx playwright test playwright-tests/current-workspace-reliability.spec.ts playwright-tests/enterprise-platform-hardening.spec.ts"
 
 echo
 echo "Release baseline passed."

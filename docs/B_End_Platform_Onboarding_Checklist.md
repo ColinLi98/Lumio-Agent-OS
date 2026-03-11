@@ -1,14 +1,14 @@
-# B-End Platform Onboarding Checklist
+# Lumio Onboarding Checklist
 
 Date: 2026-03-10
 Owner: Codex
-Scope: B-end platform only
+Scope: Lumio enterprise workspace platform preview
 
 Product name: `Lumio`
 
 ## Before walkthrough
-- Confirm canonical B-end platform URL is used.
-- Confirm the main demo path uses only the Lumio B-end platform route.
+- Confirm canonical Lumio preview URL is used.
+- Confirm the main demo path uses only the Lumio enterprise workspace preview route.
 - Confirm local_lab or current workspace context is intentional.
 
 ## Admin onboarding

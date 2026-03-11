@@ -1,4 +1,4 @@
-# Packaging FAQ
+# Lumio Packaging FAQ
 
 Date: 2026-03-11
 
@@ -8,7 +8,7 @@ Yes. The current product framing is B2B enterprise workspace platform only.
 
 ## What is the core product?
 
-The current B-end product is **Lumio**. It is the enterprise workspace shell:
+The current product is **Lumio**. It is the enterprise workspace shell:
 
 - enterprise workspace cockpit
 - role-aware workflow governance console

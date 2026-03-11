@@ -1,8 +1,8 @@
-# B-End Platform Admin Quick Start
+# Lumio Admin Quick Start
 
 Date: 2026-03-10
 Owner: Codex
-Scope: B-end platform only
+Scope: Lumio enterprise workspace platform preview
 
 Product name: `Lumio`
 
@@ -12,7 +12,7 @@ Product name: `Lumio`
 - Integration Admin
 
 ## Primary URL
-- Use the dedicated Lumio B-end platform URL only.
+- Use the dedicated Lumio enterprise workspace preview URL only.
 
 ## First 5 actions
 1. Open `Workspace Overview` and verify activation / blocker posture.

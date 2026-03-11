@@ -27,6 +27,7 @@ import { buildAdminActionItems } from '../../components/AdminActionCenterPanel';
 import { buildWorkspaceSeatDetail } from '../../components/WorkspaceSeatDetailPanel';
 import { buildTrialJoinInviteRows } from '../../components/TrialJoinPanel';
 import { buildTrialTaskFocusSummary } from '../../components/TrialTaskDetailPanel';
+import { buildCurrentWorkspaceJoinLines } from '../../components/CurrentWorkspaceJoinPanel';
 import { buildEnterpriseOAShell, ENTERPRISE_OA_V1_ROLES, enterpriseModuleForRole } from '../../services/enterpriseOAShell';
 
 const baseSummary: ProductShellSummary = {
@@ -468,6 +469,45 @@ describe('EnterprisePlatformView helpers', () => {
     const lines = buildEnterpriseLoginEntryLines(summary, 'local_lab');
     expect(lines[0]?.title).toContain('Local role lab sign-in');
     expect(lines[1]?.detail).toContain('3 rehearsal seats');
+  });
+
+  it('builds explicit current-workspace join lines instead of relying on the trial join path', () => {
+    const lines = buildCurrentWorkspaceJoinLines({
+      ...baseSummary,
+      enterprise_account: {
+        signed_in: true,
+        role_badges: ['REQUESTER'],
+        available_roles: ['REQUESTER'],
+        module_access: [],
+        active_bindings: [],
+        pending_invites: [
+          {
+            invite_id: 'invite_1',
+            tenant_id: 'tenant_1',
+            workspace_id: 'workspace_1',
+            email: 'requester@example.com',
+            role: 'REQUESTER',
+            invite_token: 'token_1',
+            invited_by_principal_id: 'principal_admin',
+            invited_by_label: 'Admin',
+            status: 'OPEN',
+            created_at: 1,
+            updated_at: 1,
+          },
+        ],
+        summary: 'Signed in',
+      },
+    } as ProductShellSummary, {
+      capability: 'ENTERPRISE_INVITE_ACCEPT',
+      visible: true,
+      enabled: false,
+      ambiguous: false,
+      reason: 'Sign in with Okta OIDC before accepting the enterprise invite.',
+    }, 'token_1');
+    expect(lines[0]?.detail).toContain('enterprise invite token');
+    expect(lines[1]?.detail).toContain('1 invite');
+    expect(lines.some((line) => line.detail.includes('invited by Admin'))).toBe(true);
+    expect(lines.some((line) => line.detail.includes('Sign in with Okta OIDC'))).toBe(true);
   });
 
   it('builds workspace directory rows with role page hrefs', () => {

@@ -83,10 +83,10 @@ const App: React.FC = () => {
           <div className={`rounded-xl px-4 py-2.5 ${isDark ? 'bg-cyan-950/40 border border-cyan-800/50 text-cyan-100' : 'bg-cyan-50 border border-cyan-200 text-cyan-900'}`}>
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Building2 size={16} />
-              Enterprise Platform
+              Enterprise Workspace Platform
             </div>
             <div className={`mt-0.5 text-[11px] ${isDark ? 'text-cyan-200/80' : 'text-cyan-700'}`}>
-              Governed B-end workspace only
+              Governed enterprise workspace preview
             </div>
           </div>
           <button
@@ -104,8 +104,8 @@ const App: React.FC = () => {
 
       <div className={`w-full px-6 py-2 text-center text-xs ${isDark ? 'bg-slate-800/70 text-slate-300' : 'bg-blue-50 text-blue-900'} border-b ${isDark ? 'border-slate-700/60' : 'border-blue-100'}`}>
         {appMode === 'trial-join'
-          ? 'Trial Join is a standalone B-end entry point for shared enterprise sandbox access.'
-          : 'Lumio is a B-end enterprise workspace platform. This public site exposes only the governed workspace product surface.'}
+          ? 'Trial Join is a standalone Lumio entry point for shared enterprise sandbox access.'
+          : 'Lumio is an enterprise workspace platform. This public site exposes only the governed enterprise workspace preview surface.'}
       </div>
 
       <main className="flex-1 flex flex-col items-center justify-center p-4">

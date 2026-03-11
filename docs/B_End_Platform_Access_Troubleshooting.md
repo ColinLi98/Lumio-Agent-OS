@@ -1,8 +1,8 @@
-# B-End Platform Access Troubleshooting
+# Lumio Access Troubleshooting
 
 Date: 2026-03-10
 Owner: Codex
-Scope: B-end platform only
+Scope: Lumio enterprise workspace platform preview
 
 ## Common issues
 

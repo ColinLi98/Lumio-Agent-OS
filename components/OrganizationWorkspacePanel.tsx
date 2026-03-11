@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ProductShellSummary, WorkspaceMode } from '../services/agentKernelShellApi';
-import { buildPlatformWorkspaceGovernanceSurface } from '../services/platformContract';
+import { buildPlatformAdminWorkflowSurface, buildPlatformWorkspaceGovernanceSurface } from '../services/platformContract';
 
 export interface OrganizationWorkspaceFact {
   label: string;
@@ -23,7 +23,7 @@ export function buildOrganizationWorkspaceFacts(summary: ProductShellSummary | n
     {
       label: 'Organization',
       value: 'Lumio',
-      detail: 'Primary B-end governed workspace product shell',
+      detail: 'Primary governed enterprise workspace product shell',
     },
     {
       label: 'Workspace',
@@ -67,6 +67,9 @@ interface OrganizationWorkspacePanelProps {
 export const OrganizationWorkspacePanel: React.FC<OrganizationWorkspacePanelProps> = ({ summary, workspaceMode }) => {
   const facts = buildOrganizationWorkspaceFacts(summary, workspaceMode);
   const governance = buildPlatformWorkspaceGovernanceSurface(summary, workspaceMode);
+  const workflows = buildPlatformAdminWorkflowSurface(summary).items.filter((item) =>
+    ['TENANT_ADMIN', 'WORKSPACE_ADMIN', 'POLICY_GOVERNANCE_ADMIN', 'INTEGRATION_ADMIN', 'AUDITOR'].includes(item.role)
+  );
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
@@ -97,6 +100,31 @@ export const OrganizationWorkspacePanel: React.FC<OrganizationWorkspacePanelProp
           <div className="mt-3 space-y-2">
             {[...governance.escalationPath, ...governance.workspaceHealth].map((line) => (
               <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Workspace state & health</div>
+          <div className="mt-3 space-y-2">
+            {[...governance.workspaceState, ...governance.governedFlowLinkage].map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Admin operating lanes</div>
+          <div className="mt-3 space-y-2">
+            {workflows.map((workflow) => (
+              <div key={`${workflow.role}-${workflow.title}`} className="rounded-xl bg-slate-900/80 px-3 py-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-cyan-200">
+                  {workflow.role.toLowerCase().replace(/_/g, ' ')} · {workflow.section}
+                </div>
+                <div className="mt-1 text-xs font-semibold text-white">{workflow.title}</div>
+                <div className="mt-1 text-xs text-slate-300">{workflow.summary}</div>
+                <div className="mt-2 text-[11px] text-slate-400">Next action: {workflow.nextAction}</div>
+              </div>
             ))}
           </div>
         </div>

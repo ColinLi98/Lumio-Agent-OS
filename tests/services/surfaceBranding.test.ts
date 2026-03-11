@@ -3,11 +3,11 @@ import { resolveSurfaceBrand, resolveSurfaceTitle } from '../../services/surface
 
 describe('surface branding', () => {
   it('uses Lumio branding for platform surfaces', () => {
-    expect(resolveSurfaceTitle('platform')).toBe('Lumio B-End Platform');
+    expect(resolveSurfaceTitle('platform')).toBe('Lumio Enterprise Workspace Platform');
     expect(resolveSurfaceBrand('platform')).toEqual({
       alt: 'Lumio',
       name: 'Lumio',
-      subtitle: 'B-End Platform',
+      subtitle: 'Enterprise Workspace Platform',
     });
   });
 
@@ -24,7 +24,7 @@ describe('surface branding', () => {
     expect(resolveSurfaceBrand('platform')).toEqual({
       alt: 'Lumio',
       name: 'Lumio',
-      subtitle: 'B-End Platform',
+      subtitle: 'Enterprise Workspace Platform',
     });
   });
 });

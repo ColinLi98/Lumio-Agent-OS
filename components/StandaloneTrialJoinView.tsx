@@ -94,7 +94,7 @@ export const StandaloneTrialJoinView: React.FC<StandaloneTrialJoinViewProps> = (
               </div>
               <h1 className="mt-3 text-3xl font-semibold text-white">Join the shared enterprise sandbox</h1>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                This is a standalone B-end invite-claim page. It is built for evaluators joining a shared enterprise trial workspace and remains strictly non-pilot.
+                This is a standalone Lumio invite-claim page. It is built for evaluators joining a shared enterprise trial workspace and remains strictly non-pilot.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <div className="rounded-full border border-cyan-700/40 bg-cyan-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-100">
@@ -114,7 +114,7 @@ export const StandaloneTrialJoinView: React.FC<StandaloneTrialJoinViewProps> = (
                 <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200">Workspace</div>
                 <div className="mt-2 text-base font-semibold text-white">{summary?.trial_workspace?.trial_workspace.label || 'Enterprise Trial Workspace'}</div>
                 <div className="mt-2 text-xs text-cyan-100/80">
-                  {summary?.trial_workspace?.trial_workspace.summary || 'Shared sandbox workspace for multi-user B-end evaluation.'}
+                  {summary?.trial_workspace?.trial_workspace.summary || 'Shared sandbox workspace for multi-user enterprise workspace evaluation.'}
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-900/85 p-4">

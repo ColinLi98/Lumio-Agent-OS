@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { DependencyReadinessState, ProductShellSummary, TenantAdminActivationSummary, WorkspaceMode } from '../services/agentKernelShellApi';
-import { buildPlatformOktaReadinessSurface } from '../services/platformContract';
+import { buildPlatformAdminWorkflowSurface, buildPlatformOktaReadinessSurface } from '../services/platformContract';
 
 export function buildTenantAdminLines(summary: TenantAdminActivationSummary | null | undefined): string[] {
   if (!summary) return ['Tenant admin setup unavailable'];
@@ -126,6 +126,9 @@ export const TenantAdminSetupPanel: React.FC<TenantAdminSetupPanelProps> = ({
   const packageLines = buildActivationPackageLines(productShellSummary);
   const localRoleLabLines = buildLocalRoleLabLines(productShellSummary);
   const oktaSurface = buildPlatformOktaReadinessSurface(productShellSummary || null, workspaceMode);
+  const workflows = buildPlatformAdminWorkflowSurface(productShellSummary || null)
+    .items
+    .filter((item) => item.role === 'TENANT_ADMIN' || item.role === 'INTEGRATION_ADMIN');
   const [actorRole, setActorRole] = useState<'REQUESTER' | 'OPERATOR' | 'TENANT_ADMIN'>('REQUESTER');
   const [actorLabel, setActorLabel] = useState('');
   const [actorSource, setActorSource] = useState<'REAL_PILOT' | 'DEMO' | 'SIMULATOR' | 'TEST' | 'LOCAL_SYNTHETIC'>('REAL_PILOT');
@@ -172,6 +175,8 @@ export const TenantAdminSetupPanel: React.FC<TenantAdminSetupPanelProps> = ({
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{item.label}</div>
                   <div className="mt-1 text-xs font-semibold text-white">{String(item.state).toLowerCase().replace(/_/g, ' ')}</div>
                   <div className="mt-1 text-[11px] leading-5 text-slate-300">{item.detail}</div>
+                  <div className="mt-2 text-[11px] text-slate-400">Owner: {item.owner}</div>
+                  <div className="mt-1 text-[11px] text-slate-400">Next action: {item.nextAction}</div>
                 </div>
               ))}
             </div>
@@ -197,6 +202,37 @@ export const TenantAdminSetupPanel: React.FC<TenantAdminSetupPanelProps> = ({
               {oktaSurface.environmentStatus.map((line) => (
                 <div key={line} className="text-[11px] text-slate-300">{line}</div>
               ))}
+            </div>
+            <div className="mt-3 rounded-lg bg-slate-900/80 px-3 py-2">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Gate status</div>
+              <div className="mt-2 space-y-1">
+                {oktaSurface.gateStatus.map((line) => (
+                  <div key={line} className="text-[11px] text-slate-200">{line}</div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-3 rounded-lg bg-slate-900/80 px-3 py-2">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Gate transitions</div>
+              <div className="mt-2 space-y-1">
+                {oktaSurface.gateTransitions.map((line) => (
+                  <div key={line} className="text-[11px] text-slate-200">{line}</div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-3 rounded-lg bg-slate-900/80 px-3 py-2">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tenant / integration admin workflows</div>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {workflows.map((workflow) => (
+                  <div key={`${workflow.role}-${workflow.title}`} className="rounded-lg bg-slate-950/80 px-3 py-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-cyan-200">
+                      {workflow.role.toLowerCase().replace(/_/g, ' ')} · {workflow.section}
+                    </div>
+                    <div className="mt-1 text-[11px] font-semibold text-white">{workflow.title}</div>
+                    <div className="mt-1 text-[11px] text-slate-300">{workflow.summary}</div>
+                    <div className="mt-2 text-[11px] text-slate-400">Next action: {workflow.nextAction}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <div className="rounded-lg bg-slate-800/80 p-3">

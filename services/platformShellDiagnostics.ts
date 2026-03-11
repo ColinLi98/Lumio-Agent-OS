@@ -2,9 +2,11 @@ import { trackFunnelEvent } from './telemetryService';
 
 export type PlatformShellDiagnosticType =
   | 'route_warning'
+  | 'route_restore_failure'
   | 'stale_link'
   | 'load_failure'
   | 'cta_blocked'
+  | 'cta_execution_failed'
   | 'runtime_boundary';
 
 export function trackPlatformShellDiagnostic(

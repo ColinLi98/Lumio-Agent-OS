@@ -1,4 +1,4 @@
-# 30-Minute Demo
+# Lumio 30-Minute Demo
 
 Date: 2026-03-11
 Audience: Buyer committee, admin stakeholders, solution review group
@@ -10,7 +10,7 @@ Show both the governed workflow chain and the enterprise control plane with enou
 ## Opening framing
 
 - B2B enterprise workspace platform
-- B-end product name: `Lumio`
+- Product name: `Lumio`
 - OA v1 nine-role foundation
 - Okta OIDC-only identity target
 - `local_lab` sandbox / preview workspace

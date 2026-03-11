@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ProductShellSummary } from '../services/agentKernelShellApi';
 import {
+  buildPlatformAdminWorkflowSurface,
   buildPlatformAuditSurface,
   buildPlatformCapabilityDecisions,
   buildPlatformGovernedFlowState,
+  buildPlatformMembersAccessSurface,
+  buildPlatformMutationBoundarySurface,
   buildPlatformOktaReadinessSurface,
   buildPlatformPolicySurface,
   buildPlatformSectionHref,
@@ -12,6 +15,7 @@ import {
   buildPlatformWorkspaceContext,
   normalizeOaRole,
   parsePlatformRouteSearch,
+  restorePlatformRouteSnapshot,
   resolvePlatformFocusedMemberId,
   resolvePlatformTrialTaskId,
 } from '../services/platformContract';
@@ -378,6 +382,23 @@ describe('platform contract', () => {
     expect(resolvePlatformTrialTaskId(summary, 'missing_task')).toBe('task_1');
   });
 
+  it('restores current-workspace route continuity from stored session snapshot when the URL is partial', () => {
+    const parsed = parsePlatformRouteSearch('?surface=platform&workspace_mode=current');
+    const restored = restorePlatformRouteSnapshot('?surface=platform&workspace_mode=current', parsed, {
+      workspaceMode: 'current',
+      page: 'workspace',
+      section: 'audit',
+      oaRole: 'AUDITOR',
+      memberId: 'principal_requester',
+      trialTaskId: 'task_1',
+    });
+    expect(restored.workspaceMode).toBe('current');
+    expect(restored.section).toBe('audit');
+    expect(restored.oaRole).toBe('AUDITOR');
+    expect(restored.memberId).toBe('principal_requester');
+    expect(restored.trialTaskId).toBe('task_1');
+  });
+
   it('fails membership and approval writes closed when the active oa_role or persistence is not eligible', () => {
     const currentSummary = makeSummary({
       environment_activation: {
@@ -555,8 +576,11 @@ describe('platform contract', () => {
     });
     const surface = buildPlatformPolicySurface(summary, 'POLICY_GOVERNANCE_ADMIN', 'task_1');
     expect(surface.policyBasis[0]).toContain('Agent OS Policy Pack');
+    expect(surface.decisionTrace[0]).toContain('Current stage');
     expect(surface.exceptionWaiver[0]).toContain('1');
     expect(surface.blockedReasonLinkage[0]).toContain('Agent OS Policy Pack');
+    expect(surface.actionAuthority[0]).toContain('can act');
+    expect(surface.changeImpact[0]).toContain('waiver');
   });
 
   it('builds Okta-only readiness explanations for tenant admins', () => {
@@ -581,14 +605,188 @@ describe('platform contract', () => {
     });
     const readiness = buildPlatformOktaReadinessSurface(summary, 'current');
     expect(readiness.checklist[0]?.detail).toContain('OKTA_OIDC');
+    expect(readiness.checklist[1]?.owner).toBeTruthy();
     expect(readiness.whyNotReady[0]).toContain('Activation remains gated');
+    expect(readiness.gateStatus[0]).toContain('Gate status');
+    expect(readiness.gateTransitions[0]).toContain('Okta OIDC target');
   });
 
   it('builds audit bundle continuity for the shared evidence set', () => {
     const audit = buildPlatformAuditSurface(makeSummary(), 'AUDITOR', 'task_1');
+    expect(audit.receiptStatusLines[0]).toContain('Receipt');
+    expect(audit.receiptCompletenessLines[0]).toContain('Receipt completeness');
     expect(audit.timelineLines[0]).toContain('Requester');
+    expect(audit.traceContinuityLines[0]).toContain('evidence set');
+    expect(audit.traceabilityLines[0]).toContain('Receipt, blocker, and export preview');
     expect(audit.evidenceBundleLines[0]).toContain('task_1');
+    expect(audit.evidenceToExportLines[0]).toContain('Evidence set');
+    expect(audit.filterClarityLines[0]).toContain('Filters narrow');
     expect(audit.exportBundleLines[0]).toContain('Receipt summary');
+    expect(audit.exportBoundaryLines[0]).toContain('read-only');
+  });
+
+  it('builds member history and workspace admin boundary context for members & access', () => {
+    const surface = buildPlatformMembersAccessSurface(makeSummary({
+      enterprise_membership: {
+        generated_at: 1,
+        tenant_id: 'tenant_1',
+        workspace_id: 'workspace_1',
+        member_count: 1,
+        invite_count: 1,
+        members: [
+          {
+            principal_id: 'principal_requester',
+            email: 'requester@example.com',
+            display_name: 'Requester One',
+            status: 'ACTIVE',
+            tenant_id: 'tenant_1',
+            workspace_ids: ['workspace_1'],
+            role_assignments: [
+              {
+                principal_id: 'principal_requester',
+                binding_id: 'binding_1',
+                role: 'REQUESTER',
+                tenant_id: 'tenant_1',
+                workspace_id: 'workspace_1',
+                status: 'ACTIVE',
+                source: 'MANUAL_ADMIN',
+              },
+            ],
+          },
+        ],
+        invites: [
+          {
+            invite_id: 'invite_1',
+            tenant_id: 'tenant_1',
+            workspace_id: 'workspace_1',
+            email: 'invitee@example.com',
+            role: 'REQUESTER',
+            invite_token: 'token_1',
+            invited_by_principal_id: 'principal_admin',
+            invited_by_label: 'Workspace Admin',
+            status: 'OPEN',
+            created_at: 1,
+            updated_at: 2,
+          },
+        ],
+      },
+    }), 'current');
+    expect(surface.boundaryHistory[0]?.detail).toContain('boundary');
+    expect(surface.changeHistory[0]?.detail).toContain('via manual admin');
+    expect(surface.inviteLifecycle[0]?.detail).toContain('invited by Workspace Admin');
+    expect(surface.workspaceAdminBoundaries[0]?.title).toContain('Workspace Admin');
+    expect(surface.governedFlowLinkage[0]).toContain('governed flow');
+  });
+
+  it('builds 2-3 credible workflows for each control-plane admin role', () => {
+    const workflows = buildPlatformAdminWorkflowSurface(makeSummary(), 'task_1').items;
+    const roles = ['TENANT_ADMIN', 'WORKSPACE_ADMIN', 'POLICY_GOVERNANCE_ADMIN', 'INTEGRATION_ADMIN', 'AUDITOR'] as const;
+    for (const role of roles) {
+      expect(workflows.filter((item) => item.role === role).length).toBeGreaterThanOrEqual(2);
+    }
+    expect(workflows.find((item) => item.role === 'AUDITOR' && item.state === 'read_only')).toBeTruthy();
+  });
+
+  it('classifies current-workspace mutation boundaries as allowed, fail-closed, denied, or read-only', () => {
+    const currentSummary = makeSummary({
+      environment_activation: {
+        ...makeSummary().environment_activation,
+        workspace_mode: 'current',
+        environment_kind: 'PRODUCTION',
+        environment_label: 'Current workspace',
+        workspace_binding_kind: 'TENANT_WORKSPACE',
+      },
+      enterprise_account: {
+        signed_in: true,
+        role_badges: ['WORKSPACE_ADMIN'],
+        available_roles: ['WORKSPACE_ADMIN'],
+        module_access: [],
+        active_bindings: [],
+        pending_invites: [],
+        diagnostics: {
+          provider: 'OKTA_OIDC',
+          tenant_id: 'tenant_1',
+          workspace_id: 'workspace_1',
+          store_driver: 'postgres',
+          production_mode: true,
+          write_persistence_ready: false,
+          session_expires_at: 10,
+          session_time_remaining_ms: 10,
+          binding_count: 1,
+          group_count: 1,
+          group_role_mapping_summary: [],
+        },
+        summary: 'Current workspace session.',
+      },
+      enterprise_membership: {
+        generated_at: 1,
+        tenant_id: 'tenant_1',
+        workspace_id: 'workspace_1',
+        member_count: 1,
+        invite_count: 0,
+        members: [
+          {
+            principal_id: 'principal_requester',
+            email: 'requester@example.com',
+            display_name: 'Requester One',
+            status: 'ACTIVE',
+            tenant_id: 'tenant_1',
+            workspace_ids: ['workspace_1'],
+            role_assignments: [],
+          },
+        ],
+        invites: [],
+      },
+    });
+
+    const adminContext = buildPlatformWorkspaceContext({
+      summary: currentSummary,
+      workspaceMode: 'current',
+      page: 'workspace',
+      section: 'members',
+      oaRole: 'WORKSPACE_ADMIN',
+      focusedMemberId: 'principal_requester',
+    });
+    const adminSurface = buildPlatformMutationBoundarySurface({
+      summary: currentSummary,
+      context: adminContext,
+      section: 'members',
+      focusedMemberId: 'principal_requester',
+    });
+    expect(adminSurface.items.find((item) => item.key === 'membership_invite')?.state).toBe('fail_closed');
+    expect(adminSurface.items.find((item) => item.key === 'seat_assignment')?.state).toBe('fail_closed');
+
+    const policyContext = buildPlatformWorkspaceContext({
+      summary: {
+        ...currentSummary,
+        enterprise_account: {
+          ...currentSummary.enterprise_account!,
+          available_roles: ['REQUESTER'],
+          role_badges: ['REQUESTER'],
+          diagnostics: {
+            ...currentSummary.enterprise_account!.diagnostics!,
+            write_persistence_ready: true,
+          },
+        },
+      },
+      workspaceMode: 'current',
+      page: 'workspace',
+      section: 'policy',
+      oaRole: 'REQUESTER',
+    });
+    const policySurface = buildPlatformMutationBoundarySurface({
+      summary: currentSummary,
+      context: policyContext,
+      section: 'policy',
+    });
+    expect(policySurface.items[0]?.state).toBe('denied');
+
+    const auditSurface = buildPlatformMutationBoundarySurface({
+      summary: currentSummary,
+      context: adminContext,
+      section: 'audit',
+    });
+    expect(auditSurface.items[0]?.state).toBe('read_only');
   });
 
   it('builds workspace ownership and escalation surfaces', () => {
@@ -596,5 +794,7 @@ describe('platform contract', () => {
     expect(governance.ownership[0]).toContain('Pilot commander');
     expect(governance.adminBoundaries[0]).toContain('Tenant Admin');
     expect(governance.escalationPath[0]).toContain('Requester');
+    expect(governance.workspaceState[0]).toContain('Activation package');
+    expect(governance.governedFlowLinkage[0]).toContain('governed flow');
   });
 });

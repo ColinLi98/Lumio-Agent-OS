@@ -1,8 +1,8 @@
-# B-End Platform Review and Audit Operations Guide
+# Lumio Review and Audit Operations Guide
 
 Date: 2026-03-10
 Owner: Codex
-Scope: B-end platform only
+Scope: Lumio enterprise workspace platform preview
 
 ## Approval Center
 - Purpose: approve bounded actions and promotion-ready items.
@@ -35,4 +35,4 @@ Scope: B-end platform only
 - Audit observes and exports.
 
 ## Acceptance
-- Operators and reviewers can navigate the three centers without leaving the B-end platform.
+- Operators and reviewers can navigate the three centers without leaving Lumio.

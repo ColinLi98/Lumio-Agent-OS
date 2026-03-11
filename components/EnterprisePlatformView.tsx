@@ -52,6 +52,7 @@ import { EnterpriseMembershipAdminPanel } from './EnterpriseMembershipAdminPanel
 import { OrganizationWorkspacePanel } from './OrganizationWorkspacePanel';
 import { CrossRoleBoardPanel } from './CrossRoleBoardPanel';
 import { EnterpriseLoginEntryPanel } from './EnterpriseLoginEntryPanel';
+import { CurrentWorkspaceJoinPanel } from './CurrentWorkspaceJoinPanel';
 import { WorkspaceDirectoryPanel } from './WorkspaceDirectoryPanel';
 import { WorkspaceSeatAssignmentPanel } from './WorkspaceSeatAssignmentPanel';
 import { AdminActionCenterPanel } from './AdminActionCenterPanel';
@@ -59,6 +60,7 @@ import { WorkspaceSeatDetailPanel } from './WorkspaceSeatDetailPanel';
 import { EnterpriseModuleAccessPanel } from './EnterpriseModuleAccessPanel';
 import { EnterpriseRoleSwitcher } from './EnterpriseRoleSwitcher';
 import { EnterpriseRoleCharterPanel } from './EnterpriseRoleCharterPanel';
+import { PlatformMutationBoundaryPanel } from './PlatformMutationBoundaryPanel';
 import { ApprovalCenterPanel } from './ApprovalCenterPanel';
 import { AuditReportingCenterPanel } from './AuditReportingCenterPanel';
 import { ReviewCenterPanel } from './ReviewCenterPanel';
@@ -76,20 +78,24 @@ import {
 } from '../services/enterpriseOAShell';
 import {
   buildPlatformCapabilityDecisions,
+  buildPlatformMutationBoundarySurface,
   buildPlatformMemberSeatInvites,
   buildPlatformRolePageHref as buildRolePageHref,
   buildPlatformRouteIssues,
   buildPlatformRouteHref,
   buildPlatformWorkspaceContext,
   defaultOaRoleForRolePage,
-  defaultSectionForOaRole,
-  defaultSectionForRolePage,
   DEFAULT_LOCAL_LAB_ACTOR_IDS,
   effectiveLocalLabActorIdForRolePage,
+  inspectStoredPlatformRouteSnapshot,
   parsePlatformRouteSearch,
+  preferredRolePageForOaRole,
   resolvePlatformFocusedMemberId,
+  resolvePlatformSectionForPageRole,
   resolvePlatformTrialTaskId,
+  restorePlatformRouteSnapshot,
   sectionsForRolePage,
+  writeStoredPlatformRouteSnapshot,
   type PlatformRolePage,
   type PlatformSection,
 } from '../services/platformContract';
@@ -265,9 +271,17 @@ const ROLE_PAGE_DEFINITIONS: RolePageDefinition[] = [
 
 function resolveInitialRoute() {
   if (typeof window === 'undefined') {
-    return parsePlatformRouteSearch('', { availableRoles: ['REQUESTER', 'OPERATOR', 'TENANT_ADMIN'] });
+    return {
+      route: parsePlatformRouteSearch('', { availableRoles: ['REQUESTER', 'OPERATOR', 'TENANT_ADMIN'] }),
+      restoreFailure: null as string | null,
+    };
   }
-  return parsePlatformRouteSearch(window.location.search);
+  const parsed = parsePlatformRouteSearch(window.location.search);
+  const stored = inspectStoredPlatformRouteSnapshot();
+  return {
+    route: restorePlatformRouteSnapshot(window.location.search, parsed, stored.snapshot),
+    restoreFailure: stored.failureReason,
+  };
 }
 
 function currentOidcRedirectUri(): string {
@@ -472,16 +486,18 @@ function SectionShell(props: {
 }
 
 const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark }) => {
-  const [initialRoute] = useState(() => resolveInitialRoute());
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => initialRoute.workspaceMode);
-  const [localLabActorId, setLocalLabActorId] = useState(() => initialRoute.labActorId);
-  const [rolePage, setRolePage] = useState<PlatformRolePage>(() => initialRoute.page);
-  const [activeOaRole, setActiveOaRole] = useState<EnterpriseOARole>(() => initialRoute.oaRole);
-  const [focusedMemberId, setFocusedMemberId] = useState<string | null>(() => initialRoute.memberId);
-  const [selectedTrialTaskId, setSelectedTrialTaskId] = useState<string | null>(() => initialRoute.trialTaskId);
-  const [inviteCode, setInviteCode] = useState<string | null>(() => initialRoute.inviteCode);
-  const [enterpriseInviteToken, setEnterpriseInviteToken] = useState<string | null>(() => initialRoute.enterpriseInviteToken);
-  const [section, setSection] = useState<PlatformSection>(() => initialRoute.section);
+  const [initialRouteState] = useState(() => resolveInitialRoute());
+  const [routeBaseline, setRouteBaseline] = useState(() => initialRouteState.route);
+  const [restoreFailure, setRestoreFailure] = useState<string | null>(() => initialRouteState.restoreFailure);
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => initialRouteState.route.workspaceMode);
+  const [localLabActorId, setLocalLabActorId] = useState(() => initialRouteState.route.labActorId);
+  const [rolePage, setRolePage] = useState<PlatformRolePage>(() => initialRouteState.route.page);
+  const [activeOaRole, setActiveOaRole] = useState<EnterpriseOARole>(() => initialRouteState.route.oaRole);
+  const [focusedMemberId, setFocusedMemberId] = useState<string | null>(() => initialRouteState.route.memberId);
+  const [selectedTrialTaskId, setSelectedTrialTaskId] = useState<string | null>(() => initialRouteState.route.trialTaskId);
+  const [inviteCode, setInviteCode] = useState<string | null>(() => initialRouteState.route.inviteCode);
+  const [enterpriseInviteToken, setEnterpriseInviteToken] = useState<string | null>(() => initialRouteState.route.enterpriseInviteToken);
+  const [section, setSection] = useState<PlatformSection>(() => initialRouteState.route.section);
   const [summary, setSummary] = useState<ProductShellSummary | null>(null);
   const [approvalCenter, setApprovalCenter] = useState<EnterpriseCenterSummary | null>(null);
   const [reviewCenter, setReviewCenter] = useState<EnterpriseCenterSummary | null>(null);
@@ -523,14 +539,25 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
   );
   const routeIssues = useMemo(
     () => buildPlatformRouteIssues({
-      warnings: initialRoute.warnings,
-      requestedMemberId: initialRoute.memberId,
+      warnings: routeBaseline.warnings,
+      requestedMemberId: routeBaseline.memberId,
       resolvedMemberId: focusedMemberId,
-      requestedTaskId: initialRoute.trialTaskId,
+      requestedTaskId: routeBaseline.trialTaskId,
       resolvedTaskId: selectedTrialTaskId,
       context: platformContext,
     }),
-    [initialRoute.memberId, initialRoute.trialTaskId, initialRoute.warnings, focusedMemberId, platformContext, selectedTrialTaskId]
+    [routeBaseline.memberId, routeBaseline.trialTaskId, routeBaseline.warnings, focusedMemberId, platformContext, selectedTrialTaskId]
+  );
+  const mutationBoundarySurface = useMemo(
+    () => buildPlatformMutationBoundarySurface({
+      summary,
+      context: platformContext,
+      section,
+      focusedMemberId,
+      approvalItemCount: approvalCenter?.item_count,
+      reviewItemCount: reviewCenter?.item_count,
+    }),
+    [summary, platformContext, section, focusedMemberId, approvalCenter?.item_count, reviewCenter?.item_count]
   );
 
   const loadPlatform = useCallback(async () => {
@@ -601,9 +628,44 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
     }
   }, [workspaceMode, effectiveLocalLabActorId, enterpriseSessionIdState]);
 
+  const syncFromUrl = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const parsed = parsePlatformRouteSearch(window.location.search);
+    const stored = inspectStoredPlatformRouteSnapshot();
+    const nextRoute = restorePlatformRouteSnapshot(window.location.search, parsed, stored.snapshot);
+    setRestoreFailure(stored.failureReason);
+    setRouteBaseline(nextRoute);
+    setWorkspaceMode(nextRoute.workspaceMode);
+    setLocalLabActorId(nextRoute.labActorId);
+    setRolePage(nextRoute.page);
+    setActiveOaRole(nextRoute.oaRole);
+    setFocusedMemberId(nextRoute.memberId);
+    setSelectedTrialTaskId(nextRoute.trialTaskId);
+    setInviteCode(nextRoute.inviteCode);
+    setEnterpriseInviteToken(nextRoute.enterpriseInviteToken);
+    setSection(nextRoute.section);
+  }, []);
+
+  useEffect(() => {
+    if (!restoreFailure) return;
+    trackPlatformShellDiagnostic('route_restore_failure', {
+      workspaceMode,
+      reason: restoreFailure,
+    });
+  }, [restoreFailure, workspaceMode]);
+
   useEffect(() => {
     loadPlatform().catch(() => undefined);
   }, [loadPlatform]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      syncFromUrl();
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [syncFromUrl]);
 
   useEffect(() => {
     if (workspaceMode !== 'local_lab') return;
@@ -666,41 +728,6 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
   }, [loadPlatform]);
 
   useEffect(() => {
-    if (!enterpriseInviteToken || !enterpriseSessionIdState || workspaceMode !== 'current') return;
-    if (!capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.enabled) {
-      setAuthError(capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.reason);
-      trackPlatformShellDiagnostic('cta_blocked', {
-        cta: 'ENTERPRISE_INVITE_ACCEPT',
-        reason: capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.reason,
-      });
-      return;
-    }
-    let cancelled = false;
-    setAuthBusy(true);
-    setAuthError(null);
-    acceptEnterpriseInvite(enterpriseInviteToken).then(() => {
-      if (cancelled) return;
-      setAuthNotice('Enterprise invite accepted and role claim completed.');
-      setEnterpriseInviteToken(null);
-      if (typeof window !== 'undefined') {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('enterprise_invite');
-        window.history.replaceState({}, '', url.toString());
-      }
-      loadPlatform().catch(() => undefined);
-    }).catch((err) => {
-      if (cancelled) return;
-      setAuthError(err instanceof Error ? err.message : String(err));
-    }).finally(() => {
-      if (!cancelled) setAuthBusy(false);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.enabled, capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.reason, enterpriseInviteToken, enterpriseSessionIdState, workspaceMode, loadPlatform]);
-
-  useEffect(() => {
     if (!summary) return;
     const nextFocusedMemberId = resolvePlatformFocusedMemberId(
       summary,
@@ -715,44 +742,53 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
   }, [summary, workspaceMode, rolePage, effectiveLocalLabActorId, focusedMemberId]);
 
   useEffect(() => {
-    if (initialRoute.warnings.length === 0) return;
+    if (routeBaseline.warnings.length === 0) return;
     trackPlatformShellDiagnostic('route_warning', {
-      warnings: initialRoute.warnings,
-      page: initialRoute.page,
-      section: initialRoute.section,
+      warnings: routeBaseline.warnings,
+      page: routeBaseline.page,
+      section: routeBaseline.section,
     });
-  }, [initialRoute.page, initialRoute.section, initialRoute.warnings]);
+  }, [routeBaseline.page, routeBaseline.section, routeBaseline.warnings]);
 
   useEffect(() => {
-    if (!initialRoute.memberId || !focusedMemberId || initialRoute.memberId === focusedMemberId) return;
+    if (!routeBaseline.memberId || !focusedMemberId || routeBaseline.memberId === focusedMemberId) return;
     trackPlatformShellDiagnostic('stale_link', {
       type: 'member',
-      requested: initialRoute.memberId,
+      requested: routeBaseline.memberId,
       resolved: focusedMemberId,
     });
-  }, [focusedMemberId, initialRoute.memberId]);
+  }, [focusedMemberId, routeBaseline.memberId]);
 
   useEffect(() => {
-    if (!initialRoute.trialTaskId || !selectedTrialTaskId || initialRoute.trialTaskId === selectedTrialTaskId) return;
+    if (!routeBaseline.trialTaskId || !selectedTrialTaskId || routeBaseline.trialTaskId === selectedTrialTaskId) return;
     trackPlatformShellDiagnostic('stale_link', {
       type: 'task',
-      requested: initialRoute.trialTaskId,
+      requested: routeBaseline.trialTaskId,
       resolved: selectedTrialTaskId,
     });
-  }, [initialRoute.trialTaskId, selectedTrialTaskId]);
+  }, [routeBaseline.trialTaskId, selectedTrialTaskId]);
 
   useEffect(() => {
     const allowedSections = sectionsForRolePage(rolePage);
     if (!allowedSections.includes(section)) {
-      setSection(defaultSectionForRolePage(rolePage));
+      setSection(resolvePlatformSectionForPageRole(rolePage, activeOaRole, section));
     }
-  }, [rolePage, section]);
+  }, [activeOaRole, rolePage, section]);
 
   useEffect(() => {
-    if (oaShell.activeRole !== activeOaRole) {
-      setActiveOaRole(oaShell.activeRole);
+    const nextRole = oaShell.activeRole;
+    const nextPage = preferredRolePageForOaRole(rolePage, nextRole);
+    const nextSection = resolvePlatformSectionForPageRole(nextPage, nextRole, section);
+    if (nextRole !== activeOaRole) {
+      setActiveOaRole(nextRole);
     }
-  }, [activeOaRole, oaShell.activeRole]);
+    if (nextPage !== rolePage) {
+      setRolePage(nextPage);
+    }
+    if (nextSection !== section) {
+      setSection(nextSection);
+    }
+  }, [activeOaRole, oaShell.activeRole, rolePage, section]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -771,6 +807,20 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
     const url = new URL(nextHref, window.location.origin);
     window.history.replaceState({}, '', url.toString());
   }, [workspaceMode, rolePage, section, effectiveLocalLabActorId, focusedMemberId, selectedTrialTaskId, inviteCode, enterpriseInviteToken, activeOaRole]);
+
+  useEffect(() => {
+    if (workspaceMode !== 'current') return;
+    writeStoredPlatformRouteSnapshot({
+      workspaceMode,
+      page: rolePage,
+      section,
+      oaRole: activeOaRole,
+      memberId: focusedMemberId,
+      trialTaskId: selectedTrialTaskId,
+      inviteCode,
+      enterpriseInviteToken,
+    });
+  }, [workspaceMode, rolePage, section, activeOaRole, focusedMemberId, selectedTrialTaskId, inviteCode, enterpriseInviteToken]);
 
   const sectionDefinition = useMemo(
     () => SECTION_DEFINITIONS.find((item) => item.key === section) || SECTION_DEFINITIONS[0],
@@ -811,14 +861,31 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
   );
 
   const openRolePageHere = useCallback((page: PlatformRolePage) => {
+    const nextRole = page === 'workspace'
+      ? activeOaRole
+      : defaultOaRoleForRolePage(page);
+    const nextSection = resolvePlatformSectionForPageRole(page, nextRole, section);
     setRolePage(page);
-    setSection(defaultSectionForRolePage(page));
-    setActiveOaRole(defaultOaRoleForRolePage(page));
+    setSection(nextSection);
+    setActiveOaRole(nextRole);
     if (workspaceMode === 'local_lab' && page !== 'workspace') {
       setLocalLabActorId(DEFAULT_LOCAL_LAB_ACTOR_IDS[page]);
       setFocusedMemberId(DEFAULT_LOCAL_LAB_ACTOR_IDS[page]);
     }
-  }, [workspaceMode]);
+  }, [activeOaRole, section, workspaceMode]);
+
+  const handleRoleSwitch = useCallback((nextRole: EnterpriseOARole) => {
+    const nextPage = preferredRolePageForOaRole(rolePage, nextRole);
+    const nextSection = resolvePlatformSectionForPageRole(nextPage, nextRole, section);
+    setActiveOaRole(nextRole);
+    setRolePage(nextPage);
+    setSection(nextSection);
+    if (workspaceMode === 'local_lab' && nextPage !== 'workspace') {
+      const nextActorId = DEFAULT_LOCAL_LAB_ACTOR_IDS[nextPage];
+      setLocalLabActorId(nextActorId);
+      setFocusedMemberId(nextActorId);
+    }
+  }, [rolePage, section, workspaceMode]);
 
   const handleEnterpriseSignIn = useCallback(async () => {
     if (!capabilityDecisions.OKTA_SIGN_IN.enabled) {
@@ -838,10 +905,49 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
       });
       window.location.assign(payload.authorize_url);
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      setAuthError(message);
+      trackPlatformShellDiagnostic('cta_execution_failed', {
+        cta: 'OKTA_SIGN_IN',
+        reason: message,
+      });
       setAuthBusy(false);
     }
   }, [capabilityDecisions.OKTA_SIGN_IN.enabled, capabilityDecisions.OKTA_SIGN_IN.reason, summary]);
+
+  const handleEnterpriseInviteAccept = useCallback(async () => {
+    if (!enterpriseInviteToken) return;
+    if (!capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.enabled) {
+      setAuthError(capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.reason);
+      trackPlatformShellDiagnostic('cta_blocked', {
+        cta: 'ENTERPRISE_INVITE_ACCEPT',
+        reason: capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.reason,
+      });
+      return;
+    }
+    setAuthBusy(true);
+    setAuthError(null);
+    try {
+      await acceptEnterpriseInvite(enterpriseInviteToken);
+      setAuthNotice('Enterprise invite accepted and role claim completed.');
+      setEnterpriseInviteToken(null);
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('enterprise_invite');
+        window.history.replaceState({}, '', url.toString());
+      }
+      await loadPlatform();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setAuthError(message);
+      trackPlatformShellDiagnostic('cta_execution_failed', {
+        cta: 'ENTERPRISE_INVITE_ACCEPT',
+        reason: message,
+      });
+    } finally {
+      setAuthBusy(false);
+    }
+  }, [capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.enabled, capabilityDecisions.ENTERPRISE_INVITE_ACCEPT.reason, enterpriseInviteToken, loadPlatform]);
 
   const handleEnterpriseSignOut = useCallback(() => {
     setEnterpriseSessionId(null);
@@ -863,11 +969,31 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
       });
       await loadPlatform();
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      setAuthError(message);
+      trackPlatformShellDiagnostic('cta_execution_failed', {
+        cta: 'CENTER_DECISION',
+        itemId,
+        decision,
+        reason: message,
+      });
     } finally {
       setPendingCenterItemId(null);
     }
   }, [loadPlatform]);
+
+  const openRosterMemberHere = useCallback((member: WorkspaceRosterItem) => {
+    const nextRole = member.oaRole || activeOaRole;
+    const nextPage = member.rolePage;
+    const nextSection = resolvePlatformSectionForPageRole(nextPage, nextRole, section);
+    setActiveOaRole(nextRole);
+    setRolePage(nextPage);
+    setSection(nextSection);
+    setFocusedMemberId(member.actorId);
+    if (workspaceMode === 'local_lab' && nextPage !== 'workspace') {
+      setLocalLabActorId(DEFAULT_LOCAL_LAB_ACTOR_IDS[nextPage]);
+    }
+  }, [activeOaRole, section, workspaceMode]);
 
   return (
     <div className="w-full max-w-[1680px] mx-auto px-4 py-4">
@@ -881,10 +1007,10 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
               </div>
               <h1 className="mt-3 text-3xl font-semibold text-white">Lumio: single platform for requesters, operators, and tenant admins</h1>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                Lumio is the primary B2B workspace surface for Agent OS: an enterprise workspace cockpit and role-aware workflow governance console built around the existing governed workspace sections.
+                Lumio is a governed enterprise workspace preview: an enterprise workspace cockpit and role-aware workflow governance console built around the existing governed workspace sections.
               </p>
               <div className="mt-3 text-xs leading-6 text-slate-400">
-                Current B-end foundation: OA v1 nine-role model, Okta OIDC-only enterprise login target, and `local_lab` as a sandbox/preview workspace rather than a real pilot tenant.
+                Current platform foundation: OA v1 nine-role model, Okta OIDC-only enterprise login target, `current workspace` as the path being deepened, and `local_lab` as a sandbox / preview workspace rather than a real pilot tenant.
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <div className="rounded-full border border-cyan-700/40 bg-cyan-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-100">
@@ -1033,11 +1159,11 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
             <EnterpriseRoleSwitcher
               roles={oaShell.roles.map((role) => role.role)}
               activeRole={oaShell.activeRole}
-              onChange={setActiveOaRole}
+              onChange={handleRoleSwitch}
               title={workspaceMode === 'local_lab' ? 'Active example roles' : 'OA roles'}
               description={workspaceMode === 'local_lab'
                 ? summary?.trial_workspace?.trial_workspace?.active_template_id === 'oa_full_cycle_governed_execution'
-                  ? 'This local_lab example explicitly covers all 9 OA roles in one governed B-end workflow.'
+                  ? 'This local_lab example explicitly covers all 9 OA roles in one governed enterprise workspace workflow.'
                   : 'This local_lab example currently uses Requester, Operator, and Tenant Admin only. The full OA v1 role model is broader than this walkthrough.'
                 : undefined}
             />
@@ -1173,19 +1299,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                         <div className="mt-1 text-xs text-slate-400">{member.subtitle}</div>
                         <div className="mt-3 flex gap-2">
                           <button
-                            onClick={() => {
-                              if (member.oaRole) {
-                                setActiveOaRole(member.oaRole);
-                                setSection(defaultSectionForOaRole(member.oaRole));
-                              } else {
-                                setSection(defaultSectionForRolePage(member.rolePage));
-                              }
-                              setRolePage(member.rolePage);
-                              setFocusedMemberId(member.actorId);
-                              if (workspaceMode === 'local_lab' && member.rolePage !== 'workspace') {
-                                setLocalLabActorId(DEFAULT_LOCAL_LAB_ACTOR_IDS[member.rolePage]);
-                              }
-                            }}
+                            onClick={() => openRosterMemberHere(member)}
                             className="rounded-full bg-slate-800 px-3 py-1 text-[11px] font-semibold text-slate-200"
                           >
                             Open here
@@ -1241,6 +1355,14 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                 detail={issue.detail}
               />
             ))}
+
+            {restoreFailure && (
+              <PlatformStatePanel
+                kind="malformed_url"
+                title="Stored route restore failed"
+                detail="The saved current-workspace route snapshot was invalid, so Lumio cleared it and fell back to the closest safe route."
+              />
+            )}
 
             {error && (
               <PlatformStatePanel
@@ -1365,37 +1487,69 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                 definition={sectionDefinition}
                 badges={[
                   workspaceMode === 'local_lab' ? 'trial-only access' : 'workspace access',
-                  inviteCode ? 'invite link detected' : 'manual invite entry',
+                  workspaceMode === 'local_lab'
+                    ? inviteCode ? 'invite link detected' : 'manual invite entry'
+                    : enterpriseInviteToken ? 'enterprise invite detected' : 'session-first join',
                 ]}
               >
-                <TrialJoinPanel
-                  summary={summary}
-                  actorLabel={signedInLabel}
-                  initialInviteCode={inviteCode}
-                  onInviteCodeChange={setInviteCode}
-                  onUpdated={() => {
-                    loadPlatform().catch(() => undefined);
-                  }}
-                />
-                <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Join flow guidance</div>
-                  <div className="mt-3 space-y-2">
-                    {summary?.trial_workspace?.join_instructions?.map((line) => (
-                      <div key={line} className="rounded-2xl bg-slate-950/80 px-3 py-2 text-sm text-slate-200">
-                        {line}
+                {workspaceMode === 'local_lab' ? (
+                  <>
+                    <TrialJoinPanel
+                      summary={summary}
+                      actorLabel={signedInLabel}
+                      initialInviteCode={inviteCode}
+                      onInviteCodeChange={setInviteCode}
+                      onUpdated={() => {
+                        loadPlatform().catch(() => undefined);
+                      }}
+                    />
+                    <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Join flow guidance</div>
+                      <div className="mt-3 space-y-2">
+                        {summary?.trial_workspace?.join_instructions?.map((line) => (
+                          <div key={line} className="rounded-2xl bg-slate-950/80 px-3 py-2 text-sm text-slate-200">
+                            {line}
+                          </div>
+                        )) || (
+                          <div className="rounded-2xl bg-slate-950/80 px-3 py-2 text-sm text-slate-200">
+                            Create or paste an invite code, accept it, and continue the shared trial path from a claimed seat.
+                          </div>
+                        )}
                       </div>
-                    )) || (
-                      <div className="rounded-2xl bg-slate-950/80 px-3 py-2 text-sm text-slate-200">
-                        Create or paste an invite code, accept it, and continue the shared trial path from a claimed seat.
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <TrialTaskDetailPanel
-                  summary={summary}
-                  selectedTaskId={selectedTrialTaskId}
-                  onSelectTask={setSelectedTrialTaskId}
-                />
+                    </div>
+                    <TrialTaskDetailPanel
+                      summary={summary}
+                      selectedTaskId={selectedTrialTaskId}
+                      onSelectTask={setSelectedTrialTaskId}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <CurrentWorkspaceJoinPanel
+                      summary={summary}
+                      signInCapability={capabilityDecisions.OKTA_SIGN_IN}
+                      acceptCapability={capabilityDecisions.ENTERPRISE_INVITE_ACCEPT}
+                      enterpriseInviteToken={enterpriseInviteToken}
+                      busy={authBusy}
+                      onSignIn={() => {
+                        handleEnterpriseSignIn().catch(() => undefined);
+                      }}
+                      onAcceptInvite={() => {
+                        handleEnterpriseInviteAccept().catch(() => undefined);
+                      }}
+                    />
+                    <PlatformMutationBoundaryPanel surface={mutationBoundarySurface} />
+                    <EnterpriseLoginEntryPanel
+                      summary={summary}
+                      workspaceMode={workspaceMode}
+                    />
+                    <EnterpriseDiagnosticsPanel
+                      account={summary?.enterprise_account}
+                      summary={summary}
+                      workspaceMode={workspaceMode}
+                    />
+                  </>
+                )}
               </SectionShell>
             )}
 
@@ -1435,9 +1589,11 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                   focusedMemberId={focusedMemberId}
                   activeLabActorId={effectiveLocalLabActorId}
                 />
+                <PlatformMutationBoundaryPanel surface={mutationBoundarySurface} />
                 <EnterpriseMembershipAdminPanel
                   summary={summary}
                   capability={capabilityDecisions.ENTERPRISE_MEMBERSHIP_WRITE}
+                  focusedMemberId={focusedMemberId}
                   onUpdated={() => {
                     loadPlatform().catch(() => undefined);
                   }}
@@ -1514,6 +1670,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                   onDecision={capabilityDecisions.APPROVAL_DECISION.enabled ? handleCenterDecision : undefined}
                   pendingItemId={pendingCenterItemId}
                 />
+                <PlatformMutationBoundaryPanel surface={mutationBoundarySurface} />
                 <GovernedFlowTaskPanel
                   summary={summary}
                   activeRole={oaShell.activeRole}
@@ -1546,6 +1703,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                   onDecision={capabilityDecisions.REVIEW_DECISION.enabled ? handleCenterDecision : undefined}
                   pendingItemId={pendingCenterItemId}
                 />
+                <PlatformMutationBoundaryPanel surface={mutationBoundarySurface} />
                 <GovernedFlowTaskPanel
                   summary={summary}
                   activeRole={oaShell.activeRole}
@@ -1623,6 +1781,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                   summary={summary}
                   workspaceMode={workspaceMode}
                 />
+                <PlatformMutationBoundaryPanel surface={mutationBoundarySurface} />
                 <TenantAdminSetupPanel
                   summary={summary?.tenant_admin_setup || null}
                   productShellSummary={summary}
@@ -1642,6 +1801,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                 <EnterpriseMembershipAdminPanel
                   summary={summary}
                   capability={capabilityDecisions.ENTERPRISE_MEMBERSHIP_WRITE}
+                  focusedMemberId={focusedMemberId}
                   onUpdated={() => {
                     loadPlatform().catch(() => undefined);
                   }}
@@ -1660,6 +1820,15 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                   focusedMemberId={focusedMemberId}
                   activeLabActorId={effectiveLocalLabActorId}
                 />
+                <PlatformMutationBoundaryPanel surface={mutationBoundarySurface} />
+                <EnterpriseMembershipAdminPanel
+                  summary={summary}
+                  capability={capabilityDecisions.ENTERPRISE_MEMBERSHIP_WRITE}
+                  focusedMemberId={focusedMemberId}
+                  onUpdated={() => {
+                    loadPlatform().catch(() => undefined);
+                  }}
+                />
                 <AccessMatrixPanel
                   summary={summary}
                   workspaceMode={workspaceMode}
@@ -1672,6 +1841,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                 definition={sectionDefinition}
                 badges={[summary?.policy_studio.pack_name || 'policy studio']}
               >
+                <PlatformMutationBoundaryPanel surface={mutationBoundarySurface} />
                 <PolicyStudioPanel
                   summary={summary?.policy_studio || null}
                   productShellSummary={summary}
@@ -1695,6 +1865,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                   activeRole={oaShell.activeRole}
                   selectedTaskId={selectedTrialTaskId}
                 />
+                <PlatformMutationBoundaryPanel surface={mutationBoundarySurface} />
                 <GovernedFlowTaskPanel
                   summary={summary}
                   activeRole={oaShell.activeRole}

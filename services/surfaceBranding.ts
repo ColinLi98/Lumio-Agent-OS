@@ -3,11 +3,11 @@ export type SurfaceMode = 'platform' | 'trial-join';
 export function resolveSurfaceTitle(mode: SurfaceMode): string {
   switch (mode) {
     case 'platform':
-      return 'Lumio B-End Platform';
+      return 'Lumio Enterprise Workspace Platform';
     case 'trial-join':
       return 'Lumio Trial Join';
     default:
-      return 'Lumio B-End Platform';
+      return 'Lumio Enterprise Workspace Platform';
   }
 }
 
@@ -20,7 +20,7 @@ export function resolveSurfaceBrand(mode: SurfaceMode): {
     return {
       alt: 'Lumio',
       name: 'Lumio',
-      subtitle: 'B-End Platform',
+      subtitle: 'Enterprise Workspace Platform',
     };
   }
 
@@ -35,6 +35,6 @@ export function resolveSurfaceBrand(mode: SurfaceMode): {
   return {
     alt: 'Lumio',
     name: 'Lumio',
-    subtitle: 'B-End Platform',
+    subtitle: 'Enterprise Workspace Platform',
   };
 }

@@ -1,4 +1,4 @@
-# 15-Minute Demo
+# Lumio 15-Minute Demo
 
 Date: 2026-03-11
 Audience: Buyer, sponsor, or executive preview
@@ -12,7 +12,7 @@ Show that the product is a B2B enterprise workspace platform with a governed wor
 Say this clearly:
 
 - This is a B2B enterprise workspace platform.
-- The B-end product name is `Lumio`.
+- The product name is `Lumio`.
 - The current foundation is OA v1 with nine roles.
 - Okta OIDC is the only enterprise login target in scope.
 - `local_lab` is the sandbox / preview workspace.

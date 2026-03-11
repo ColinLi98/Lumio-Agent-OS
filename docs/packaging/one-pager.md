@@ -1,4 +1,4 @@
-# Enterprise Workspace Platform One-Pager
+# Lumio Enterprise Workspace Platform One-Pager
 
 Date: 2026-03-11
 Scope: Buyer-facing preview package
@@ -22,7 +22,7 @@ The current platform is organized around:
 
 - Enterprise Workspace Cockpit
 - Role-Aware Workflow Governance Console
-- B2B Workspace Platform with these core sections:
+- Enterprise Workspace Platform with these core sections:
   - Workspace Overview
   - Organization & Workspace
   - Members & Access

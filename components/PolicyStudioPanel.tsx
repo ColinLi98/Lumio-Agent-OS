@@ -1,6 +1,6 @@
 import React from 'react';
 import type { EnterpriseOARole, PolicyStudioSummary, ProductShellSummary } from '../services/agentKernelShellApi';
-import { buildPlatformPolicySurface } from '../services/platformContract';
+import { buildPlatformAdminWorkflowSurface, buildPlatformPolicySurface } from '../services/platformContract';
 
 export function buildPolicyStudioLines(summary: PolicyStudioSummary | null | undefined): string[] {
   if (!summary) return ['Policy Studio summary unavailable'];
@@ -22,6 +22,9 @@ export const PolicyStudioPanel: React.FC<PolicyStudioPanelProps> = ({
 }) => {
   const lines = buildPolicyStudioLines(summary);
   const surface = buildPlatformPolicySurface(productShellSummary || null, activeRole, selectedTaskId);
+  const workflows = buildPlatformAdminWorkflowSurface(productShellSummary || null, selectedTaskId)
+    .items
+    .filter((item) => item.role === 'POLICY_GOVERNANCE_ADMIN');
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-900/90 p-4">
       <div className="mb-3">
@@ -40,6 +43,14 @@ export const PolicyStudioPanel: React.FC<PolicyStudioPanelProps> = ({
           <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Policy basis</div>
           <div className="mt-3 space-y-2">
             {surface.policyBasis.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Decision trace</div>
+          <div className="mt-3 space-y-2">
+            {surface.decisionTrace.map((line) => (
               <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
             ))}
           </div>
@@ -65,6 +76,35 @@ export const PolicyStudioPanel: React.FC<PolicyStudioPanelProps> = ({
           <div className="mt-3 space-y-2">
             {surface.blockedReasonLinkage.map((line) => (
               <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Who can act</div>
+          <div className="mt-3 space-y-2">
+            {surface.actionAuthority.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">What changes</div>
+          <div className="mt-3 space-y-2">
+            {surface.changeImpact.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-950/80 p-4 xl:col-span-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Policy / Governance admin workflows</div>
+          <div className="mt-3 grid gap-3 xl:grid-cols-3">
+            {workflows.map((workflow) => (
+              <div key={workflow.title} className="rounded-xl bg-slate-900/80 px-3 py-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-cyan-200">{workflow.section}</div>
+                <div className="mt-1 text-xs font-semibold text-white">{workflow.title}</div>
+                <div className="mt-1 text-[11px] text-slate-300">{workflow.summary}</div>
+                <div className="mt-2 text-[11px] text-slate-400">Next action: {workflow.nextAction}</div>
+              </div>
             ))}
           </div>
         </div>

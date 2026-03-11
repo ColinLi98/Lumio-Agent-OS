@@ -2,9 +2,9 @@
 
 # Lumio
 
-### B-end enterprise workspace platform
+### Enterprise workspace platform
 
-[![B-End Preview](https://img.shields.io/badge/B--End%20Preview-Lumio-blue?style=for-the-badge)](https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview)
+[![Enterprise Workspace Preview](https://img.shields.io/badge/Enterprise%20Workspace%20Preview-Lumio-blue?style=for-the-badge)](https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview)
 [![Release](https://img.shields.io/badge/Release-v0.2.7%20Beta-green?style=for-the-badge)](https://github.com/ColinLi98/Lumio-Agent-OS/releases/tag/v0.2.7-beta)
 
 </div>
@@ -13,13 +13,13 @@
 
 ## What Lumio Is
 
-Lumio is a governed B-end workspace platform for enterprise request, approval, operations, review, policy, readiness, and audit work.
+Lumio is a governed enterprise workspace platform for enterprise request, approval, operations, review, policy, readiness, and audit work.
 
 It is packaged as one enterprise workspace shell instead of a collection of disconnected admin pages or demo-only flows.
 
 ## Primary Entry
 
-[Open Lumio B-end preview](https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview)
+[Open Lumio Enterprise Workspace Platform Preview](https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview)
 
 ## Core Product Surface
 
@@ -54,6 +54,12 @@ It is packaged as one enterprise workspace shell instead of a collection of disc
 
 ## Key Documents
 
+- [Field Package (EN)](./docs/field/one-pager-en.md)
+- [Field Package (ZH)](./docs/field/one-pager-zh.md)
+- [15-Minute Demo](./docs/field/demo-15min.md)
+- [30-Minute Buyer Deep Dive](./docs/field/demo-30min.md)
+- [Branding Inventory](./docs/branding/buyer-facing-exposure-inventory.md)
+- [Naming Policy](./docs/branding/naming-policy.md)
 - [Commercial Package](./docs/B_End_Platform_Commercial_Package.md)
 - [Admin Quick Start](./docs/B_End_Platform_Admin_Quick_Start.md)
 - [Onboarding Guide](./docs/onboarding/onboarding-guide.md)

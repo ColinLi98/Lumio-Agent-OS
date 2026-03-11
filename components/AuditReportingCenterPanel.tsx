@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { EnterpriseCenterSummary, EnterpriseOARole, ProductShellSummary } from '../services/agentKernelShellApi';
-import { buildPlatformAuditSurface } from '../services/platformContract';
+import { buildPlatformAdminWorkflowSurface, buildPlatformAuditSurface } from '../services/platformContract';
 
 export interface AuditReportingSummary {
   receiptCount: number;
@@ -33,6 +33,9 @@ export const AuditReportingCenterPanel: React.FC<AuditReportingCenterPanelProps>
 }) => {
   const audit = buildAuditReportingSummary(summary);
   const auditSurface = buildPlatformAuditSurface(summary || null, activeRole, selectedTaskId);
+  const workflows = buildPlatformAdminWorkflowSurface(summary || null, selectedTaskId)
+    .items
+    .filter((item) => item.role === 'AUDITOR');
   const items = centerSummary?.items || [];
   const [query, setQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('ALL');
@@ -119,6 +122,22 @@ export const AuditReportingCenterPanel: React.FC<AuditReportingCenterPanelProps>
       )}
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
         <div className="rounded-2xl bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Receipt status</div>
+          <div className="mt-3 space-y-2">
+            {auditSurface.receiptStatusLines.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Receipt completeness</div>
+          <div className="mt-3 space-y-2">
+            {auditSurface.receiptCompletenessLines.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-950/80 p-4">
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Receipt timeline</div>
           <div className="mt-3 space-y-2">
             {filteredTimelineLines.slice(0, 6).map((line) => (
@@ -127,9 +146,45 @@ export const AuditReportingCenterPanel: React.FC<AuditReportingCenterPanelProps>
           </div>
         </div>
         <div className="rounded-2xl bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Trace continuity</div>
+          <div className="mt-3 space-y-2">
+            {auditSurface.traceContinuityLines.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+        <div className="rounded-2xl bg-slate-950/80 p-4">
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Evidence bundle</div>
           <div className="mt-3 space-y-2">
             {auditSurface.evidenceBundleLines.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Evidence to export</div>
+          <div className="mt-3 space-y-2">
+            {auditSurface.evidenceToExportLines.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Traceability view</div>
+          <div className="mt-3 space-y-2">
+            {auditSurface.traceabilityLines.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <div className="rounded-2xl bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Filter clarity</div>
+          <div className="mt-3 space-y-2">
+            {auditSurface.filterClarityLines.map((line) => (
               <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
             ))}
           </div>
@@ -170,6 +225,24 @@ export const AuditReportingCenterPanel: React.FC<AuditReportingCenterPanelProps>
               <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
             ))}
           </div>
+          <div className="mt-3 space-y-2">
+            {auditSurface.exportBoundaryLines.map((line) => (
+              <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 rounded-2xl bg-slate-950/80 p-4">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Auditor workflows</div>
+        <div className="mt-3 grid gap-3 xl:grid-cols-3">
+          {workflows.map((workflow) => (
+            <div key={workflow.title} className="rounded-xl bg-slate-900/80 px-3 py-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-cyan-200">{workflow.section}</div>
+              <div className="mt-1 text-xs font-semibold text-white">{workflow.title}</div>
+              <div className="mt-1 text-[11px] text-slate-300">{workflow.summary}</div>
+              <div className="mt-2 text-[11px] text-slate-400">Next action: {workflow.nextAction}</div>
+            </div>
+          ))}
         </div>
       </div>
       <div className="mt-4 space-y-2">

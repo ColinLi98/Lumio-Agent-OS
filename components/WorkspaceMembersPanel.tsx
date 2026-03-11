@@ -1,6 +1,11 @@
 import React from 'react';
 import type { ProductShellSummary, WorkspaceMode } from '../services/agentKernelShellApi';
-import { buildPlatformMemberSeatInvites, buildPlatformRolePageHref, platformRoleLabel } from '../services/platformContract';
+import {
+  buildPlatformMemberSeatInvites,
+  buildPlatformMembersAccessSurface,
+  buildPlatformRolePageHref,
+  platformRoleLabel,
+} from '../services/platformContract';
 
 export interface WorkspaceAccessRow {
   actorId: string;
@@ -56,6 +61,7 @@ export const WorkspaceMembersPanel: React.FC<WorkspaceMembersPanelProps> = ({
   activeLabActorId,
 }) => {
   const rows = buildWorkspaceAccessRows(summary, workspaceMode, activeLabActorId);
+  const membersSurface = buildPlatformMembersAccessSurface(summary, workspaceMode);
 
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
@@ -120,6 +126,84 @@ export const WorkspaceMembersPanel: React.FC<WorkspaceMembersPanelProps> = ({
             <div className="mt-3 text-xs leading-5 text-slate-400">{row.detail}</div>
           </div>
         ))}
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Boundary history</div>
+          <div className="mt-3 space-y-2">
+            {membersSurface.boundaryHistory.map((item) => (
+              <div key={`${item.title}-${item.detail}`} className="rounded-xl bg-slate-900/80 px-3 py-2">
+                <div className="text-xs font-semibold text-white">{item.title}</div>
+                <div className="mt-1 text-[11px] text-slate-300">{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Change history</div>
+          <div className="mt-3 space-y-2">
+            {membersSurface.changeHistory.map((item) => (
+              <div key={`${item.title}-${item.detail}`} className="rounded-xl bg-slate-900/80 px-3 py-2">
+                <div className="text-xs font-semibold text-white">{item.title}</div>
+                <div className="mt-1 text-[11px] text-slate-300">{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Invite lifecycle</div>
+          <div className="mt-3 space-y-2">
+            {membersSurface.inviteLifecycle.map((item) => (
+              <div key={`${item.title}-${item.detail}`} className="rounded-xl bg-slate-900/80 px-3 py-2">
+                <div className="text-xs font-semibold text-white">{item.title}</div>
+                <div className="mt-1 text-[11px] text-slate-300">{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Join trace</div>
+          <div className="mt-3 space-y-2">
+            {membersSurface.joinTrace.map((item) => (
+              <div key={`${item.title}-${item.detail}`} className="rounded-xl bg-slate-900/80 px-3 py-2">
+                <div className="text-xs font-semibold text-white">{item.title}</div>
+                <div className="mt-1 text-[11px] text-slate-300">{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Seat / member transitions</div>
+          <div className="mt-3 space-y-2">
+            {membersSurface.stateTransitions.map((item) => (
+              <div key={`${item.title}-${item.detail}`} className="rounded-xl bg-slate-900/80 px-3 py-2">
+                <div className="text-xs font-semibold text-white">{item.title}</div>
+                <div className="mt-1 text-[11px] text-slate-300">{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Workspace admin boundary</div>
+          <div className="mt-3 space-y-2">
+            {membersSurface.workspaceAdminBoundaries.map((item) => (
+              <div key={`${item.title}-${item.detail}`} className="rounded-xl bg-slate-900/80 px-3 py-2">
+                <div className="text-xs font-semibold text-white">{item.title}</div>
+                <div className="mt-1 text-[11px] text-slate-300">{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Governed-flow linkage</div>
+        <div className="mt-3 space-y-2">
+          {membersSurface.governedFlowLinkage.map((line) => (
+            <div key={line} className="rounded-xl bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{line}</div>
+          ))}
+        </div>
       </div>
     </div>
   );

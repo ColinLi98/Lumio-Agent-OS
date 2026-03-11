@@ -1,4 +1,4 @@
-# Support Escalation
+# Lumio Support Escalation
 
 Date: 2026-03-11
 Audience: Demo host, field engineer, internal support, admin owner
@@ -9,7 +9,7 @@ Provide a simple escalation model for the current enterprise workspace platform 
 
 Naming in this package:
 
-- `Lumio` = B-end platform
+- `Lumio` = enterprise workspace platform
 
 ## First-line checks
 

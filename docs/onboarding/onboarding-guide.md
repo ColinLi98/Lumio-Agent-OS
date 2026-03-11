@@ -1,4 +1,4 @@
-# Onboarding Guide
+# Lumio Onboarding Guide
 
 Date: 2026-03-11
 Audience: New internal operator, admin, demo host, or field engineer
@@ -11,7 +11,7 @@ This guide helps a new team member onboard to the current governed enterprise wo
 
 Start every onboarding with these statements:
 
-- The B-end product name is `Lumio`.
+- The product name is `Lumio`.
 - The product is B2B only.
 - The current identity target is Okta OIDC only.
 - The current role foundation is OA v1 with nine roles.

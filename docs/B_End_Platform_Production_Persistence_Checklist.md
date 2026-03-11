@@ -1,8 +1,8 @@
-# B-End Platform Production Persistence Checklist
+# Lumio Production Persistence Checklist
 
 Date: 2026-03-10
 Owner: Codex
-Scope: B-end platform only
+Scope: Lumio enterprise workspace platform preview
 
 ## Objective
 Turn the existing production fail-closed persistence gate into a provable production-ready operating path for enterprise writes.
