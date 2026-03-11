@@ -4,6 +4,8 @@ Date: 2026-03-10
 Owner: Codex
 Scope: B-end platform only
 
+Product name: `Lumio`
+
 ## Before walkthrough
 - Confirm canonical B-end platform URL is used.
 - Confirm C-end compatibility surfaces are not used as the main demo path.

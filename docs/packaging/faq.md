@@ -8,7 +8,7 @@ No. The current product framing is B2B enterprise workspace platform only.
 
 ## What is the core product?
 
-The current product is the enterprise workspace shell:
+The current B-end product is **Lumio**. It is the enterprise workspace shell:
 
 - enterprise workspace cockpit
 - role-aware workflow governance console
@@ -34,6 +34,11 @@ No tenth role is in scope for the current package.
 ## Which enterprise login path is supported?
 
 Okta OIDC only.
+
+## How does Lumio differ from Lumi?
+
+- `Lumio` is the B-end governed workspace platform
+- `Lumi` is the C-end product naming
 
 ## Is this a full IAM product?
 

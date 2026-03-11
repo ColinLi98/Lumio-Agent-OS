@@ -4,6 +4,8 @@ Date: 2026-03-10
 Owner: Codex
 Scope: B-end platform only
 
+Product name: `Lumio`
+
 ## Objective
 Validate that the B-end platform’s Okta OIDC path behaves correctly under a real enterprise tenant.
 

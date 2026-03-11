@@ -7,6 +7,11 @@ Audience: Demo host, field engineer, internal support, admin owner
 
 Provide a simple escalation model for the current enterprise workspace platform package.
 
+Naming in this package:
+
+- `Lumio` = B-end platform
+- `Lumi` = C-end product naming
+
 ## First-line checks
 
 Before escalating:

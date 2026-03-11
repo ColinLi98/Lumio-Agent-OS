@@ -10,6 +10,7 @@ Show both the governed workflow chain and the enterprise control plane with enou
 ## Opening framing
 
 - B2B enterprise workspace platform
+- B-end product name: `Lumio`
 - OA v1 nine-role foundation
 - Okta OIDC-only identity target
 - `local_lab` sandbox / preview workspace

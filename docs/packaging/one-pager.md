@@ -6,7 +6,7 @@ Audience: Enterprise operators, workflow owners, governance leads, solution buye
 
 ## What it is
 
-Lumi is a B2B enterprise workspace platform built around a governed workspace cockpit and role-aware workflow governance console.
+Lumio is the B2B enterprise workspace platform built around a governed workspace cockpit and role-aware workflow governance console.
 
 It brings request, approval, operations, review, members/access, policy/governance, audit/reporting, and integration/readiness into one workspace shell instead of scattering those concerns across disconnected tools or demo-only pages.
 
@@ -77,6 +77,11 @@ The current platform is organized around:
 ## Commercial posture
 
 This is a buyer-facing preview package for a B2B governed workspace platform.
+
+Naming note:
+
+- `Lumio` = B-end governed workspace platform
+- `Lumi` = C-end product naming
 
 It is credible where it is implemented:
 

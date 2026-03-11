@@ -10,10 +10,10 @@ export interface OrganizationWorkspaceFact {
 
 export function buildOrganizationWorkspaceFacts(summary: ProductShellSummary | null, workspaceMode: WorkspaceMode): OrganizationWorkspaceFact[] {
   if (!summary) {
-    return [
+      return [
       {
         label: 'Organization',
-        value: 'Lumi Enterprise',
+        value: 'Lumio',
         detail: 'Workspace truth unavailable.',
       },
     ];
@@ -22,8 +22,8 @@ export function buildOrganizationWorkspaceFacts(summary: ProductShellSummary | n
   return [
     {
       label: 'Organization',
-      value: 'Lumi Enterprise',
-      detail: 'Primary enterprise workspace owner',
+      value: 'Lumio',
+      detail: 'Primary B-end governed workspace product shell',
     },
     {
       label: 'Workspace',

@@ -4,6 +4,8 @@ Date: 2026-03-10
 Owner: Codex
 Scope: B-end platform only
 
+Product name: `Lumio`
+
 ## Audience
 - Tenant Admin
 - Workspace Admin

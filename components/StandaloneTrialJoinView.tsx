@@ -139,7 +139,7 @@ export const StandaloneTrialJoinView: React.FC<StandaloneTrialJoinViewProps> = (
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Organization</div>
-                  <div className="mt-2 text-sm font-semibold text-white">Lumi Enterprise</div>
+                  <div className="mt-2 text-sm font-semibold text-white">Lumio</div>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Evidence boundary</div>

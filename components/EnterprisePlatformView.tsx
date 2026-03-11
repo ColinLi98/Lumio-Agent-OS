@@ -353,13 +353,13 @@ export function buildPlatformGapLines(summary: ProductShellSummary | null): stri
 export function buildPlatformHeaderMeta(summary: ProductShellSummary | null, workspaceMode: WorkspaceMode): HeaderMetaItem[] {
   if (!summary) {
     return [
-      { label: 'Organization', value: 'Lumi Enterprise' },
+      { label: 'Organization', value: 'Lumio' },
       { label: 'Workspace', value: 'Platform preview' },
       { label: 'Environment', value: 'Unknown' },
     ];
   }
   return [
-    { label: 'Organization', value: 'Lumi Enterprise' },
+    { label: 'Organization', value: 'Lumio' },
     {
       label: 'Workspace',
       value: workspaceMode === 'local_lab'
@@ -899,14 +899,14 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
             <div className="max-w-4xl">
               <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-300">
                 <Building2 size={14} />
-                Enterprise Workspace Console
+                Lumio Enterprise Workspace Console
               </div>
-              <h1 className="mt-3 text-3xl font-semibold text-white">Single platform for requesters, operators, and tenant admins</h1>
+              <h1 className="mt-3 text-3xl font-semibold text-white">Lumio: single platform for requesters, operators, and tenant admins</h1>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                This is the primary B2B surface for Agent OS: an enterprise workspace cockpit and role-aware workflow governance console built around the existing governed workspace sections.
+                Lumio is the primary B2B workspace surface for Agent OS: an enterprise workspace cockpit and role-aware workflow governance console built around the existing governed workspace sections.
               </p>
               <div className="mt-3 text-xs leading-6 text-slate-400">
-                Current foundation: OA v1 nine-role model, Okta OIDC-only enterprise login target, and `local_lab` as a sandbox/preview workspace rather than a real pilot tenant.
+                Naming split: `Lumio` is the B-end governed workspace platform, while `Lumi` remains the C-end product naming. Current B-end foundation: OA v1 nine-role model, Okta OIDC-only enterprise login target, and `local_lab` as a sandbox/preview workspace rather than a real pilot tenant.
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <div className="rounded-full border border-cyan-700/40 bg-cyan-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-100">
@@ -934,7 +934,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
               <div className="rounded-2xl border border-cyan-700/40 bg-cyan-950/30 p-4">
                 <EnterpriseAccountShell
                   signedInLabel={signedInLabel}
-                  organizationLabel="Lumi Enterprise"
+                  organizationLabel="Lumio"
                   workspaceLabel={headerMeta.find((item) => item.label === 'Workspace')?.value || 'Workspace'}
                   environmentLabel={headerMeta.find((item) => item.label === 'Environment')?.value || 'Unknown'}
                   rolePageLabel={rolePageDefinition.label}

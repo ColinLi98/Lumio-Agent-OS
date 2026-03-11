@@ -10,6 +10,7 @@ Package the current governed enterprise workspace platform into a buyer/demo/onb
 
 The package is centered on:
 
+- `Lumio` as the B-end product name
 - enterprise workspace cockpit
 - role-aware workflow governance console
 - B2B governed workspace platform
@@ -63,6 +64,8 @@ Low-risk enterprise-shell copy was refined in [components/EnterprisePlatformView
 
 Preferred terms for this package:
 
+- Lumio
+- B-end platform
 - enterprise workspace platform
 - enterprise workspace cockpit
 - role-aware workflow governance console
@@ -77,6 +80,7 @@ Preferred terms for this package:
 
 Avoided terms:
 
+- mixing C-end `Lumi` and B-end `Lumio` for the same B-end surface
 - consumer app
 - full production-ready
 - full pilot complete

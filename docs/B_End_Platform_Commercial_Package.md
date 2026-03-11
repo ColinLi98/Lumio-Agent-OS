@@ -5,7 +5,7 @@ Owner: Codex
 Scope: B-end platform only
 
 ## One-line positioning
-Lumi is a B-end enterprise execution platform that turns governed work into visible, reviewable, role-based operational flow.
+Lumio is the B-end enterprise execution platform that turns governed work into visible, reviewable, role-based operational flow.
 
 ## Who it is for
 - Enterprise requester teams

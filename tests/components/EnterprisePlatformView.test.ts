@@ -145,7 +145,7 @@ describe('EnterprisePlatformView helpers', () => {
 
   it('builds workspace-first platform header metadata', () => {
     const meta = buildPlatformHeaderMeta(baseSummary, 'local_lab');
-    expect(meta[0]).toEqual({ label: 'Organization', value: 'Lumi Enterprise' });
+    expect(meta[0]).toEqual({ label: 'Organization', value: 'Lumio' });
     expect(meta[1]).toEqual({ label: 'Workspace', value: 'Local role lab' });
     expect(meta[2]).toEqual({ label: 'Environment', value: 'SIMULATOR' });
   });
@@ -445,7 +445,7 @@ describe('EnterprisePlatformView helpers', () => {
       },
     } as ProductShellSummary;
     const facts = buildOrganizationWorkspaceFacts(summary, 'local_lab');
-    expect(facts[0]?.value).toBe('Lumi Enterprise');
+    expect(facts[0]?.value).toBe('Lumio');
     expect(facts[1]?.value).toBe('Local role lab');
     expect(facts[3]?.value).toContain('in progress');
   });
