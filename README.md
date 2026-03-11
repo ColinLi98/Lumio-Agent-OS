@@ -1,39 +1,27 @@
 <div align="center">
 
-# Lumio B-End Platform
+# Lumio
 
-### Governed enterprise workspace platform for request, approval, operations, review, and audit
+### B-end enterprise workspace platform
 
 [![B-End Preview](https://img.shields.io/badge/B--End%20Preview-Lumio-blue?style=for-the-badge)](https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview)
-[![Version](https://img.shields.io/badge/Version-v0.2.7%20Beta-green?style=for-the-badge)]()
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)]()
-[![React](https://img.shields.io/badge/React-18.2-61dafb?style=for-the-badge&logo=react)]()
+[![Release](https://img.shields.io/badge/Release-v0.2.7%20Beta-green?style=for-the-badge)](https://github.com/ColinLi98/Lumio-Agent-OS/releases/tag/v0.2.7-beta)
 
 </div>
 
 ---
 
-## What This Repository Ships
+## What Lumio Is
 
-Lumio is a B-end enterprise workspace platform built for governed workflow execution.
+Lumio is a governed B-end workspace platform for enterprise request, approval, operations, review, policy, readiness, and audit work.
 
-The product is organized around one workspace shell that lets enterprise teams move the same task through request intake, approval, operations, review, readiness, policy, and audit without switching products or losing evidence context.
+It is packaged as one enterprise workspace shell instead of a collection of disconnected admin pages or demo-only flows.
 
 ## Primary Entry
 
-Primary preview route:
+[Open Lumio B-end preview](https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview)
 
-`https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview`
-
-Route contract:
-
-- `surface=platform`
-- `workspace_mode=local_lab`
-- `page=workspace`
-- `section=overview`
-- role and member focus can be added through URL params during demos when needed
-
-## Product Scope
+## Core Product Surface
 
 - Workspace Overview
 - Organization & Workspace
@@ -55,48 +43,14 @@ Route contract:
 - Tenant and workspace admins
 - Governance and audit stakeholders
 
-## Product Framing
+## Product Boundaries
 
 - B2B enterprise platform only
-- Governed workspace shell, not a standalone IAM suite
-- Role-aware workflow continuity over one shared task/evidence model
-- Preview-safe posture with explicit sandbox boundaries
-- Okta OIDC is the current enterprise login target in scope
-
-## Current Foundation
-
-- OA v1 nine-role model
-- Role-aware workspace navigation and center-specific views
-- Shared task detail continuity across request, approval, operations, review, and audit
-- Membership, seat, invite, join, and access posture inside the same workspace shell
-- Readiness, policy, and audit surfaces derived from the same workspace context
-
-## Suggested Demo Path
-
-1. Workspace Overview
-2. Organization & Workspace
-3. Members & Access
-4. Approval Center
-5. Review Center
-6. Audit & Reporting Center
-7. Integration & Readiness Center
-8. Policy & Governance Center
-
-## Quick Start
-
-```bash
-git clone https://github.com/ColinLi98/Lumio-Agent-OS.git
-cd Lumio-Agent-OS
-npm install
-cp .env.example .env.local
-npm run dev
-```
-
-Open the local B-end platform route:
-
-```text
-http://localhost:5173/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview
-```
+- Governed workspace shell only
+- Okta OIDC is the current enterprise identity target in scope
+- `local_lab` is a sandbox / preview workspace
+- The current package does not claim full real-pilot closure
+- The current package does not claim full production deployment completeness
 
 ## Key Documents
 
@@ -106,24 +60,19 @@ http://localhost:5173/?surface=platform&workspace_mode=local_lab&page=workspace&
 - [One-Pager](./docs/packaging/one-pager.md)
 - [Packaging FAQ](./docs/packaging/faq.md)
 - [Architecture and Governance](./docs/packaging/architecture-and-governance.md)
-- [15-Min Demo](./docs/demo/demo-15-min.md)
-- [30-Min Demo](./docs/demo/demo-30-min.md)
 
-## Preview Constraints
+## Local Run
 
-- `local_lab` is a sandbox / preview workspace
-- The current package does not claim full real-pilot closure
-- The current package does not claim full production deployment completeness
-- Provider breadth remains intentionally narrow in current enterprise packaging
+```bash
+git clone https://github.com/ColinLi98/Lumio-Agent-OS.git
+cd Lumio-Agent-OS
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
-## License
+Open:
 
-Proprietary - All Rights Reserved
-
----
-
-<div align="center">
-
-[B-End Preview](https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview) · [Documentation](./docs/) · [Release](https://github.com/ColinLi98/Lumio-Agent-OS/releases/tag/v0.2.7-beta)
-
-</div>
+```text
+http://localhost:5173/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview
+```
