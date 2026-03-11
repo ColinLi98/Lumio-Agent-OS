@@ -410,7 +410,7 @@ export function exportAllData(): object {
     const data: Record<string, any> = {
         version: '1.0',
         exportedAt: new Date().toISOString(),
-        source: 'Lumi Agent Simulator',
+        source: 'Lumio B-End Platform',
     };
 
     // 导出所有存储键的数据
@@ -455,7 +455,7 @@ export function downloadDataAsJSON(): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `lumi-data-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `lumio-platform-data-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
 }

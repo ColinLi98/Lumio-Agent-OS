@@ -21,6 +21,7 @@ import {
 import { useApiKey } from './services/apiKeyManager';
 import { useTheme } from './services/themeManager';
 import { getDestinyEngine } from './services/dtoe/destinyEngine';
+import { resolveSurfaceBrand, resolveSurfaceTitle, type SurfaceMode } from './services/surfaceBranding';
 import { AlertTriangle, X, Moon, Sun, Building2 } from 'lucide-react';
 import { NavigatorOutput } from './prompts/personalNavigator';
 
@@ -33,7 +34,7 @@ export interface DestinySimulationResult {
 }
 
 // Application mode type
-type AppMode = 'keyboard' | 'app' | 'platform' | 'trial-join';
+type AppMode = SurfaceMode;
 
 function readImeDemoEnabled(): boolean {
   if (typeof window === 'undefined') return false;
@@ -154,6 +155,11 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.title = resolveSurfaceTitle(appMode);
+  }, [appMode]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     url.searchParams.set('surface', appMode);
@@ -165,6 +171,7 @@ const App: React.FC = () => {
 
   const hasValidApiKey = apiKeyState.status === 'valid';
   const isDark = theme === 'dark';
+  const surfaceBrand = resolveSurfaceBrand(appMode);
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
@@ -241,7 +248,7 @@ const App: React.FC = () => {
           <div className="relative">
             <img
               src="/lumi-logo.jpg"
-              alt="Lumi.AI"
+              alt={surfaceBrand.alt}
               className="w-10 h-10 rounded-xl object-cover shadow-lg ring-2 ring-blue-500/20"
             />
             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse"></div>
@@ -252,10 +259,10 @@ const App: React.FC = () => {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent'
             }}>
-              Lumi.AI
+              {surfaceBrand.name}
             </h1>
             <span className={`text-[10px] font-medium tracking-wider uppercase ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-              Agent OS
+              {surfaceBrand.subtitle}
             </span>
           </div>
         </div>
