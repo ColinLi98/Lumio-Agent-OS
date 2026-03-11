@@ -425,7 +425,12 @@ describe('isProviderAllowed', () => {
             route_confidence: 0.9,
             route_reason: 'test',
             matched_patterns: [],
-            extracted_entities: {}
+            extracted_entities: {},
+            allow_market_fanout: false,
+            expected_offer_type: 'ticket',
+            domain: 'ticketing',
+            domain_guard_blocked: true,
+            blocked_tools: ['broadcast_intent', 'open_market'],
         };
 
         expect(isProviderAllowed('ecommerce', result)).toBe(false);
@@ -440,7 +445,12 @@ describe('isProviderAllowed', () => {
             route_confidence: 0.9,
             route_reason: 'test',
             matched_patterns: [],
-            extracted_entities: {}
+            extracted_entities: {},
+            allow_market_fanout: false,
+            expected_offer_type: 'ticket',
+            domain: 'ticketing',
+            domain_guard_blocked: true,
+            blocked_tools: ['broadcast_intent', 'open_market'],
         };
 
         expect(isProviderAllowed('ticketing', result)).toBe(true);
@@ -456,7 +466,12 @@ describe('isProviderAllowed', () => {
             route_confidence: 0.9,
             route_reason: 'test',
             matched_patterns: [],
-            extracted_entities: {}
+            extracted_entities: {},
+            allow_market_fanout: false,
+            expected_offer_type: 'ticket',
+            domain: 'ticketing',
+            domain_guard_blocked: true,
+            blocked_tools: ['broadcast_intent', 'open_market'],
         };
 
         expect(isProviderAllowed('food', result)).toBe(false);

@@ -1090,7 +1090,8 @@ const quickWriteTool: AgentTool = {
                 const soulMatrix = {
                     communicationStyle: commStyleMap[style as keyof typeof commStyleMap] || 'Casual' as const,
                     riskTolerance: 'Medium' as const,
-                    privacyLevel: 'Balanced' as const
+                    privacyLevel: 'Balanced' as const,
+                    spendingPreference: 'Balanced' as const,
                 };
 
                 const aiDrafts = await generateDrafts(context, soulMatrix, apiKey, history, scenario);

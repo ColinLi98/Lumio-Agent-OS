@@ -194,6 +194,17 @@ export type LixEvent =
     | SecurityInvalidSignatureEvent
     | SecurityProofExpiredEvent;
 
+export interface LumiEvent {
+    type: string;
+    payload?: Record<string, unknown>;
+    timestamp?: number;
+    trace_id?: string;
+    intent_id?: string;
+    offer_id?: string;
+    provider_id?: string;
+    token_id?: string;
+}
+
 // ============================================================================
 // Event Listener Type
 // ============================================================================

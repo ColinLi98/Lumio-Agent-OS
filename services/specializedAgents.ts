@@ -25,7 +25,7 @@ function getUserPreferences() {
     };
 }
 
-async function searchFlights(_params: FlightSearchParams, _apiKey?: string): Promise<Record<string, any>> {
+async function searchFlights(_params: FlightSearchParams, _apiKey?: string, _options?: Record<string, unknown>): Promise<Record<string, any>> {
     return {
         success: false,
         error: 'flight_search_disabled_in_b_end_public_build',
@@ -35,7 +35,11 @@ async function searchFlights(_params: FlightSearchParams, _apiKey?: string): Pro
     };
 }
 
-async function searchHotelsFallback(): Promise<Record<string, any>> {
+async function searchHotelsFallback(
+    _params?: Record<string, unknown>,
+    _apiKey?: string,
+    _options?: Record<string, unknown>
+): Promise<Record<string, any>> {
     return {
         success: false,
         error: 'hotel_search_disabled_in_b_end_public_build',

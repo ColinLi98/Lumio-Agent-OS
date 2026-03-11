@@ -18,7 +18,7 @@ import {
     generateSummary,
 } from './evidenceTypes.js';
 import { getSoulMatrixStore } from './soulMatrixStore.js';
-import { eventBus, LumiEvent } from './eventBus.js';
+import { eventBus } from './eventBus.js';
 
 // ============================================================================
 // Storage Keys
@@ -136,7 +136,7 @@ class MemoryLedger {
         eventBus.emit({
             type: 'evidence.recorded',
             payload: { evidence_id: evidence.evidence_id, type: evidence.type },
-        } as LumiEvent);
+        } as any);
 
         return evidence;
     }
@@ -160,7 +160,7 @@ class MemoryLedger {
         eventBus.emit({
             type: 'evidence.deleted',
             payload: { evidence_id },
-        } as LumiEvent);
+        } as any);
 
         return true;
     }

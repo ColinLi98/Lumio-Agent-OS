@@ -8,7 +8,7 @@ import {
 } from '../services/agent-kernel/ledger.js';
 import { LocalFirstExecutionSubstrate } from '../services/agent-kernel/substrate.js';
 
-function stripRebuildMetadata<T extends Record<string, unknown>>(projection: T): Omit<T, 'rebuild_count' | 'last_rebuild_at' | 'last_rebuild_from_sequence' | 'last_rebuild_replayed_records' | 'last_rebuild_strategy'> {
+function stripRebuildMetadata<T extends object>(projection: T): Omit<T, 'rebuild_count' | 'last_rebuild_at' | 'last_rebuild_from_sequence' | 'last_rebuild_replayed_records' | 'last_rebuild_strategy'> {
     const {
         rebuild_count,
         last_rebuild_at,
@@ -16,7 +16,7 @@ function stripRebuildMetadata<T extends Record<string, unknown>>(projection: T):
         last_rebuild_replayed_records,
         last_rebuild_strategy,
         ...rest
-    } = projection;
+    } = projection as T & Record<string, unknown>;
     return rest;
 }
 

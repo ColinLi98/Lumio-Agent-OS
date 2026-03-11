@@ -55,7 +55,7 @@ async function waitForNodeStatus(
     runtime: TaskGraphRuntime,
     taskId: string,
     nodeId: string,
-    expected: Array<'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'WAITING_USER' | 'CANCELLED'>,
+    expected: Array<'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'WAITING_USER' | 'CANCELLED' | 'SKIPPED'>,
     timeoutMs = 2000
 ): Promise<void> {
     const start = Date.now();

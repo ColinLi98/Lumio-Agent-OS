@@ -9,7 +9,7 @@ import type {
     TrialSeatClaimStatus,
     TrialWorkspaceSummary,
     WorkspaceModeOptionSummary,
-    type EnterpriseOARole,
+    EnterpriseOARole,
 } from './agentKernelShellApi';
 import {
     acceptTrialWorkspaceInvite,
@@ -24,6 +24,27 @@ const UPDATE_EVENT = 'lumi-trial-workspace-state-updated';
 const SESSION_STORAGE_KEY = 'lumi_trial_workspace_session_id';
 const DEFAULT_TRIAL_WORKSPACE_ID = 'trial_workspace_enterprise_sandbox';
 let fallbackState: TrialWorkspaceState | null = null;
+
+function shouldUseFallbackTrialWorkspaceTransport(): boolean {
+    if (typeof process === 'undefined' || !process.env) return false;
+    return process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+}
+
+function toActorRole(role: EnterpriseOARole | ActorRole | undefined): ActorRole {
+    if (role === 'REQUESTER' || role === 'OPERATOR' || role === 'TENANT_ADMIN') return role;
+    if (role === 'APPROVER' || role === 'REVIEWER') return 'OPERATOR';
+    return 'TENANT_ADMIN';
+}
+
+function normalizeScenarioTemplateId(value: string | undefined): LocalRoleLabScenarioTemplateId {
+    if (value === 'advisor_client_intake'
+        || value === 'cross_boundary_export_review'
+        || value === 'exception_dispute_remediation'
+        || value === 'oa_full_cycle_governed_execution') {
+        return value;
+    }
+    return 'advisor_client_intake';
+}
 
 export type LocalRoleLabScenarioTemplateId =
     | 'advisor_client_intake'
@@ -1045,6 +1066,10 @@ export async function createSharedTrialTaskFromBrief(
     brief: string,
     options?: { templateId?: LocalRoleLabScenarioTemplateId; labActorId?: string }
 ): Promise<{ taskId: string }> {
+    if (shouldUseFallbackTrialWorkspaceTransport()) {
+        const record = createLocalRoleLabTaskFromBrief(brief, options);
+        return { taskId: record.task_id };
+    }
     try {
         const response = await createTrialWorkspaceTask({
             workspaceMode: 'local_lab',
@@ -1074,6 +1099,28 @@ export async function createSharedTrialInvite(
     role: EnterpriseOARole,
     label?: string,
 ): Promise<void> {
+    if (shouldUseFallbackTrialWorkspaceTransport()) {
+        const state = readState();
+        const timestamp = now();
+        writeState({
+            ...state,
+            invites: [
+                {
+                    invite_id: randomId('trial_invite'),
+                    trial_workspace_id: state.workspace.trial_workspace_id,
+                    seat_id: `trial_seat_${role.toLowerCase()}`,
+                    actor_role: toActorRole(role),
+                    invite_code: randomId('invite_code'),
+                    label: label || `${role.toLowerCase().replace(/_/g, ' ')} invite`,
+                    status: 'OPEN' as TrialInviteStatus,
+                    created_at: timestamp,
+                    updated_at: timestamp,
+                },
+                ...state.invites,
+            ].slice(0, 20),
+        });
+        return;
+    }
     try {
         await createTrialWorkspaceInvite({
             workspaceMode: 'local_lab',
@@ -1090,10 +1137,10 @@ export async function createSharedTrialInvite(
                     invite_id: randomId('trial_invite'),
                     trial_workspace_id: state.workspace.trial_workspace_id,
                     seat_id: `trial_seat_${role.toLowerCase()}`,
-                    actor_role: role,
+                    actor_role: toActorRole(role),
                     invite_code: randomId('invite_code'),
                     label: label || `${role.toLowerCase().replace(/_/g, ' ')} invite`,
-                    status: 'OPEN',
+                    status: 'OPEN' as TrialInviteStatus,
                     created_at: timestamp,
                     updated_at: timestamp,
                 },
@@ -1112,6 +1159,59 @@ export async function acceptSharedTrialInvite(input: {
     actorLabel: string;
     seatId: string;
 }> {
+    if (shouldUseFallbackTrialWorkspaceTransport()) {
+        const state = readState();
+        const timestamp = now();
+        const invite = state.invites.find((item) => item.invite_code === input.inviteCode && item.status === 'OPEN');
+        if (!invite) {
+            throw new Error('Trial invite not found');
+        }
+        const participant: TrialParticipantRecord = {
+            participant_id: randomId('participant'),
+            trial_workspace_id: state.workspace.trial_workspace_id,
+            actor_role: invite.actor_role,
+            actor_label: input.actorLabel || `Joined ${invite.actor_role.toLowerCase().replace(/_/g, ' ')}`,
+            seat_id: invite.seat_id,
+            summary: `Accepted invite for ${invite.actor_role.toLowerCase().replace(/_/g, ' ')} seat.`,
+            state: 'ACTIVE',
+            invite_id: invite.invite_id,
+            created_at: timestamp,
+            updated_at: timestamp,
+        };
+        writeState({
+            ...state,
+            participants: [
+                participant,
+                ...state.participants.map((item) =>
+                    item.participant_id === `participant_${invite.actor_role.toLowerCase()}_01`
+                        ? { ...item, state: 'READY' as TrialParticipantState, updated_at: timestamp }
+                        : item
+                ),
+            ],
+            seats: state.seats.map((seat) =>
+                seat.seat_id === invite.seat_id
+                    ? {
+                        ...seat,
+                        claim_status: 'CLAIMED',
+                        assigned_participant_id: participant.participant_id,
+                        claimed_via_invite_id: invite.invite_id,
+                        updated_at: timestamp,
+                    }
+                    : seat
+            ),
+            invites: state.invites.map((item) =>
+                item.invite_id === invite.invite_id
+                    ? { ...item, status: 'ACCEPTED', accepted_participant_id: participant.participant_id, accepted_at: timestamp, updated_at: timestamp }
+                    : item
+            ),
+        });
+        return {
+            participantId: participant.participant_id,
+            actorRole: participant.actor_role,
+            actorLabel: participant.actor_label,
+            seatId: participant.seat_id,
+        };
+    }
     try {
         const response = await acceptTrialWorkspaceInvite({
             workspaceMode: 'local_lab',
@@ -1180,6 +1280,33 @@ export async function acceptSharedTrialInvite(input: {
 }
 
 export async function releaseSharedTrialSeat(seatId: string): Promise<void> {
+    if (shouldUseFallbackTrialWorkspaceTransport()) {
+        const state = readState();
+        const seat = state.seats.find((item) => item.seat_id === seatId);
+        const baseParticipantId = seat?.role === 'REQUESTER'
+            ? 'participant_requester_01'
+            : seat?.role === 'OPERATOR'
+                ? 'participant_operator_01'
+                : 'participant_tenant_admin_01';
+        writeState({
+            ...state,
+            seats: state.seats.map((item) =>
+                item.seat_id === seatId
+                    ? {
+                        ...item,
+                        claim_status: 'ASSIGNED_BASE',
+                        assigned_participant_id: baseParticipantId,
+                        claimed_via_invite_id: undefined,
+                        updated_at: now(),
+                    }
+                    : item
+            ),
+            participants: state.participants.filter((participant) =>
+                participant.seat_id !== seatId || participant.participant_id === baseParticipantId
+            ),
+        });
+        return;
+    }
     try {
         await releaseTrialWorkspaceSeat({
             workspaceMode: 'local_lab',
@@ -1249,21 +1376,26 @@ export function buildEnterpriseSandboxModel(
     const state = readState();
     const serverTrial = summary?.trial_workspace;
     const record = records[0];
-    const activeTemplateId = serverTrial?.trial_workspace.active_template_id || record?.scenario_id || state.workspace.active_template_id;
+    const activeTemplateId = normalizeScenarioTemplateId(
+        serverTrial?.trial_workspace.active_template_id || record?.scenario_id || state.workspace.active_template_id
+    );
     const activeTemplate = scenarioTemplateById(activeTemplateId);
     const walkthrough = record
         ? walkthroughSteps(record)
-        : activeTemplate.role_focus.map((role, index) => ({
-            step_id: `${activeTemplate.template_id}_${role.toLowerCase()}`,
-            role,
-            title: index === 0
-                ? `${role.toLowerCase().replace(/_/g, ' ')} starts ${activeTemplate.title}`
-                : index === 1
-                    ? `${role.toLowerCase().replace(/_/g, ' ')} reviews the sandbox package`
-                    : `${role.toLowerCase().replace(/_/g, ' ')} holds the final boundary`,
-            status: index === 0 ? 'CURRENT' : 'UPCOMING',
-            summary: activeTemplate.summary,
-        }));
+        : activeTemplate.role_focus.map((role, index) => {
+            const status: SandboxWalkthroughStatus = index === 0 ? 'CURRENT' : 'UPCOMING';
+            return {
+                step_id: `${activeTemplate.template_id}_${role.toLowerCase()}`,
+                role,
+                title: index === 0
+                    ? `${role.toLowerCase().replace(/_/g, ' ')} starts ${activeTemplate.title}`
+                    : index === 1
+                        ? `${role.toLowerCase().replace(/_/g, ' ')} reviews the sandbox package`
+                        : `${role.toLowerCase().replace(/_/g, ' ')} holds the final boundary`,
+                status,
+                summary: activeTemplate.summary,
+            };
+        });
     const roleSummaries = activeTemplate.role_focus.map((role) =>
         record ? roleSummaryFor(record, role) : ({
             role,
@@ -1334,10 +1466,61 @@ export function buildEnterpriseSandboxModel(
                 active_session_count: state.sessions.length,
                 task_count: state.tasks.length,
             },
-        seats: serverTrial?.seats || state.seats,
-        participants: serverTrial?.participants || state.participants,
-        invites: serverTrial?.invites || state.invites,
-        sessions: serverTrial?.sessions || state.sessions.sort((a, b) => b.last_seen_at - a.last_seen_at),
+        seats: serverTrial
+            ? serverTrial.seats.map((seat) => ({
+                seat_id: seat.seat_id,
+                trial_workspace_id: seat.trial_workspace_id,
+                role: toActorRole(seat.actor_role || seat.role),
+                label: seat.label,
+                summary: seat.summary,
+                claim_status: seat.claim_status,
+                assigned_participant_id: seat.assigned_participant_id,
+                claimed_via_invite_id: seat.claimed_via_invite_id,
+                created_at: seat.created_at,
+                updated_at: seat.updated_at,
+            }))
+            : state.seats,
+        participants: serverTrial
+            ? serverTrial.participants.map((participant) => ({
+                participant_id: participant.participant_id,
+                trial_workspace_id: participant.trial_workspace_id,
+                actor_role: toActorRole(participant.actor_role || participant.oa_role),
+                actor_label: participant.actor_label,
+                seat_id: participant.seat_id,
+                summary: participant.summary,
+                state: participant.state,
+                invite_id: participant.invite_id,
+                created_at: participant.created_at,
+                updated_at: participant.updated_at,
+            }))
+            : state.participants,
+        invites: serverTrial
+            ? serverTrial.invites.map((invite) => ({
+                invite_id: invite.invite_id,
+                trial_workspace_id: invite.trial_workspace_id,
+                seat_id: invite.seat_id,
+                actor_role: toActorRole(invite.actor_role || invite.oa_role),
+                invite_code: invite.invite_code,
+                label: invite.label,
+                status: invite.status,
+                accepted_participant_id: invite.accepted_participant_id,
+                created_at: invite.created_at,
+                accepted_at: invite.accepted_at,
+                updated_at: invite.updated_at,
+            }))
+            : state.invites,
+        sessions: serverTrial
+            ? serverTrial.sessions.map((session) => ({
+                trial_session_id: session.session_id,
+                trial_workspace_id: session.trial_workspace_id,
+                participant_id: session.participant_id,
+                actor_role: toActorRole(session.actor_role || session.oa_role),
+                current_page: session.current_page,
+                current_section: session.current_section,
+                created_at: session.created_at,
+                last_seen_at: session.last_seen_at,
+            }))
+            : state.sessions.sort((a, b) => b.last_seen_at - a.last_seen_at),
         active_task_detail: serverTrial?.active_task_detail || (record ? taskDetailSummary(record) : undefined),
         persistence_detail: serverTrial?.persistence_detail,
         deployment_blocker: serverTrial?.deployment_blocker,

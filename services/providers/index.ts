@@ -9,8 +9,19 @@
 export * from './providerTypes.js';
 
 // Core Infrastructure
-export { scrapeGet, scrapeSet, getCachedSearch, setCachedSearch, getCachedDetail, setCachedDetail } from './scrapeCache.js';
-export { canMakeRequest, getRateLimitStatus, getAllRateLimitStatuses } from './rateLimiter.js';
+export {
+    getCachedSearch as scrapeGet,
+    setCachedSearch as scrapeSet,
+    getCachedSearch,
+    setCachedSearch,
+    getCachedDetail,
+    setCachedDetail,
+} from './scrapeCache.js';
+export {
+    canMakeRequest,
+    getRateLimitStats as getRateLimitStatus,
+    getRateLimitStats as getAllRateLimitStatuses,
+} from './rateLimiter.js';
 export { generateFingerprint, getAlternateFingerprint, buildHeaders } from './fingerprintPolicy.js';
 export { getProviderConfig, getDomainAllowlist, buildSearchUrl, trySelectors, trySelectorsAll } from './selectorPolicy.js';
 

@@ -652,7 +652,7 @@ class SkillsDiscoveryAdapter {
         );
 
         return candidates
-            .filter((candidate): candidate is SkillDiscoveryCandidate => candidate !== null)
+            .flatMap((candidate) => candidate ? [candidate] : [])
             .sort((a, b) => b.score - a.score)
             .slice(0, 8);
     }

@@ -114,19 +114,20 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
         const balance = getProviderBalance(providerId);
         const penalties = getProviderPenalties(providerId);
         const banned = isProviderBanned(providerId);
+        const circuitState = status.state.toLowerCase() as 'closed' | 'open' | 'half_open';
 
         providers.push({
             provider_id: providerId,
             name: PROVIDER_NAMES[providerId] || providerId,
-            circuit_status: status as 'closed' | 'open' | 'half_open',
+            circuit_status: circuitState,
             is_banned: banned,
             reputation_impact: penalties.reduce((sum, p) => sum + (p.value || 0), 0),
             pending_fees: balance.pending_fees,
             total_penalties: penalties.length
         });
 
-        if (status === 'closed') closedCount++;
-        else if (status === 'open') openCount++;
+        if (circuitState === 'closed') closedCount++;
+        else if (circuitState === 'open') openCount++;
         else halfOpenCount++;
     }
 

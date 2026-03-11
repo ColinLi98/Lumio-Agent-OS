@@ -20,7 +20,7 @@ import {
     generateStepId,
     generateTraceId,
 } from './taskTypes.js';
-import { eventBus, LumiEvent } from './eventBus.js';
+import { eventBus } from './eventBus.js';
 
 // ============================================================================
 // Storage Keys
@@ -88,7 +88,7 @@ class TaskService {
         eventBus.emit({
             type: 'task.created',
             payload: { task_id: task.task_id, goal: task.goal },
-        } as LumiEvent);
+        } as any);
 
         return task;
     }
@@ -159,7 +159,7 @@ class TaskService {
         eventBus.emit({
             type: 'task.status_changed',
             payload: { task_id, previous: previousStatus, current: status },
-        } as LumiEvent);
+        } as any);
 
         return true;
     }
@@ -184,7 +184,7 @@ class TaskService {
             eventBus.emit({
                 type: 'task.deleted',
                 payload: { task_id },
-            } as LumiEvent);
+            } as any);
         }
 
         return deleted;
@@ -246,7 +246,7 @@ class TaskService {
         eventBus.emit({
             type: 'plan.created',
             payload: { plan_id: plan.plan_id, task_id, steps: plan.steps.length },
-        } as LumiEvent);
+        } as any);
 
         return plan;
     }

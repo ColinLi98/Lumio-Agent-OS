@@ -792,7 +792,7 @@ function buildExplicitTravelDecomposition(
     const destination = route.destination || locationHint || 'destination';
     const origin = route.origin || 'origin';
     const explicitAgents = detectExplicitTravelAgents(request);
-    const selectedAgents = explicitAgents.length ? explicitAgents : ['itinerary'];
+    const selectedAgents: SpecializedAgentType[] = explicitAgents.length ? explicitAgents : ['itinerary'];
 
     const subTasks = selectedAgents.reduce<SubTask[]>((tasks, agentType) => {
         tasks.push(
@@ -970,9 +970,14 @@ export async function executeTaskPipeline(
 
                 // Execute agent
                 const agentTask = {
+                    id: `pipeline_${task.id}`,
                     agentType: task.agentType,
+                    description: task.description,
                     params: { ...task.params, previousResults: depResults },
-                    appliedPreferences: []
+                    appliedPreferences: [],
+                    status: 'pending' as const,
+                    priority: task.priority,
+                    canRunParallel: task.dependsOn.length === 0,
                 };
 
                 const result = await executeSpecializedAgent(agentTask, apiKey);

@@ -47,18 +47,22 @@ function createMockOffer(domain: string, offerType: string, providerId: string):
         provider: {
             id: providerId,
             name: providerId.toUpperCase(),
-            type: 'platform',
+            type: 'B2C',
             reputation_score: 0.8,
             verified: true
         },
         price: {
             amount: 100,
             currency: 'CNY',
-            includes_shipping: false
+            breakdown: {
+                base: 100,
+                discount: 0,
+                shipping: 0,
+            }
         },
         domain: domain as any,
         offer_type: offerType as any,
-        source_provider_group: domain === 'commerce' ? 'platform_ecom' : domain,
+        source_provider_group: (domain === 'commerce' ? 'ecommerce' : domain) as any,
         trace: { trace_id: 'test_trace', span_id: 'test_span' }
     };
 }

@@ -535,6 +535,8 @@ async function handleFetchRequest(request: Request): Promise<Response> {
     return jsonResponse({ error: `Unknown action: ${action}` }, 404, 'GET, POST');
 }
 
+export default async function handler(request: Request): Promise<Response>;
+export default async function handler(request: VercelRequest, response: VercelResponse): Promise<void>;
 export default async function handler(
     request: Request | VercelRequest,
     response?: VercelResponse

@@ -391,6 +391,7 @@ Generate a helpful, conversational reply that:
             taskId,
             action,
             timestamp: Date.now(),
+            createdAt: Date.now(),
             details,
         });
         if (this.logs.length > 200) this.logs = this.logs.slice(-200);
