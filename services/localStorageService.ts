@@ -151,18 +151,7 @@ export function recordInteraction(
     // 同时更新数字分身（旧版）
     updateDigitalAvatar(interaction);
     
-    // 同时更新增强版数字分身（调用 DigitalSoulManager）
-    try {
-        // 动态导入避免循环依赖
-        import('./digitalSoulManager').then(({ getDigitalSoulManager }) => {
-            const manager = getDigitalSoulManager();
-            manager.inferFromInteraction(interaction);
-        }).catch(() => {
-            // 如果 manager 还没准备好，忽略
-        });
-    } catch (e) {
-        // 忽略初始化阶段的错误
-    }
+    // Legacy compatibility path removed from the public B-end build.
 }
 
 /**

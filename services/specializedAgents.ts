@@ -11,9 +11,39 @@ import {
     AgentTaskResult,
     SpecializedAgentType
 } from '../types.js';
-import { searchFlights, FlightSearchParams } from './flightSearchService.js';
 import { getEnhancedDigitalAvatar } from './localStorageService.js';
-import { getUserPreferences } from './personalizationService.js';
+
+type FlightSearchParams = Record<string, unknown>;
+
+function getUserPreferences() {
+    return {
+        dining: {
+            priceRange: 'mid' as const,
+            cuisinePreferences: [] as string[],
+            atmospherePreference: [] as string[],
+        },
+    };
+}
+
+async function searchFlights(_params: FlightSearchParams, _apiKey?: string): Promise<Record<string, any>> {
+    return {
+        success: false,
+        error: 'flight_search_disabled_in_b_end_public_build',
+        rankedFlights: [],
+        dataSource: 'Disabled',
+        realtime: false,
+    };
+}
+
+async function searchHotelsFallback(): Promise<Record<string, any>> {
+    return {
+        success: false,
+        error: 'hotel_search_disabled_in_b_end_public_build',
+        rankedHotels: [],
+        dataSource: 'Disabled',
+        realtime: false,
+    };
+}
 
 type TravelPreferenceSnapshot = {
     priceVsQuality: number;
@@ -649,7 +679,6 @@ const flightBookingAgent: SpecializedAgentImpl = {
 const hotelBookingAgent: SpecializedAgentImpl = {
     name: 'hotel_booking',
     execute: async (task, apiKey) => {
-        const { searchHotels } = await import('./hotelSearchService.js');
         const destination = normalizeDestinationLabel(task.params.destination);
         const preferences = getTravelPreferences();
         const preferredStars = preferences.priceVsQuality > 30
@@ -675,7 +704,7 @@ const hotelBookingAgent: SpecializedAgentImpl = {
 
         const resolvedSerpApiKey = looksLikeSerpApiKey(apiKey) ? apiKey : undefined;
 
-        const searchResult = await searchHotels(
+        const searchResult = await searchHotelsFallback(
             {
                 destination,
                 checkInDate,
