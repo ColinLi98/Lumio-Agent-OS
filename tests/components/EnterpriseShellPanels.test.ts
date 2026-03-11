@@ -35,7 +35,7 @@ describe('enterprise shell panels', () => {
         state: 'BLOCKED',
         environment_kind: 'SIMULATOR',
         environment_label: 'Simulator workspace',
-        base_url: 'https://lumi-agent-simulator.vercel.app',
+        base_url: 'https://lumio-b-end-platform.vercel.app',
         summary: 'Simulator binding cannot count as a real pilot environment.',
         source: 'SIMULATOR',
       },

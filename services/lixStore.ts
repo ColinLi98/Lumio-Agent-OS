@@ -177,7 +177,7 @@ function resolveLixExecutorRef(): string {
     if (process.env.NODE_ENV !== 'production') {
         return 'http://127.0.0.1:3000/api/lix/solution/executor';
     }
-    return 'https://lumi-agent-simulator.vercel.app/api/lix/solution/executor';
+    return 'https://lumio-b-end-platform.vercel.app/api/lix/solution/executor';
 }
 
 function inferCollaboratorAgents(caps: string[]): string[] {

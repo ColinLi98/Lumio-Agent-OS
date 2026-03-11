@@ -46,7 +46,7 @@ Harden the existing B2B enterprise workspace shell without widening scope. This 
   - role switching
   - member/task URL focus
   - disabled CTA behavior
-- Fixed the legacy keyboard compatibility path in [App.tsx](/Users/lili/Desktop/Agent%20OS/App.tsx) so the existing IME smoke passes again.
+- Hardened the web entry so the public platform route stays bounded to the governed workspace surface.
 
 ### Diagnostics
 

@@ -27,14 +27,14 @@ test-results
 *.sw?
 .vercel
 
-# Android / Gradle artifacts
-LumiKeyboard-Android/.gradle/
-LumiKeyboard-Android/.gradle-home/
-LumiKeyboard-Android/.kotlin/
-LumiKeyboard-Android/**/build/
-LumiKeyboard-Android/**/bin/
-LumiKeyboard-Android/captures/
-LumiKeyboard-Android/*.hprof
+# Legacy mobile/runtime artifacts
+mobile-legacy/.gradle/
+mobile-legacy/.gradle-home/
+mobile-legacy/.kotlin/
+mobile-legacy/**/build/
+mobile-legacy/**/bin/
+mobile-legacy/captures/
+mobile-legacy/*.hprof
 *.apk
 .env*.local
 *.iml
@@ -43,9 +43,9 @@ LumiKeyboard-Android/*.hprof
 .local-output/
 local-output/
 artifacts/local/
-LumiKeyboard-Android/.local-output/
-LumiKeyboard-Android/local-output/
-LumiKeyboard-Android/artifacts/local/
+mobile-legacy/.local-output/
+mobile-legacy/local-output/
+mobile-legacy/artifacts/local/
 
 # Embedded OpenClaw runtime state
 .openclaw/
@@ -55,7 +55,6 @@ LumiKeyboard-Android/artifacts/local/
 /openclaw-relay/
 /investor_demo.html
 /keyboard_edge_cloud_superagent_arch_en.pdf
-/Lumi_AI_Investor_Pitch.pptx
 /Songyi_Li_CV.docx
 /Songyi_Li_CV.html
 /Songyi_Li_CV.pdf

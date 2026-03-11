@@ -10,7 +10,6 @@ Provide a simple escalation model for the current enterprise workspace platform 
 Naming in this package:
 
 - `Lumio` = B-end platform
-- `Lumi` = C-end product naming
 
 ## First-line checks
 

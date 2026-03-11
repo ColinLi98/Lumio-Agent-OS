@@ -1,4 +1,4 @@
-const DEFAULT_REMOTE_API_BASE_URL = 'https://lumi-agent-simulator.vercel.app';
+const DEFAULT_REMOTE_API_BASE_URL = 'https://lumio-b-end-platform.vercel.app';
 
 function trimTrailingSlash(value: string): string {
     return value.endsWith('/') ? value.slice(0, -1) : value;

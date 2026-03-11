@@ -11,7 +11,7 @@ Show that the product is a B2B enterprise workspace platform with a governed wor
 
 Say this clearly:
 
-- This is a B2B enterprise workspace platform, not a consumer app.
+- This is a B2B enterprise workspace platform.
 - The B-end product name is `Lumio`.
 - The current foundation is OA v1 with nine roles.
 - Okta OIDC is the only enterprise login target in scope.

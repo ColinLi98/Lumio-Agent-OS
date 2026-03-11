@@ -1,5 +1,0 @@
-{
-  "name": "Lumi Agent Simulator",
-  "description": "A web-based simulator for the Lumi Android Agent. It demonstrates the Agent Core logic, IME integration, and Command Center functionality using React and Gemini API.",
-  "requestFramePermissions": []
-}

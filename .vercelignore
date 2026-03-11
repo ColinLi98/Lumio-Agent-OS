@@ -1,7 +1,4 @@
-# Keep Vercel deployments focused on web/api runtime sources only.
-# Exclude Android workspace and heavy local artifacts.
-LumiKeyboard-Android/**
-lumi-website/**
+# Keep Vercel deployments focused on the B-end web/api runtime only.
 artifacts/**
 dist/**
 playwright-tests/**

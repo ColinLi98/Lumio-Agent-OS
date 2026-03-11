@@ -88,7 +88,7 @@ function getCallbackUrl(origin?: string): string {
   if (process.env.NODE_ENV !== 'production') {
     return 'http://127.0.0.1:3000/api/agent-market/github/callback';
   }
-  return 'https://lumi-agent-simulator.vercel.app/api/agent-market/github/callback';
+  return 'https://lumio-b-end-platform.vercel.app/api/agent-market/github/callback';
 }
 
 function parseRepoFullName(fullName: string): { owner: string; repo: string } | null {

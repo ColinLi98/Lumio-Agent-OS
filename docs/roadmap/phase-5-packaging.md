@@ -34,7 +34,7 @@ Current section framing:
 The package explicitly keeps these boundaries:
 
 - B2B only
-- no consumer expansion
+- no non-platform expansion
 - `local_lab` is sandbox / preview
 - real pilot is not the current blocker for this phase
 - Okta OIDC only
@@ -80,8 +80,8 @@ Preferred terms for this package:
 
 Avoided terms:
 
-- mixing C-end `Lumi` and B-end `Lumio` for the same B-end surface
-- consumer app
+- mixing old naming and B-end platform naming for the same public surface
+- non-platform product framing
 - full production-ready
 - full pilot complete
 - multi-provider identity platform

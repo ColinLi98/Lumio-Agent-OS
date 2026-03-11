@@ -20,13 +20,11 @@ describe('surface branding', () => {
     });
   });
 
-  it('keeps compatibility branding for non-platform surfaces', () => {
-    expect(resolveSurfaceTitle('app')).toBe('Lumi Compatibility Surface');
-    expect(resolveSurfaceTitle('keyboard')).toBe('Lumi Keyboard Compatibility Surface');
-    expect(resolveSurfaceBrand('app')).toEqual({
-      alt: 'Lumi.AI',
-      name: 'Lumi.AI',
-      subtitle: 'Agent OS',
+  it('keeps Lumio branding bounded to B-end surfaces only', () => {
+    expect(resolveSurfaceBrand('platform')).toEqual({
+      alt: 'Lumio',
+      name: 'Lumio',
+      subtitle: 'B-End Platform',
     });
   });
 });

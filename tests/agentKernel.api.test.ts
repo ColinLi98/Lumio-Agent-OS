@@ -682,7 +682,7 @@ describe('agent-kernel api', () => {
             AGENT_KERNEL_WEBHOOK_CONNECTOR_ID: undefined,
             AGENT_KERNEL_VAULT_WEBHOOK_CREDENTIAL_ID: undefined,
         });
-        process.env.LUMI_BASE_URL = 'https://lumi-agent-simulator.vercel.app';
+        process.env.LUMI_BASE_URL = 'https://lumio-b-end-platform.vercel.app';
         delete process.env.LUMI_TENANT_ID;
         delete process.env.LUMI_WORKSPACE_ID;
         delete process.env.LUMI_REQUESTER_ACTOR_ID;
@@ -776,7 +776,7 @@ describe('agent-kernel api', () => {
             AGENT_KERNEL_WEBHOOK_CONNECTOR_ID: undefined,
             AGENT_KERNEL_VAULT_WEBHOOK_CREDENTIAL_ID: undefined,
         });
-        process.env.LUMI_BASE_URL = 'https://lumi-agent-simulator.vercel.app';
+        process.env.LUMI_BASE_URL = 'https://lumio-b-end-platform.vercel.app';
         delete process.env.LUMI_TENANT_ID;
         delete process.env.LUMI_WORKSPACE_ID;
 

@@ -4,19 +4,18 @@
     "noEmit": true
   },
   "include": [
-    "services/dtoe/**/*.ts",
-    "tests/dtoe/**/*.ts"
+    "services/**/*.ts",
+    "components/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "App.tsx"
   ],
   "exclude": [
     "node_modules",
     "dist",
     ".vercel",
     "coverage",
-    "lumi-life-optimizer/venv",
-    "lumi-life-optimizer/node_modules",
-    "lumi-website/node_modules",
-    "lumi-website/dist",
     ".venv",
-    "LumiKeyboard-Android"
+    "third_party"
   ]
 }

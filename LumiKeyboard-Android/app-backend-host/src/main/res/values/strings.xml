@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">Lumi Agent</string>
-    <string name="settings_title">Lumi Settings</string>
-    <string name="enable_keyboard">Enable Lumi Keyboard</string>
-    <string name="enable_instructions">Enable Lumi Keyboard in system settings, then select it as the default input method.</string>
-    <string name="agent_mode_tip">Long press Space to enter Agent Mode</string>
-</resources>

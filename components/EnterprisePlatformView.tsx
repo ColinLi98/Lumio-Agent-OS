@@ -5,11 +5,9 @@ import {
   ArrowUpRight,
   Building2,
   ClipboardList,
-  Compass,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  Store,
   Users,
   Workflow,
 } from 'lucide-react';
@@ -71,10 +69,6 @@ import { EnterpriseSandboxHome } from './EnterpriseSandboxHome';
 import { TrialJoinPanel } from './TrialJoinPanel';
 import { TrialTaskDetailPanel } from './TrialTaskDetailPanel';
 import { GovernedFlowTaskPanel } from './GovernedFlowTaskPanel';
-import { MarketHome } from './MarketHome';
-import { AgentMarketplacePanel } from './AgentMarketplacePanel';
-import { LixTwinFusionPanel } from './LixTwinFusionPanel';
-import { DestinyNavigatorPanel } from './DestinyNavigator';
 import { ObservabilityDashboard } from './ObservabilityDashboard';
 import {
   buildEnterpriseOAShell,
@@ -231,22 +225,6 @@ const SECTION_DEFINITIONS: PlatformSectionDefinition[] = [
     title: 'Audit & Reporting Center',
     description: 'Auditors inspect receipts, proof, exports, and timeline history here without mutating workflow state.',
     icon: <ShieldAlert size={16} />,
-  },
-  {
-    key: 'marketplace',
-    label: 'Marketplace',
-    eyebrow: 'Market',
-    title: 'Keep market and execution context in-platform',
-    description: 'Marketplace, supply, and external execution context remain accessible from the enterprise platform instead of a separate demo shell.',
-    icon: <Store size={16} />,
-  },
-  {
-    key: 'navigator',
-    label: 'Navigator',
-    eyebrow: 'Navigator',
-    title: 'Strategic guidance inside the workspace',
-    description: 'Strategic navigation and twin-informed planning remain integrated into the same enterprise platform surface.',
-    icon: <Compass size={16} />,
   },
   {
     key: 'observability',
@@ -827,7 +805,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
   const secondaryNav = useMemo(
     () => SECTION_DEFINITIONS.filter((item) =>
       allowedSections.includes(item.key)
-      && ['join', 'organization', 'overview', 'members', 'marketplace', 'navigator', 'observability'].includes(item.key)
+      && ['join', 'organization', 'overview', 'members', 'observability'].includes(item.key)
     ),
     [allowedSections]
   );
@@ -906,7 +884,7 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                 Lumio is the primary B2B workspace surface for Agent OS: an enterprise workspace cockpit and role-aware workflow governance console built around the existing governed workspace sections.
               </p>
               <div className="mt-3 text-xs leading-6 text-slate-400">
-                Naming split: `Lumio` is the B-end governed workspace platform, while `Lumi` remains the C-end product naming. Current B-end foundation: OA v1 nine-role model, Okta OIDC-only enterprise login target, and `local_lab` as a sandbox/preview workspace rather than a real pilot tenant.
+                Current B-end foundation: OA v1 nine-role model, Okta OIDC-only enterprise login target, and `local_lab` as a sandbox/preview workspace rather than a real pilot tenant.
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <div className="rounded-full border border-cyan-700/40 bg-cyan-950/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-100">
@@ -1728,23 +1706,6 @@ const EnterprisePlatformView: React.FC<EnterprisePlatformViewProps> = ({ isDark 
                   inviteCode={inviteCode}
                   enterpriseInviteToken={enterpriseInviteToken}
                 />
-              </SectionShell>
-            )}
-
-            {section === 'marketplace' && (
-              <SectionShell definition={sectionDefinition}>
-                <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300">
-                  Marketplace and external execution context remain inside the same enterprise workspace so product demos no longer depend on a phone-style shell.
-                </div>
-                <LixTwinFusionPanel />
-                <MarketHome onSelectIntent={() => setSection('requests')} />
-                <AgentMarketplacePanel onOpenLixMarket={() => setSection('marketplace')} />
-              </SectionShell>
-            )}
-
-            {section === 'navigator' && (
-              <SectionShell definition={sectionDefinition}>
-                <DestinyNavigatorPanel isDark />
               </SectionShell>
             )}
 

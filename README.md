@@ -4,7 +4,7 @@
 
 ### Governed enterprise workspace platform for request, approval, operations, review, and audit
 
-[![B-End Preview](https://img.shields.io/badge/B--End%20Preview-Lumio-blue?style=for-the-badge)](https://lumi-agent-simulator.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview)
+[![B-End Preview](https://img.shields.io/badge/B--End%20Preview-Lumio-blue?style=for-the-badge)](https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview)
 [![Version](https://img.shields.io/badge/Version-v0.2.7%20Beta-green?style=for-the-badge)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)]()
 [![React](https://img.shields.io/badge/React-18.2-61dafb?style=for-the-badge&logo=react)]()
@@ -23,7 +23,7 @@ The product is organized around one workspace shell that lets enterprise teams m
 
 Primary preview route:
 
-`https://lumi-agent-simulator.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview`
+`https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview`
 
 Route contract:
 
@@ -124,6 +124,6 @@ Proprietary - All Rights Reserved
 
 <div align="center">
 
-[B-End Preview](https://lumi-agent-simulator.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview) · [Documentation](./docs/) · [Release](https://github.com/ColinLi98/Lumio-Agent-OS/releases/tag/v0.2.7-beta)
+[B-End Preview](https://lumio-b-end-platform.vercel.app/?surface=platform&workspace_mode=local_lab&page=workspace&section=overview) · [Documentation](./docs/) · [Release](https://github.com/ColinLi98/Lumio-Agent-OS/releases/tag/v0.2.7-beta)
 
 </div>

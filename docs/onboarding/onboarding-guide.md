@@ -12,7 +12,6 @@ This guide helps a new team member onboard to the current governed enterprise wo
 Start every onboarding with these statements:
 
 - The B-end product name is `Lumio`.
-- `Lumi` remains the C-end product naming.
 - The product is B2B only.
 - The current identity target is Okta OIDC only.
 - The current role foundation is OA v1 with nine roles.

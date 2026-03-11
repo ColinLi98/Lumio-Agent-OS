@@ -467,7 +467,7 @@ class SkillsDiscoveryAdapter {
             const webResp = await fetchWithTimeout(htmlUrl, {
                 headers: {
                     accept: 'text/html,application/xhtml+xml',
-                    'user-agent': 'lumi-agent-os/1.0 (+https://lumi-agent-simulator.vercel.app)',
+                    'user-agent': 'lumi-agent-os/1.0 (+https://lumio-b-end-platform.vercel.app)',
                 },
             }, 1_600);
             if (webResp.ok) {
@@ -508,7 +508,7 @@ class SkillsDiscoveryAdapter {
 
         const headers: Record<string, string> = {
             accept: 'text/html,application/xhtml+xml',
-            'user-agent': 'lumi-agent-os/1.0 (+https://lumi-agent-simulator.vercel.app)',
+            'user-agent': 'lumi-agent-os/1.0 (+https://lumio-b-end-platform.vercel.app)',
         };
         const treeUrl = `https://github.com/${TRUSTED_SKILLS_REPO.owner}/${TRUSTED_SKILLS_REPO.repo}/tree/${TRUSTED_SKILLS_REPO.branch}/${TRUSTED_SKILLS_REPO.treePath}`;
 
@@ -576,7 +576,7 @@ class SkillsDiscoveryAdapter {
                         {
                             headers: {
                                 accept: 'text/plain,*/*',
-                                'user-agent': 'lumi-agent-os/1.0 (+https://lumi-agent-simulator.vercel.app)',
+                                'user-agent': 'lumi-agent-os/1.0 (+https://lumio-b-end-platform.vercel.app)',
                             },
                         },
                         2_200
@@ -666,7 +666,7 @@ class SkillsDiscoveryAdapter {
         const headers: Record<string, string> = {
             accept: 'application/vnd.github+json',
             'x-github-api-version': '2022-11-28',
-            'user-agent': 'lumi-agent-os/1.0 (+https://lumi-agent-simulator.vercel.app)',
+            'user-agent': 'lumi-agent-os/1.0 (+https://lumio-b-end-platform.vercel.app)',
         };
         if (token) headers.authorization = `Bearer ${token}`;
 
@@ -836,7 +836,7 @@ class SkillsDiscoveryAdapter {
     ): Promise<SkillDiscoveryCandidate[]> {
         const headers: Record<string, string> = {
             accept: 'text/html,application/xhtml+xml',
-            'user-agent': 'lumi-agent-os/1.0 (+https://lumi-agent-simulator.vercel.app)',
+                    'user-agent': 'lumi-agent-os/1.0 (+https://lumio-b-end-platform.vercel.app)',
         };
         const merged = new Map<string, SkillDiscoveryCandidate>();
 
@@ -855,7 +855,7 @@ class SkillsDiscoveryAdapter {
                         {
                             accept: 'application/vnd.github+json',
                             'x-github-api-version': '2022-11-28',
-                            'user-agent': 'lumi-agent-os/1.0 (+https://lumi-agent-simulator.vercel.app)',
+                            'user-agent': 'lumi-agent-os/1.0 (+https://lumio-b-end-platform.vercel.app)',
                         },
                         requiredCapabilities
                     );

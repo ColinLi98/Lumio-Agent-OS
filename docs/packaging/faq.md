@@ -2,9 +2,9 @@
 
 Date: 2026-03-11
 
-## Is this a consumer app?
+## Is this a B2B enterprise platform?
 
-No. The current product framing is B2B enterprise workspace platform only.
+Yes. The current product framing is B2B enterprise workspace platform only.
 
 ## What is the core product?
 
@@ -34,11 +34,6 @@ No tenth role is in scope for the current package.
 ## Which enterprise login path is supported?
 
 Okta OIDC only.
-
-## How does Lumio differ from Lumi?
-
-- `Lumio` is the B-end governed workspace platform
-- `Lumi` is the C-end product naming
 
 ## Is this a full IAM product?
 

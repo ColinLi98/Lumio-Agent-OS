@@ -1,4 +1,4 @@
-export type SurfaceMode = 'keyboard' | 'app' | 'platform' | 'trial-join';
+export type SurfaceMode = 'platform' | 'trial-join';
 
 export function resolveSurfaceTitle(mode: SurfaceMode): string {
   switch (mode) {
@@ -6,10 +6,6 @@ export function resolveSurfaceTitle(mode: SurfaceMode): string {
       return 'Lumio B-End Platform';
     case 'trial-join':
       return 'Lumio Trial Join';
-    case 'app':
-      return 'Lumi Compatibility Surface';
-    case 'keyboard':
-      return 'Lumi Keyboard Compatibility Surface';
     default:
       return 'Lumio B-End Platform';
   }
@@ -37,8 +33,8 @@ export function resolveSurfaceBrand(mode: SurfaceMode): {
   }
 
   return {
-    alt: 'Lumi.AI',
-    name: 'Lumi.AI',
-    subtitle: 'Agent OS',
+    alt: 'Lumio',
+    name: 'Lumio',
+    subtitle: 'B-End Platform',
   };
 }

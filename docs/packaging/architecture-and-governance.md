@@ -5,7 +5,7 @@ Scope: External technical framing for the current enterprise workspace platform
 
 ## Overview
 
-The current B-end product is **Lumio**, a B2B enterprise workspace platform. It is not a consumer app and not a separate IAM product.
+The current B-end product is **Lumio**, a B2B enterprise workspace platform. It is not a separate IAM product.
 
 Its current architecture is centered on:
 
@@ -20,8 +20,7 @@ The workspace shell is the product entry for the B2B platform.
 
 In current naming:
 
-- `Lumio` refers to the B-end governed workspace platform
-- `Lumi` refers to the C-end product naming
+- `Lumio` refers to the governed B-end workspace platform
 
 It provides:
 

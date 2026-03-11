@@ -1904,7 +1904,7 @@ describe('agent-kernel store adapters', () => {
             environment_kind: 'SIMULATOR',
             state: 'BLOCKED',
             environment_label: 'Simulator workspace',
-            base_url: 'https://lumi-agent-simulator.vercel.app',
+            base_url: 'https://lumio-b-end-platform.vercel.app',
             tenant_id: 'tenant_pilot',
             workspace_id: 'workspace_alpha',
             source: 'SIMULATOR',

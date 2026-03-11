@@ -53,7 +53,7 @@ The current platform is organized around:
 
 ## What a buyer can see today
 
-- A workspace-first shell instead of a consumer-style app
+- A workspace-first shell built for enterprise operations
 - A governed request-to-audit chain across request, approval, operations, review, and audit
 - Role-aware next action, blocker, timeline, and evidence views for the same task
 - Members, seat, invite, join, and access posture inside the same workspace
@@ -64,7 +64,7 @@ The current platform is organized around:
 - It does not claim full real-pilot closure
 - It does not claim full production deployment completeness
 - It does not claim provider breadth beyond Okta OIDC
-- It does not claim consumer-product scope
+- It does not claim product scope beyond the governed enterprise workspace platform
 - It does not treat `local_lab` as a production tenant
 
 ## Best-fit evaluation path
@@ -77,11 +77,6 @@ The current platform is organized around:
 ## Commercial posture
 
 This is a buyer-facing preview package for a B2B governed workspace platform.
-
-Naming note:
-
-- `Lumio` = B-end governed workspace platform
-- `Lumi` = C-end product naming
 
 It is credible where it is implemented:
 

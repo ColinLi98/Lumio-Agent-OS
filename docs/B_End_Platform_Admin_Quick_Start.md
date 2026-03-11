@@ -12,7 +12,7 @@ Product name: `Lumio`
 - Integration Admin
 
 ## Primary URL
-- Use the B-end platform URL, not the C-end compatibility surfaces.
+- Use the dedicated Lumio B-end platform URL only.
 
 ## First 5 actions
 1. Open `Workspace Overview` and verify activation / blocker posture.

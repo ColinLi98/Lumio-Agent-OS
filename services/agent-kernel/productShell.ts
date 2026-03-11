@@ -48,7 +48,7 @@ import { resolvePilotIdentityProviderConfigFromEnv } from './identityAdmin.js';
 import { resolvePilotVaultWebhookConfigFromEnv } from './vaultWebhook.js';
 import { getPolicyEngineMetadata } from '../policy-engine/evaluator.js';
 
-const SIMULATOR_BASE_URL = 'https://lumi-agent-simulator.vercel.app';
+const SIMULATOR_BASE_URL = 'https://lumio-b-end-platform.vercel.app';
 const DEFAULT_DEMO_SCENARIOS = [
     'Pre-meeting prep in progress',
     'Post-meeting notes to CRM-ready draft completed',
@@ -231,7 +231,7 @@ function inferEnvironmentKind(
     workspaceMode: WorkspaceMode,
 ): EnvironmentKind {
     if (explicitKind) return explicitKind;
-    if (String(baseUrl || '').toLowerCase().includes('lumi-agent-simulator')) return 'SIMULATOR';
+    if (String(baseUrl || '').toLowerCase().includes('lumio-b-end-platform')) return 'SIMULATOR';
     if (workspaceMode === 'demo') return 'DEMO';
     return 'PRODUCTION';
 }
@@ -875,7 +875,7 @@ export class AgentKernelProductShellService {
         const workspaceId = readEnv('LUMI_WORKSPACE_ID', 'AGENT_KERNEL_WORKSPACE_ID', 'AGENT_KERNEL_OKTA_DEFAULT_WORKSPACE_ID');
         const demoSupported = readBooleanEnv(['LUMI_DEMO_MODE_ENABLED', 'AGENT_KERNEL_DEMO_MODE_ENABLED'], true);
         const { baseUrl, source } = resolveBaseUrl();
-        const simulatorBacking = String(baseUrl || '').toLowerCase().includes('lumi-agent-simulator');
+        const simulatorBacking = String(baseUrl || '').toLowerCase().includes('lumio-b-end-platform');
         const environmentKind = inferEnvironmentKind(explicitKind, baseUrl, workspaceMode);
         const workspaceBindingKind = workspaceBindingKindFor(workspaceMode, tenantId, workspaceId);
         const environmentLabel = environmentLabelFor(environmentKind, workspaceMode, simulatorBacking, explicitLabel);
@@ -1672,7 +1672,7 @@ export class AgentKernelProductShellService {
         const key = workspaceKey(input.tenantId, input.workspaceId, workspaceMode);
         const existing = (await this.store.listPilotEnvironmentBindings(key))[0];
         const normalizedBaseUrl = normalizeUrl(input.baseUrl);
-        const simulatorLike = String(normalizedBaseUrl || '').toLowerCase().includes('lumi-agent-simulator');
+        const simulatorLike = String(normalizedBaseUrl || '').toLowerCase().includes('lumio-b-end-platform');
         const isReal = acceptedRealBindingSource(input.source, workspaceMode)
             && !simulatorLike
             && Boolean(input.tenantId)

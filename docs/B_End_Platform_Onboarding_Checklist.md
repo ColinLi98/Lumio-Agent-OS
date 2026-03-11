@@ -8,7 +8,7 @@ Product name: `Lumio`
 
 ## Before walkthrough
 - Confirm canonical B-end platform URL is used.
-- Confirm C-end compatibility surfaces are not used as the main demo path.
+- Confirm the main demo path uses only the Lumio B-end platform route.
 - Confirm local_lab or current workspace context is intentional.
 
 ## Admin onboarding

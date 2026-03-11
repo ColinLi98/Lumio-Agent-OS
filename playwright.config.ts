@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-const baseURL = process.env.LUMI_BASE_URL || 'https://lumi-agent-simulator.vercel.app';
+const baseURL = process.env.LUMI_BASE_URL || 'https://lumio-b-end-platform.vercel.app';
 
 export default defineConfig({
   testDir: './playwright-tests',

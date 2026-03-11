@@ -16,7 +16,7 @@
  * 9. Pending token >7 days → accept_fee_charged
  */
 
-const DEFAULT_BASE_URL = process.env.LUMI_BASE_URL || 'https://lumi-agent-simulator.vercel.app';
+const DEFAULT_BASE_URL = process.env.LUMI_BASE_URL || 'https://lumio-b-end-platform.vercel.app';
 const API_BASE = process.env.API_BASE || `${DEFAULT_BASE_URL}/api/lix`;
 
 // ============================================================================
