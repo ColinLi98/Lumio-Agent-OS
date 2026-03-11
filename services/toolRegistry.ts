@@ -6,7 +6,6 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import { getTavilyClient } from './tavilyClient.js';
 import type { AgentDomain, EvidenceLevel, CostTier } from './agentMarketplaceTypes.js';
 import { buildApiUrl } from './apiBaseUrl.js';
 
@@ -230,29 +229,7 @@ const webSearchTool: Tool = {
     execute: async (args) => {
         const { query } = args;
 
-        try {
-            // Use Tavily for real-time search
-            const tavily = getTavilyClient();
-            const response = await tavily.quickSearch(query, 5);
-
-            return {
-                success: true,
-                query,
-                answer: response.answer,
-                results: response.sources.map(s => ({
-                    title: s.title,
-                    snippet: s.snippet,
-                    url: s.url,
-                    source: new URL(s.url).hostname
-                })),
-                summary: response.answer,
-                relatedQueries: []
-            };
-        } catch (error) {
-            console.error('[WebSearchTool] Tavily error:', error);
-            // Fallback to generated data
-            return generateFallbackSearchData(query);
-        }
+        return generateFallbackSearchData(query);
     },
     profiling: {
         target_dimension: 'knowledge',
@@ -369,7 +346,6 @@ Provide 3 reply options in different styles and return JSON:
 
 // Import only client-safe modules (no server-side code like liveSearchService)
 import { classifyFreshness, createStructuredFallback, type IntentDomain, type StructuredFallback } from './freshnessClassifier.js';
-import { buildFlightActionLinks, parseFlightConstraints } from './flightConstraintParser.js';
 
 // Type definitions for API response
 interface LiveSearchAPIResponse {
@@ -502,20 +478,8 @@ Rules:
         // Auto-detect domain if not provided
         const routeDecision = classifyFreshness(query);
         const domain = (intent_domain || routeDecision.intent_domain) as IntentDomain;
-        const parsedConstraints = parseFlightConstraints(query);
-        const generatedActionLinks = buildFlightActionLinks(parsedConstraints);
-        const normalizedConstraints = (parsedConstraints.origin || parsedConstraints.destination || parsedConstraints.departureDate)
-            ? {
-                origin: parsedConstraints.origin,
-                destination: parsedConstraints.destination,
-                date: parsedConstraints.departureDate,
-                time_window: parsedConstraints.departureWindow,
-                cabin: parsedConstraints.travelClass,
-                passengers: parsedConstraints.passengers,
-                time_priority_mode: parsedConstraints.timePriorityMode,
-                departure_time_preference: parsedConstraints.departureTimePreference,
-            }
-            : undefined;
+        const generatedActionLinks: Array<{ title: string; url: string; provider: string; supports_time_filter: boolean }> = [];
+        const normalizedConstraints = undefined;
 
         console.log(`[LiveSearchTool] Query: "${query}", Domain: ${domain}, NeedsLive: ${routeDecision.needs_live_data}`);
 
